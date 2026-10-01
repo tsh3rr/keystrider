@@ -4,6 +4,7 @@ import { DEFAULT_LANGUAGE, getCorpus, randomText } from './corpus';
 import {
   KeyObserver, LAYOUTS, browserLayoutMap, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
+import { renderProgress, type Range } from './progressView';
 import { backfillDone, loadLayoutSetting, markBackfillDone, saveLayoutSetting, type LayoutSetting } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
@@ -285,6 +286,20 @@ $('clear-log').addEventListener('click', async () => {
   await renderLog();
 });
 
+// --- Progress ---
+
+const progressRange = $<HTMLSelectElement>('progress-range');
+
+function showProgress(): void {
+  const v = progressRange.value;
+  const range: Range = v === 'all' ? 'all' : (Number(v) as Range);
+  renderProgress(store, context, range, layoutName(context.layout)).catch((err) =>
+    console.error('Failed to render progress', err),
+  );
+}
+
+progressRange.addEventListener('change', showProgress);
+
 // --- Navigation ---
 
 document.querySelectorAll<HTMLButtonElement>('nav button').forEach((btn) => {
@@ -293,7 +308,9 @@ document.querySelectorAll<HTMLButtonElement>('nav button').forEach((btn) => {
     document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b === btn));
     $('practice-view').hidden = view !== 'practice';
     $('log-view').hidden = view !== 'log';
+    $('progress-view').hidden = view !== 'progress';
     if (view === 'log') renderLog();
+    else if (view === 'progress') showProgress();
     else inputEl.focus();
   });
 });

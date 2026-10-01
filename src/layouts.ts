@@ -21,7 +21,7 @@ export interface Layout {
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((d) => `Digit${d}`);
 const letters = (s: string) => [...s].map((c) => `Key${c}`);
 // The four rows of an ISO keyboard, left to right, as KeyboardEvent.code values.
-const ROWS = [
+export const ROWS: readonly (readonly string[])[] = [
   ['Backquote', ...DIGITS, 'Minus', 'Equal'],
   [...letters('QWERTYUIOP'), 'BracketLeft', 'BracketRight'],
   [...letters('ASDFGHJKL'), 'Semicolon', 'Quote', 'Backslash'],
@@ -86,7 +86,10 @@ export function getLayout(id: string): Layout | undefined {
  */
 export function keyLabel(layoutId: string, code: string): string {
   const ch = BY_ID.get(layoutId)?.keys.get(code);
-  return ch === undefined ? code : ch.toUpperCase();
+  if (ch === undefined) return code;
+  // "ß".toUpperCase() is "SS"; keep characters without a one-letter capital as they are.
+  const upper = ch.toUpperCase();
+  return [...upper].length === 1 ? upper : ch;
 }
 
 /** Observed (physical key, character) pairs: the evidence detection works from. */
