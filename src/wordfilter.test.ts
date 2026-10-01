@@ -3,7 +3,7 @@ import type { Corpus } from './corpus';
 import { en } from './corpora/en';
 import { eligibleWords, seededRandom } from './drill';
 import { trigramModel } from './pseudowords';
-import { blockList, corpusFilter, isBlocked } from './wordfilter';
+import { blockList, corpusFilter, isBlocked, isBlockedWord } from './wordfilter';
 
 // Assertions here count matches instead of comparing word lists, so a failure never prints a blocked term.
 
@@ -42,14 +42,30 @@ describe('blockList', () => {
   });
 });
 
-describe('the drill generator', () => {
-  const corpus: Corpus = { language: 'xx', name: 'Test', words: [...en.words, 'lantern'], blockedSubstrings: ['ern', 'lane'] };
+describe('isBlockedWord', () => {
+  it('matches real words whole, with inflections, but not by substring', () => {
+    const list = blockList('en-US', ['lantern']);
+    expect(isBlockedWord('lantern', list)).toBe(true);
+    expect(isBlockedWord('Lanterns', list)).toBe(true);
+    expect(isBlockedWord('lanternfish', list)).toBe(false);
+    expect(isBlockedWord('mylantern', list)).toBe(false);
+    expect(isBlocked('mylantern', list)).toBe(true);
+  });
 
-  it('drops blocked real words', () => {
+  it('only adds inflections for languages that define them', () => {
+    expect(isBlockedWord('lanterns', blockList('xx', ['lantern']))).toBe(false);
+  });
+});
+
+describe('the drill generator', () => {
+  const corpus: Corpus = { language: 'xx', name: 'Test', words: [...en.words, 'lantern', 'lane'], blockedSubstrings: ['ern', 'lane'] };
+
+  it('drops blocked real words but keeps ones that only contain a term', () => {
     const words = eligibleWords(corpus, ALL_LETTERS);
     expect(words.length).toBeGreaterThan(50);
-    expect(words.filter((w) => w.includes('ern') || w.includes('lane')).length).toBe(0);
-    expect(corpusFilter(corpus)('lantern')).toBe(true);
+    expect(words.includes('lane')).toBe(false);
+    expect(words.includes('lantern')).toBe(true);
+    expect(corpusFilter(corpus)('lane')).toBe(true);
   });
 
   it('never makes up a pseudo-word with a blocked term', () => {
@@ -76,7 +92,7 @@ describe('the drill generator', () => {
       const w = tri.sample({ allowed: ALL_LETTERS, rand });
       if (w === null || !tri.acceptable(w)) continue;
       made++;
-      if (filter(w)) blocked++;
+      if (isBlocked(w, blockList('en'))) blocked++;
     }
     expect(made).toBeGreaterThan(1000);
     expect(blocked).toBe(0);
