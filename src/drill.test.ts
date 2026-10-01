@@ -127,7 +127,8 @@ describe('nextDrill', () => {
     ];
     const m = buildWeaknessModel(events, CTX, { now: NOW, ...modelOptions(all, en) });
     const share = (text: string) => letters(text).filter((c) => c === 'r').length / letters(text).length;
-    const natural = share(en.words.join(' '));
+    // Natural share in running text, which is mostly common words, not the flat word list.
+    const natural = share(practice);
     let drilled = '';
     for (let seed = 1; seed <= 5; seed++) drilled += nextDrill(m, all, en, 'core', seed).text + ' ';
     expect(share(drilled)).toBeGreaterThanOrEqual(2 * natural);

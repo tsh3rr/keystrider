@@ -261,6 +261,21 @@ export function modelOptions(state: CurriculumState, corpus: Corpus): Pick<Weakn
   return { includeKeys: [' ', ...state.unlocked], includeBigrams: bigrams };
 }
 
+const ranks = new WeakMap<Corpus, Map<string, number>>();
+
+/** Each corpus word's frequency rank (0 = most common), computed once per corpus. */
+function wordRanks(corpus: Corpus): Map<string, number> {
+  const cached = ranks.get(corpus);
+  if (cached) return cached;
+  const m = new Map<string, number>();
+  corpus.words.forEach((raw, i) => {
+    const w = raw.normalize('NFC').toLowerCase();
+    if (!m.has(w)) m.set(w, i);
+  });
+  ranks.set(corpus, m);
+  return m;
+}
+
 /** Corpus words, lowercased, that use only the given letters. */
 export function eligibleWords(corpus: Corpus, allowed: ReadonlySet<string>): string[] {
   const out: string[] = [];
@@ -356,7 +371,7 @@ export function nextDrill(
   // Candidates: real words from the corpus, plus pseudo-words leaning into weak transitions.
   const real = eligibleWords(corpus, allowed);
   const share = pseudoShare(real.length, corpus.words.length, p);
-  const rank = new Map(real.map((w) => [w, corpus.words.indexOf(w)]));
+  const rank = wordRanks(corpus);
   const tri = trigramModel(corpus);
   const pseudo = new Set<string>();
   if (share > 0) {
