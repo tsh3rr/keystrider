@@ -1,6 +1,10 @@
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, getCorpus, randomText } from './corpus';
+import {
+  KeyObserver, LAYOUTS, browserLayoutMap, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
+} from './layouts';
+import { backfillDone, loadLayoutSetting, markBackfillDone, saveLayoutSetting, type LayoutSetting } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -13,8 +17,12 @@ const logSummary = $('log-summary');
 
 const LOG_TABLE_LIMIT = 500;
 
-// No language or layout picker yet; these are the only options so far.
-const context: PracticeContext = { language: DEFAULT_LANGUAGE, layout: 'qwerty-us' };
+const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
+// Until a key is pressed or the browser reports the layout, guess from the browser language.
+let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLocale(locales), source: 'guessed' };
+
+// No language picker yet; English is the only corpus so far.
+const context: PracticeContext = { language: DEFAULT_LANGUAGE, layout: layoutSetting.layout };
 
 function newSession(): TypingSession {
   return new TypingSession(randomText(getCorpus(context.language)), context);
@@ -73,6 +81,7 @@ inputEl.addEventListener('keydown', (e) => {
   }
   // A dead key only starts a composition; the key that completes it is the one logged.
   if (e.key !== 'Dead') lastCode = e.code || null;
+  observer.observe(e);
 });
 
 function handleChar(ch: string): void {
@@ -90,6 +99,7 @@ function flushInput(): void {
   lastCode = null;
   renderText();
   renderStats();
+  checkObservedLayout();
 }
 
 inputEl.addEventListener('input', (e) => {
@@ -106,6 +116,111 @@ inputEl.addEventListener('blur', () => textEl.classList.remove('focused'));
 textEl.addEventListener('click', () => inputEl.focus());
 
 $('new-text').addEventListener('click', newText);
+
+// --- Keyboard layout ---
+//
+// Three sources, strongest last: the browser language (a guess), the
+// browser's Keyboard API (Chrome/Edge report the OS layout directly), and
+// the keys the user actually presses (which physical key produced which
+// character). The user can always override in the picker; after that,
+// detection only suggests a switch instead of making it.
+
+const layoutSelect = $<HTMLSelectElement>('layout-select');
+const layoutStatus = $('layout-status');
+const suggestBox = $('layout-suggest');
+const observer = new KeyObserver();
+let suggested: string | null = null;
+/** Suggestions the user answered "Keep mine" to, so they are not asked again this visit. */
+const declined = new Set<string>();
+
+for (const l of LAYOUTS) layoutSelect.append(new Option(l.name, l.id));
+
+const layoutName = (id: string) => getLayout(id)?.name ?? id;
+
+function renderLayout(): void {
+  layoutSelect.value = layoutSetting.layout;
+  layoutStatus.textContent = {
+    user: 'chosen by you',
+    detected: 'detected from your keyboard',
+    guessed: 'best guess so far; checked as you type',
+  }[layoutSetting.source];
+}
+
+function showSuggestion(id: string | null): void {
+  suggested = id;
+  suggestBox.hidden = id === null;
+  if (id !== null) {
+    $('layout-suggest-text').textContent =
+      `Your key presses look like ${layoutName(id)}, but the layout is set to ${layoutName(layoutSetting.layout)}.`;
+  }
+}
+
+async function setLayout(layout: string, source: LayoutSetting['source']): Promise<void> {
+  const changed = layout !== layoutSetting.layout;
+  layoutSetting = { layout, source };
+  saveLayoutSetting(layoutSetting);
+  context.layout = layout;
+  session.setLayout(layout);
+  renderLayout();
+  showSuggestion(null);
+  if (changed) {
+    // Keystrokes already logged in this text (and any earlier session whose own
+    // keys contradict its tag) were recorded under the wrong layout: retag them.
+    const plan = relabelPlan(await store.all(), layout, 'evidence');
+    await store.relabelSessions(plan);
+  }
+  await backfillLegacyLog();
+}
+
+/**
+ * Before layout detection, every keystroke was tagged US QWERTY whatever the
+ * keyboard was. Once the layout is known (not just guessed), retag that old
+ * history once. Sessions whose own keys prove a different layout keep it.
+ */
+async function backfillLegacyLog(): Promise<void> {
+  if (layoutSetting.source === 'guessed' || backfillDone()) return;
+  const plan = relabelPlan(await store.all(), layoutSetting.layout, 'backfill');
+  await store.relabelSessions(plan);
+  markBackfillDone();
+}
+
+function checkObservedLayout(): void {
+  if (observer.size === 0) return;
+  const d = detectLayout(observer.observations(), locales);
+  // Nothing typed so far contradicts the current layout.
+  if (!d.layout || d.candidates.includes(layoutSetting.layout)) return showSuggestion(null);
+  if (layoutSetting.source === 'user') {
+    if (!declined.has(d.layout) && suggested !== d.layout) showSuggestion(d.layout);
+    return;
+  }
+  setLayout(d.layout, d.confidence === 'high' ? 'detected' : 'guessed').catch((err) =>
+    console.error('Failed to update layout', err),
+  );
+}
+
+async function detectFromBrowser(): Promise<void> {
+  if (layoutSetting.source === 'user') return;
+  const map = await browserLayoutMap();
+  if (!map) return;
+  const d = detectLayout(map, locales);
+  // The Keyboard API reports the real OS layout; a tie only means layouts that share a base layer.
+  if (d.layout) await setLayout(d.layout, 'detected');
+}
+
+layoutSelect.addEventListener('change', () => {
+  setLayout(layoutSelect.value, 'user').catch((err) => console.error('Failed to update layout', err));
+  inputEl.focus();
+});
+$('layout-suggest-yes').addEventListener('click', () => {
+  if (suggested) setLayout(suggested, 'user').catch((err) => console.error('Failed to update layout', err));
+  inputEl.focus();
+});
+$('layout-suggest-no').addEventListener('click', () => {
+  if (suggested) declined.add(suggested);
+  // Keeping the current layout is a confirmation of it.
+  setLayout(layoutSetting.layout, 'user').catch((err) => console.error('Failed to update layout', err));
+  inputEl.focus();
+});
 
 // --- Log inspector ---
 
@@ -133,7 +248,7 @@ async function renderLog(): Promise<void> {
       String(e.position),
       showChar(e.expected),
       showChar(e.actual),
-      e.code ?? '',
+      e.code === null ? '' : keyLabel(e.layout, e.code),
       showChar(e.prevExpected),
       showChar(e.prevActual),
       e.latencyMs === null ? '' : String(e.latencyMs),
@@ -144,6 +259,8 @@ async function renderLog(): Promise<void> {
       td.textContent = c;
       tr.append(td);
     }
+    // Key column shows the key as labelled on the layout; the raw physical code is in the tooltip.
+    if (e.code) (tr.children[6] as HTMLElement).title = e.code;
     frag.append(tr);
   }
   logRows.replaceChildren(frag);
@@ -191,7 +308,11 @@ declare global {
 KeystrokeStore.open().then((s) => {
   store = s;
   window.typingLog = { all: () => s.all(), count: () => s.count() };
+  renderLayout();
   renderText();
   renderStats();
   inputEl.focus();
+  detectFromBrowser()
+    .then(backfillLegacyLog)
+    .catch((err) => console.error('Layout detection failed', err));
 });

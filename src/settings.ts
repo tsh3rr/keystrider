@@ -1,0 +1,62 @@
+/**
+ * Keyboard layout choice, kept in localStorage so it survives reloads.
+ * Small and per-device, unlike the keystroke log, so IndexedDB is not needed.
+ */
+export interface LayoutSetting {
+  layout: string;
+  /**
+   * "user": picked or confirmed by the user; detection only suggests changes.
+   * "detected": the browser or observed keys identified it; may be updated by detection.
+   * "guessed": from the browser language only; replaced as soon as keys tell us more.
+   */
+  source: 'user' | 'detected' | 'guessed';
+}
+
+const KEY = 'typing-trainer.layout';
+/** Set once keystrokes logged before layout detection existed have been retagged. */
+const BACKFILL_KEY = 'typing-trainer.layout-backfill-done';
+
+export function loadLayoutSetting(storage: Storage | undefined = safeStorage()): LayoutSetting | null {
+  try {
+    const raw = storage?.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<LayoutSetting>;
+    if (typeof parsed.layout !== 'string') return null;
+    const source = parsed.source === 'user' || parsed.source === 'detected' ? parsed.source : 'guessed';
+    return { layout: parsed.layout, source };
+  } catch {
+    return null;
+  }
+}
+
+export function saveLayoutSetting(setting: LayoutSetting, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(KEY, JSON.stringify(setting));
+  } catch {
+    // Private mode or storage disabled: the choice just won't persist.
+  }
+}
+
+export function backfillDone(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(BACKFILL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markBackfillDone(storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(BACKFILL_KEY, '1');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
+
+function safeStorage(): Storage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}

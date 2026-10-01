@@ -55,6 +55,32 @@ export class KeystrokeStore {
     return layout === undefined ? events : events.filter((e) => e.layout === layout);
   }
 
+  /**
+   * Retags whole practice sessions with a different keyboard layout, for
+   * sessions logged under the wrong one (see `relabelPlan`). Returns how
+   * many keystrokes changed.
+   */
+  relabelSessions(plan: ReadonlyMap<string, string>): Promise<number> {
+    if (plan.size === 0) return Promise.resolve(0);
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(STORE, 'readwrite');
+      let changed = 0;
+      tx.objectStore(STORE).openCursor().onsuccess = function () {
+        const cursor = this.result;
+        if (!cursor) return;
+        const event = cursor.value as KeystrokeEvent;
+        const layout = plan.get(event.sessionId);
+        if (layout !== undefined && layout !== event.layout) {
+          cursor.update({ ...event, layout });
+          changed++;
+        }
+        cursor.continue();
+      };
+      tx.oncomplete = () => resolve(changed);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
   count(): Promise<number> {
     return this.tx('readonly', (s) => s.count());
   }
