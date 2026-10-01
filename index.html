@@ -26,11 +26,18 @@
           <button id="layout-suggest-yes">Switch</button>
           <button id="layout-suggest-no">Keep mine</button>
         </div>
+        <div class="drill-bar">
+          <div id="drill-keys" class="drill-keys" aria-label="Letters unlocked so far"></div>
+          <span id="drill-info"></span>
+          <button id="reset-lessons" class="link">Restart lessons</button>
+        </div>
+        <p id="drill-cue" class="drill-cue" hidden>Accuracy first: slow down and type cleanly. Speed is hidden until you are back on track.</p>
         <div id="text" class="text" aria-hidden="true"></div>
         <textarea id="input" class="typing-input" aria-label="Type the text shown above" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-        <p class="hint">Click the text and start typing. Wrong keys are logged and you stay on the same character until you hit the right one.</p>
+        <p class="hint">Click the text and start typing. Wrong keys are logged and you stay on the same character until you hit the right one. Each drill targets your weakest keys and letter pairs; new letters unlock once the ones you have are accurate and fast enough.</p>
         <div id="stats" class="stats"></div>
-        <button id="new-text">New text</button>
+        <div id="drill-feedback" class="drill-feedback" hidden></div>
+        <button id="new-text">Skip drill</button>
       </section>
 
       <section id="log-view" hidden>
