@@ -13,7 +13,9 @@ export const en: Corpus = {
     'little work know place year live me back give most very after thing our just name good sentence ' +
     'man think say great where help through much before line right too mean old any same tell boy ' +
     'follow came want show also around form three small set put end does another well large must big ' +
-    'even such because turn here why ask went men read need land different home us move try kind hand'
+    'even such because turn here why ask went men read need land different home us move try kind hand ' +
+    // So every letter can be unlocked and practised.
+    'quite question quick next example box six size zero'
   ).split(' '),
   // Frequency order adjusted so the first six sit on or near the home row (drill generator design).
   unlockOrder: [...'eniarltosudycghpmkbwfvzxqj'],

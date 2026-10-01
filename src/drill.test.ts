@@ -49,6 +49,7 @@ describe('unlockOrder', () => {
     const order = unlockOrder(en);
     expect(order.slice(0, 6)).toEqual(['e', 'n', 'i', 'a', 'r', 'l']);
     expect(new Set(order).size).toBe(order.length);
+    expect(order).toHaveLength(26);
     for (const w of en.words) for (const c of w) expect(order).toContain(c);
   });
 
