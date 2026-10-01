@@ -40,3 +40,14 @@ Input is read from what the OS keyboard layout produces, not from raw key names,
 Practice text comes from a per-language `Corpus` (`src/corpus.ts`). Only English exists so far; adding a language means adding a file under `src/corpora/` and registering it.
 
 Inspect it on the **Keystroke log** tab (export JSON or CSV, or clear), in DevTools under Application → IndexedDB, or from the console with `await typingLog.all()`.
+
+## Deployment
+
+The app is static, so any static host can serve the `dist` folder.
+
+- Build command: `npm run build`
+- Output folder: `dist`
+- Node version: 22 (pinned in `.nvmrc`)
+
+Production deploys from `main`; each pull request gets its own preview deploy for testing.
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests and build on every pull request.
