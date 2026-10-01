@@ -29,6 +29,11 @@ export class TypingSession {
     this.id = id;
   }
 
+  /** Retags keystrokes from here on, e.g. when the keyboard layout is corrected mid-text. */
+  setLayout(layout: string): void {
+    this.context.layout = layout;
+  }
+
   get done(): boolean {
     return this.position >= this.chars.length;
   }

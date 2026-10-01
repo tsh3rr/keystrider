@@ -17,6 +17,15 @@
 
     <main>
       <section id="practice-view">
+        <div class="layout-bar">
+          <label>Keyboard layout <select id="layout-select"></select></label>
+          <span id="layout-status"></span>
+        </div>
+        <div id="layout-suggest" class="layout-suggest" hidden>
+          <span id="layout-suggest-text"></span>
+          <button id="layout-suggest-yes">Switch</button>
+          <button id="layout-suggest-no">Keep mine</button>
+        </div>
         <div id="text" class="text" aria-hidden="true"></div>
         <textarea id="input" class="typing-input" aria-label="Type the text shown above" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
         <p class="hint">Click the text and start typing. Wrong keys are logged and you stay on the same character until you hit the right one.</p>
