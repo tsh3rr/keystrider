@@ -15,4 +15,6 @@ export const en: Corpus = {
     'follow came want show also around form three small set put end does another well large must big ' +
     'even such because turn here why ask went men read need land different home us move try kind hand'
   ).split(' '),
+  // Frequency order adjusted so the first six sit on or near the home row (drill generator design).
+  unlockOrder: [...'eniarltosudycghpmkbwfvzxqj'],
 };

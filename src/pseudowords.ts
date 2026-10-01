@@ -23,10 +23,12 @@ export class TrigramModel {
   /** Context of 2, 1 and 0 characters → next character → count. */
   private readonly tables: Map<string, Map<string, number>>[] = [new Map(), new Map(), new Map()];
   private readonly words: ReadonlySet<string>;
+  private readonly blocked: readonly string[];
   /** Mean log-probability below which a word counts as unpronounceable. */
   readonly floor: number;
 
-  constructor(words: readonly string[]) {
+  constructor(words: readonly string[], blocked: readonly string[] = []) {
+    this.blocked = blocked.map((b) => b.normalize('NFC').toLowerCase());
     const clean = words.map((w) => w.normalize('NFC').toLowerCase()).filter((w) => w.length > 0);
     this.words = new Set(clean);
     for (const w of clean) {
@@ -78,11 +80,13 @@ export class TrigramModel {
     return out.length >= minLength ? out.join('') : null;
   }
 
-  /** Not a real word, no letter three times in a row, and above the pronounceability floor. */
+  /** Not a real word, nothing blocked, no letter three times in a row, and above the pronounceability floor. */
   acceptable(word: string, minLength = 3, maxLength = 8): boolean {
     const n = [...word].length;
     return (
-      n >= minLength && n <= maxLength && !this.isWord(word) && !/(.)\1\1/u.test(word) && this.meanLogProb(word) >= this.floor
+      n >= minLength && n <= maxLength && !this.isWord(word) &&
+      !this.blocked.some((b) => word.includes(b)) &&
+      !/(.)\1\1/u.test(word) && this.meanLogProb(word) >= this.floor
     );
   }
 
@@ -117,6 +121,6 @@ const cache = new WeakMap<Corpus, TrigramModel>();
 /** The trigram model for a corpus, trained once and reused. */
 export function trigramModel(corpus: Corpus): TrigramModel {
   let m = cache.get(corpus);
-  if (!m) cache.set(corpus, (m = new TrigramModel(corpus.words)));
+  if (!m) cache.set(corpus, (m = new TrigramModel(corpus.words, corpus.blockedSubstrings)));
   return m;
 }
