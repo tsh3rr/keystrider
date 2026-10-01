@@ -1,4 +1,5 @@
 import type { Corpus } from './corpus';
+import { blockList } from './wordfilter';
 
 /**
  * Character trigram model trained on a corpus' word list, used to make
@@ -118,9 +119,13 @@ function pick<T>(options: readonly (readonly [T, number])[], rand: () => number)
 
 const cache = new WeakMap<Corpus, TrigramModel>();
 
-/** The trigram model for a corpus, trained once and reused. */
+/**
+ * The trigram model for a corpus, trained once and reused. It rejects the
+ * language's offensive terms (see wordfilter.ts); terms under three letters
+ * can't be pseudo-words, which are at least three long.
+ */
 export function trigramModel(corpus: Corpus): TrigramModel {
   let m = cache.get(corpus);
-  if (!m) cache.set(corpus, (m = new TrigramModel(corpus.words, corpus.blockedSubstrings)));
+  if (!m) cache.set(corpus, (m = new TrigramModel(corpus.words, blockList(corpus.language, corpus.blockedSubstrings).substrings)));
   return m;
 }
