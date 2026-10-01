@@ -1,7 +1,7 @@
 import type { KeystrokeEvent } from './types';
 
 const DB_NAME = 'typing-trainer';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'keystrokes';
 
 /**
@@ -15,10 +15,26 @@ export class KeystrokeStore {
   static open(factory: IDBFactory = indexedDB): Promise<KeystrokeStore> {
     return new Promise((resolve, reject) => {
       const req = factory.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const store = req.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
-        store.createIndex('sessionId', 'sessionId');
-        store.createIndex('timestamp', 'timestamp');
+      req.onupgradeneeded = (e) => {
+        const tx = req.transaction!;
+        if (e.oldVersion < 1) {
+          const store = req.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+          store.createIndex('sessionId', 'sessionId');
+          store.createIndex('timestamp', 'timestamp');
+        }
+        if (e.oldVersion < 2) {
+          // v2 tags events with language and layout. Everything logged before
+          // that was English text on the scaffold's QWERTY default.
+          const store = tx.objectStore(STORE);
+          store.createIndex('language', 'language');
+          store.createIndex('layout', 'layout');
+          store.openCursor().onsuccess = function () {
+            const cursor = this.result;
+            if (!cursor) return;
+            cursor.update({ language: 'en', layout: 'qwerty-us', code: null, ...cursor.value });
+            cursor.continue();
+          };
+        }
       };
       req.onsuccess = () => resolve(new KeystrokeStore(req.result));
       req.onerror = () => reject(req.error);
@@ -31,6 +47,12 @@ export class KeystrokeStore {
 
   all(): Promise<KeystrokeEvent[]> {
     return this.tx('readonly', (s) => s.getAll()) as Promise<KeystrokeEvent[]>;
+  }
+
+  /** Events typed in one language, optionally narrowed to one layout. */
+  async forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]> {
+    const events = (await this.tx('readonly', (s) => s.index('language').getAll(language))) as KeystrokeEvent[];
+    return layout === undefined ? events : events.filter((e) => e.layout === layout);
   }
 
   count(): Promise<number> {
@@ -55,8 +77,8 @@ export class KeystrokeStore {
 }
 
 const CSV_COLUMNS: (keyof KeystrokeEvent)[] = [
-  'id', 'sessionId', 'timestamp', 'position', 'expected', 'actual',
-  'prevExpected', 'prevActual', 'latencyMs', 'correct',
+  'id', 'sessionId', 'language', 'layout', 'timestamp', 'position', 'expected', 'actual',
+  'code', 'prevExpected', 'prevActual', 'latencyMs', 'correct',
 ];
 
 export function toCsv(events: KeystrokeEvent[]): string {

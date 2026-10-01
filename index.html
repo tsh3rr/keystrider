@@ -17,7 +17,8 @@
 
     <main>
       <section id="practice-view">
-        <div id="text" class="text" tabindex="0" aria-label="Text to type. Click here and start typing."></div>
+        <div id="text" class="text" aria-hidden="true"></div>
+        <textarea id="input" class="typing-input" aria-label="Type the text shown above" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
         <p class="hint">Click the text and start typing. Wrong keys are logged and you stay on the same character until you hit the right one.</p>
         <div id="stats" class="stats"></div>
         <button id="new-text">New text</button>
@@ -35,9 +36,11 @@
             <tr>
               <th>Time</th>
               <th>Session</th>
+              <th>Lang · layout</th>
               <th>Pos</th>
               <th>Expected</th>
               <th>Actual</th>
+              <th>Key</th>
               <th>Prev expected</th>
               <th>Prev actual</th>
               <th>Δ ms</th>

@@ -1,22 +1,31 @@
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
-import type { KeystrokeEvent } from './types';
-import { randomText } from './words';
+import { DEFAULT_LANGUAGE, getCorpus, randomText } from './corpus';
+import type { KeystrokeEvent, PracticeContext } from './types';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const textEl = $('text');
+const inputEl = $<HTMLTextAreaElement>('input');
 const statsEl = $('stats');
 const logRows = $('log-rows');
 const logSummary = $('log-summary');
 
 const LOG_TABLE_LIMIT = 500;
 
-let session = new TypingSession(randomText());
+// No language or layout picker yet; these are the only options so far.
+const context: PracticeContext = { language: DEFAULT_LANGUAGE, layout: 'qwerty-us' };
+
+function newSession(): TypingSession {
+  return new TypingSession(randomText(getCorpus(context.language)), context);
+}
+
+let session = newSession();
 let store: KeystrokeStore;
 
 function renderText(): void {
   const frag = document.createDocumentFragment();
+  // Spread by code point so positions line up with TypingSession.position.
   [...session.text].forEach((ch, i) => {
     const span = document.createElement('span');
     span.textContent = ch;
@@ -43,29 +52,58 @@ function flashError(): void {
 }
 
 function newText(): void {
-  session = new TypingSession(randomText());
+  session = newSession();
   renderText();
   renderStats();
-  textEl.focus();
+  inputEl.focus();
 }
 
-textEl.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (session.done) {
-    if (e.key === 'Enter') newText();
+// Typing goes into a hidden textarea and is read from its `input` events
+// rather than from `keydown`. That way the OS keyboard layout does the work:
+// AltGr characters (ą, ż), dead-key compositions (é, ü), Mac Option
+// characters and mobile keyboards all arrive as the text they produce.
+// `keydown` is only used to remember which physical key was pressed last.
+let lastCode: string | null = null;
+
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (session.done) newText();
     return;
   }
-  // Only printable characters count as keystrokes; ignore Shift, Tab, etc.
-  if (e.key.length !== 1) return;
-  e.preventDefault();
+  // A dead key only starts a composition; the key that completes it is the one logged.
+  if (e.key !== 'Dead') lastCode = e.code || null;
+});
 
-  const event = session.press(e.key);
+function handleChar(ch: string): void {
+  const event = session.press(ch, Date.now(), lastCode);
   if (!event) return;
   store.add(event).catch((err) => console.error('Failed to log keystroke', err));
   if (!event.correct) flashError();
+}
+
+function flushInput(): void {
+  const typed = inputEl.value;
+  inputEl.value = '';
+  if (!typed) return;
+  for (const ch of typed.normalize('NFC')) handleChar(ch);
+  lastCode = null;
   renderText();
   renderStats();
+}
+
+inputEl.addEventListener('input', (e) => {
+  // Mid-composition (dead key pressed, letter not yet typed): wait for the result.
+  if ((e as InputEvent).isComposing) return;
+  flushInput();
 });
+inputEl.addEventListener('compositionend', flushInput);
+// Pasted or dropped text would be logged as keystrokes, so refuse it.
+inputEl.addEventListener('paste', (e) => e.preventDefault());
+inputEl.addEventListener('drop', (e) => e.preventDefault());
+inputEl.addEventListener('focus', () => textEl.classList.add('focused'));
+inputEl.addEventListener('blur', () => textEl.classList.remove('focused'));
+textEl.addEventListener('click', () => inputEl.focus());
 
 $('new-text').addEventListener('click', newText);
 
@@ -91,9 +129,11 @@ async function renderLog(): Promise<void> {
     const cells = [
       new Date(e.timestamp).toLocaleTimeString(),
       e.sessionId,
+      `${e.language} · ${e.layout}`,
       String(e.position),
       showChar(e.expected),
       showChar(e.actual),
+      e.code ?? '',
       showChar(e.prevExpected),
       showChar(e.prevActual),
       e.latencyMs === null ? '' : String(e.latencyMs),
@@ -137,7 +177,7 @@ document.querySelectorAll<HTMLButtonElement>('nav button').forEach((btn) => {
     $('practice-view').hidden = view !== 'practice';
     $('log-view').hidden = view !== 'log';
     if (view === 'log') renderLog();
-    else textEl.focus();
+    else inputEl.focus();
   });
 });
 
@@ -153,5 +193,5 @@ KeystrokeStore.open().then((s) => {
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderText();
   renderStats();
-  textEl.focus();
+  inputEl.focus();
 });
