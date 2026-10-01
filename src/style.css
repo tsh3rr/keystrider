@@ -1,0 +1,61 @@
+:root {
+  --bg: #fafaf7;
+  --fg: #222;
+  --muted: #888;
+  --accent: #2b6cb0;
+  --error: #c53030;
+  --typed: #9a9a9a;
+  --border: #ddd;
+  font-family: system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18181b;
+    --fg: #e4e4e7;
+    --muted: #8a8a92;
+    --accent: #63b3ed;
+    --error: #fc8181;
+    --typed: #6b6b72;
+    --border: #333;
+  }
+}
+body { margin: 0; background: var(--bg); }
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; border-bottom: 1px solid var(--border);
+}
+h1 { font-size: 1.2rem; margin: 0; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+button {
+  font: inherit; padding: 6px 12px; border: 1px solid var(--border);
+  background: transparent; color: var(--fg); border-radius: 6px; cursor: pointer;
+}
+button.active { border-color: var(--accent); color: var(--accent); }
+button.danger { color: var(--error); }
+
+.text {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 1.6rem; line-height: 1.7; padding: 20px;
+  border: 1px solid var(--border); border-radius: 8px; outline: none;
+  white-space: pre-wrap; word-break: break-word;
+}
+.text:focus { border-color: var(--accent); }
+.text .typed { color: var(--typed); }
+.text .current { background: var(--accent); color: var(--bg); border-radius: 2px; }
+.text .current.error { animation: shake 0.2s; background: var(--error); }
+@keyframes shake {
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.hint { color: var(--muted); font-size: 0.9rem; }
+.stats { font-size: 1.1rem; margin: 12px 0; }
+
+.log-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+#log-summary { margin-right: auto; color: var(--muted); }
+#log-view { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { font-family: ui-monospace, monospace; }
+tr.wrong td { color: var(--error); }
