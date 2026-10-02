@@ -83,10 +83,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 12px 24px; border-bottom: 1px solid var(--border);
 }
-.brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; margin-right: 10px; }
-.brand-mark { width: 22px; height: 22px; flex: none; fill: var(--accent); }
-.brand-cap { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linejoin: round; }
-.brand-step { fill: var(--brand-step); }
+.brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 650; margin-right: 10px; }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand-word { font-family: var(--mono); font-size: 16px; font-weight: 500; letter-spacing: -.01em; }
+.brand-word b { font-weight: 800; }
 .spacer { flex: 1; }
 .tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; }
 .tabs button { border: 0; padding: 5px 11px; border-radius: 7px; display: inline-flex; align-items: center; gap: 7px; }
