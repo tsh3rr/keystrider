@@ -10,8 +10,12 @@ import { loadWeaknessModel, type WeaknessModel } from './weakness';
 import {
   KeyObserver, LAYOUTS, browserLayoutMap, charLabel, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
+import { FingerGuide } from './fingerGuide';
 import { renderProgress, type Range } from './progressView';
-import { backfillDone, loadLayoutSetting, markBackfillDone, saveLayoutSetting, type LayoutSetting } from './settings';
+import {
+  backfillDone, loadFingerGuideSetting, loadLayoutSetting, markBackfillDone, saveFingerGuideSetting, saveLayoutSetting,
+  type LayoutSetting,
+} from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -35,6 +39,18 @@ const context: PracticeContext = { language: DEFAULT_LANGUAGE, layout: layoutSet
 let session = new TypingSession('', context);
 let store: KeystrokeStore;
 
+// On-screen keyboard showing the next key and which finger types it.
+const fingerGuide = new FingerGuide($('finger-guide'));
+const fingerGuideToggle = $<HTMLInputElement>('finger-guide-toggle');
+fingerGuide.setLayout(context.layout);
+fingerGuideToggle.checked = loadFingerGuideSetting();
+fingerGuide.hidden = !fingerGuideToggle.checked;
+fingerGuideToggle.addEventListener('change', () => {
+  fingerGuide.hidden = !fingerGuideToggle.checked;
+  saveFingerGuideSetting(fingerGuideToggle.checked);
+  inputEl.focus();
+});
+
 function renderText(): void {
   const frag = document.createDocumentFragment();
   // Spread by code point so positions line up with TypingSession.position.
@@ -46,6 +62,7 @@ function renderText(): void {
     frag.append(span);
   });
   textEl.replaceChildren(frag);
+  fingerGuide.show(session.done ? undefined : [...session.text][session.position]);
 }
 
 function renderStats(): void {
@@ -320,6 +337,8 @@ async function setLayout(layout: string, source: LayoutSetting['source']): Promi
   saveLayoutSetting(layoutSetting);
   context.layout = layout;
   session.setLayout(layout);
+  fingerGuide.setLayout(layout);
+  renderText();
   renderLayout();
   showSuggestion(null);
   if (changed) {
