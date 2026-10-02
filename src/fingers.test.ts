@@ -44,7 +44,17 @@ describe('guideFor', () => {
     expect(guideFor('qwertz-de', 'ß')?.shift).toBeNull();
   });
 
-  it('gives no hint for characters off the base layer', () => {
-    expect(guideFor('qwertz-de', '?')).toBeNull();
+  it('guides punctuation and digits on their layout, with Shift where needed', () => {
+    expect(guideFor('qwertz-de', '?')).toMatchObject({ code: 'Minus', finger: { hand: 'right', name: 'pinky' }, shift: 'ShiftLeft' });
+    expect(guideFor('qwerty-us', '?')).toMatchObject({ code: 'Slash', shift: 'ShiftLeft' });
+    expect(guideFor('qwertz-de', '-')).toMatchObject({ code: 'Slash', shift: null });
+    expect(guideFor('qwertz-de', '(')).toMatchObject({ code: 'Digit8', finger: { hand: 'right', name: 'middle' }, shift: 'ShiftLeft' });
+    expect(guideFor('qwerty-us', '1')).toMatchObject({ code: 'Digit1', finger: { hand: 'left', name: 'pinky' }, shift: null });
+    expect(guideFor('azerty-fr', '1')).toMatchObject({ code: 'Digit1', shift: 'ShiftRight' });
+    expect(guideFor('qwerty-us', '"')).toMatchObject({ code: 'Quote', shift: 'ShiftLeft' });
+  });
+
+  it('gives no hint for AltGr symbols', () => {
+    expect(guideFor('qwertz-de', '@')).toBeNull();
   });
 });

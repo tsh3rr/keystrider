@@ -3,12 +3,12 @@ import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, getCorpus } from './corpus';
 import { clearCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
-  afterDrill, drillFeedback, drillResult, initialCurriculum, modelOptions, nextDrill, nextKind, tierWpm, unlockOrder,
+  CAPITALS, afterDrill, drillFeedback, drillResult, initialCurriculum, modelOptions, needsShift, nextDrill, nextKind, tierWpm, unlockSteps,
   type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
 } from './drill';
-import { codeFor, loadWeaknessModel, type WeaknessModel } from './weakness';
+import { loadWeaknessModel, type WeaknessModel } from './weakness';
 import {
-  KeyObserver, LAYOUTS, browserLayoutMap, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
+  KeyObserver, LAYOUTS, browserLayoutMap, charLabel, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
 import { FingerGuide } from './fingerGuide';
 import { renderProgress, type Range } from './progressView';
@@ -173,11 +173,22 @@ let finishing = false;
 
 const corpus = () => getCorpus(context.language);
 
-/** The key's label on the user's layout (from layouts.ts), or the letter itself if the layout lacks it. */
+/** The key's label on the user's layout (from layouts.ts): letters as key caps, capitals as ⇧X, marks and digits as themselves. */
 function keyCap(ch: string): string {
   if (ch === ' ') return '␣';
-  const code = codeFor(context.layout, ch);
-  return code === null ? ch.toUpperCase() : keyLabel(context.layout, code);
+  if (ch === CAPITALS) return '⇧Aa';
+  if ([...ch].length > 1) return [...ch].join(' ');
+  return charLabel(context.layout, ch);
+}
+
+/** The unlock message for a step: a letter, capitals, a mark or a digit. */
+function unlockMessage(step: string): string {
+  if (step === CAPITALS) {
+    return 'Capitals unlocked: hold Shift with the little finger of the other hand, then press the letter. Sentences now start with a capital.';
+  }
+  const shift = needsShift(step, context.layout) ? ' (with Shift)' : '';
+  const what = /^\p{L}$/u.test(step) ? 'letter' : /^\p{Nd}$/u.test(step) ? 'digit' : 'punctuation key';
+  return `New ${what} unlocked: ${keyCap(step)}${shift}. Drills lean on it until it is up to speed.`;
 }
 
 const showItem = (item: string) => [...item].map((c) => (c === ' ' ? '␣' : c)).join('');
@@ -201,7 +212,7 @@ function renderDrillBar(): void {
   if (!curriculum) return;
   const unlocked = new Set(curriculum.unlocked);
   const frag = document.createDocumentFragment();
-  for (const ch of unlockOrder(corpus())) {
+  for (const ch of unlockSteps(corpus(), context.layout)) {
     const span = document.createElement('span');
     span.textContent = keyCap(ch);
     span.className = 'key' + (unlocked.has(ch) ? '' : ' locked') + (ch === curriculum.focusKey ? ' focus' : '');
@@ -231,7 +242,7 @@ async function startDrill(kind: Drill['kind']): Promise<void> {
 
 function describeChange(c: CurriculumChange): string {
   switch (c.type) {
-    case 'unlock': return `New letter unlocked: ${keyCap(c.key)}. Drills lean on it until it is up to speed.`;
+    case 'unlock': return unlockMessage(c.key);
     case 'focus-met': return `${keyCap(c.key)} is up to speed.`;
     case 'stuck': return `${keyCap(c.key)} has been holding you back, so its speed bar is a little lower and it gets extra practice.`;
     case 'tier': return `Level up: level ${c.tier}, aiming for ${tierWpm(c.tier)} WPM.`;

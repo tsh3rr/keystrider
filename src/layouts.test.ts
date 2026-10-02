@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
-import { KeyObserver, LAYOUTS, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan } from './layouts';
+import {
+  KeyObserver, LAYOUTS, charLabel, detectLayout, getLayout, guessFromLocale, howToType, keyLabel, relabelPlan,
+} from './layouts';
 import { KeystrokeStore } from './store';
 import { TypingSession } from './session';
 
@@ -31,6 +33,41 @@ describe('layout table', () => {
     expect(keyLabel('qwerty-us', 'KeyZ')).toBe('Z');
     expect(keyLabel('azerty-fr', 'KeyQ')).toBe('A');
     expect(keyLabel('unknown', 'KeyZ')).toBe('KeyZ');
+  });
+});
+
+describe('howToType', () => {
+  it('finds base-layer and Shift-layer characters per layout', () => {
+    expect(howToType('qwerty-us', '-')).toEqual({ code: 'Minus', shift: false });
+    expect(howToType('qwerty-us', '?')).toEqual({ code: 'Slash', shift: true });
+    expect(howToType('qwertz-de', '-')).toEqual({ code: 'Slash', shift: false });
+    expect(howToType('qwertz-de', '?')).toEqual({ code: 'Minus', shift: true });
+    expect(howToType('qwertz-de', 'Z')).toEqual({ code: 'KeyY', shift: true });
+    expect(howToType('qwerty-us', '1')).toEqual({ code: 'Digit1', shift: false });
+    expect(howToType('azerty-fr', '1')).toEqual({ code: 'Digit1', shift: true });
+    expect(howToType('qwerty-us', ' ')).toEqual({ code: 'Space', shift: false });
+  });
+
+  it('returns null for AltGr characters and unknown layouts', () => {
+    expect(howToType('qwertz-de', '@')).toBeNull();
+    expect(howToType('unknown', 'a')).toBeNull();
+  });
+
+  it('gives every layout capitals for all its base-layer ASCII letters', () => {
+    for (const l of LAYOUTS) {
+      for (const ch of l.keys.values()) {
+        if (/^[a-z]$/.test(ch)) expect(howToType(l.id, ch.toUpperCase())?.shift).toBe(true);
+      }
+    }
+  });
+
+  it('labels capitals with a Shift arrow and marks as themselves', () => {
+    expect(charLabel('qwerty-us', 'e')).toBe('E');
+    expect(charLabel('qwerty-us', 'E')).toBe('⇧E');
+    expect(charLabel('qwertz-de', 'z')).toBe('Z');
+    expect(charLabel('qwerty-us', '?')).toBe('?');
+    expect(charLabel('qwerty-us', '7')).toBe('7');
+    expect(charLabel('qwerty-us', ' ')).toBe('Space');
   });
 });
 
