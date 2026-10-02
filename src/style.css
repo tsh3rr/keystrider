@@ -141,6 +141,19 @@ button.link { border: 0; padding: 0; color: var(--muted); text-decoration: under
 .fg-left-middle, .fg-right-middle { background: var(--fg-middle); }
 .fg-left-index, .fg-right-index { background: var(--fg-index); }
 .fg-right-thumb { background: var(--fg-thumb); }
+.fg-hands { width: 300px; max-width: 100%; height: auto; margin-top: 12px; }
+.fg-palm { fill: var(--surface-2); stroke: var(--border); }
+.fg-finger { stroke: var(--border); }
+.fg-hands .fg-left-pinky, .fg-hands .fg-right-pinky { fill: var(--fg-pinky); }
+.fg-hands .fg-left-ring, .fg-hands .fg-right-ring { fill: var(--fg-ring); }
+.fg-hands .fg-left-middle, .fg-hands .fg-right-middle { fill: var(--fg-middle); }
+.fg-hands .fg-left-index, .fg-hands .fg-right-index { fill: var(--fg-index); }
+.fg-hands .fg-left-thumb, .fg-hands .fg-right-thumb { fill: var(--fg-thumb); }
+.fg-hands .fg-finger.fg-next { fill: var(--accent); stroke: var(--accent); }
+.fg-hands .fg-finger.fg-hold { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 4 3; }
+/* Dimmed while the learner types a known key from memory. */
+.finger-guide.fg-faded .fg-kb, .finger-guide.fg-faded .fg-hands { opacity: 0.35; }
+.finger-guide.fg-faded .fg-caption { color: var(--muted); }
 .fg-kb .fg-shift { width: 3.6em; font-family: inherit; }
 /* Rows shift right to make room for the left Shift key. */
 .fg-kb .kb-row-0 { padding-left: 2.4em; }

@@ -72,6 +72,25 @@ export function saveFingerGuideSetting(on: boolean, storage: Storage | undefined
   }
 }
 
+const GUIDE_FADE_KEY = 'typing-trainer.finger-guide-fade';
+
+/** Whether the finger guide stays dim for keys the learner already knows; on unless turned off. */
+export function loadGuideFadeSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(GUIDE_FADE_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveGuideFadeSetting(on: boolean, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(GUIDE_FADE_KEY, on ? 'on' : 'off');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
+
 const WORD_FILTER_KEY = 'typing-trainer.word-filter';
 
 /** Whether drills hide offensive words; on unless the user turned it off. */
