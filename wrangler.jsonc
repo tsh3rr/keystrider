@@ -1,7 +1,7 @@
 // Cloudflare Workers config: serves the built `dist` folder as a static site.
 // Production deploys from `main`; other branches get preview URLs via Workers Builds.
 {
-  "name": "typing-trainer",
+  "name": "keystrider",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist/",
