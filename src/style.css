@@ -18,6 +18,12 @@
   --heat-ink-2: #fff;
   --heat-ink-3: #fff;
   --heat-ink-4: #fff;
+  /* Finger guide: one tint per finger, mirrored across the hands. */
+  --fg-pinky: #f6dede;
+  --fg-ring: #f6ecd2;
+  --fg-middle: #dcefdc;
+  --fg-index: #dbe7f7;
+  --fg-thumb: #ebe6f3;
   font-family: system-ui, sans-serif;
   color: var(--fg);
   background: var(--bg);
@@ -42,6 +48,11 @@
     --heat-ink-2: #fff;
     --heat-ink-3: #0d1b2e;
     --heat-ink-4: #0d1b2e;
+    --fg-pinky: #4a2b2e;
+    --fg-ring: #463b22;
+    --fg-middle: #263f2a;
+    --fg-index: #233650;
+    --fg-thumb: #352d45;
   }
 }
 body { margin: 0; background: var(--bg); }
@@ -115,6 +126,33 @@ button.link { border: 0; padding: 0; color: var(--muted); text-decoration: under
 .drill-feedback { font-size: 0.95rem; margin: 0 0 12px; }
 .drill-feedback p { margin: 4px 0; }
 .drill-feedback .item { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+/* --- Finger guide --- */
+.fg-toggle { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+.setting-toggle { display: inline-flex; gap: 6px; align-items: center; }
+.finger-guide { margin: 16px 0 4px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.finger-guide[hidden] { display: none; }
+.fg-caption { margin: 0 0 8px; font-size: 1rem; min-height: 1.5em; }
+.fg-home { margin: 8px 0 0; font-size: 0.85rem; color: var(--muted); }
+.fg-kb .kb-key { color: var(--fg); border-color: var(--border); }
+.fg-kb .kb-key:hover { outline: none; }
+.fg-left-pinky, .fg-right-pinky { background: var(--fg-pinky); }
+.fg-left-ring, .fg-right-ring { background: var(--fg-ring); }
+.fg-left-middle, .fg-right-middle { background: var(--fg-middle); }
+.fg-left-index, .fg-right-index { background: var(--fg-index); }
+.fg-right-thumb { background: var(--fg-thumb); }
+.fg-kb .fg-shift { width: 3.6em; font-family: inherit; }
+/* Rows shift right to make room for the left Shift key. */
+.fg-kb .kb-row-0 { padding-left: 2.4em; }
+.fg-kb .kb-row-1 { padding-left: 3.9em; }
+.fg-kb .kb-row-2 { padding-left: 4.15em; }
+.fg-kb .kb-row-3 { padding-left: 0; }
+.fg-kb .kb-row-space { padding-left: 11.4em; }
+.fg-home-key { font-weight: 600; }
+/* The tactile bumps on F and J. */
+.fg-bump { text-decoration: underline; text-underline-offset: 4px; }
+.fg-kb .kb-key.fg-from { outline: 2px dashed var(--accent); outline-offset: -3px; }
+.fg-kb .kb-key.fg-next { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 /* --- Progress --- */
 .progress-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; font-size: 0.9rem; }

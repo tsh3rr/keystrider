@@ -53,6 +53,44 @@ export function markBackfillDone(storage: Storage | undefined = safeStorage()): 
   }
 }
 
+const FINGER_GUIDE_KEY = 'typing-trainer.finger-guide';
+
+/** Whether the on-screen finger guide is shown; on unless the user turned it off. */
+export function loadFingerGuideSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(FINGER_GUIDE_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveFingerGuideSetting(on: boolean, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(FINGER_GUIDE_KEY, on ? 'on' : 'off');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
+
+const WORD_FILTER_KEY = 'typing-trainer.word-filter';
+
+/** Whether drills hide offensive words; on unless the user turned it off. */
+export function loadWordFilterSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(WORD_FILTER_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveWordFilterSetting(on: boolean, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(WORD_FILTER_KEY, on ? 'on' : 'off');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
+
 function safeStorage(): Storage | undefined {
   try {
     return globalThis.localStorage;

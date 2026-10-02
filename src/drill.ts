@@ -1,5 +1,6 @@
 import type { Corpus } from './corpus';
 import { trigramModel } from './pseudowords';
+import { corpusFilter } from './wordfilter';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import {
   corpusFrequencies, firstAttempts, pickFocusItems,
@@ -276,13 +277,14 @@ function wordRanks(corpus: Corpus): Map<string, number> {
   return m;
 }
 
-/** Corpus words, lowercased, that use only the given letters. */
+/** Corpus words, lowercased, that use only the given letters and aren't offensive. */
 export function eligibleWords(corpus: Corpus, allowed: ReadonlySet<string>): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
+  const blocked = corpusFilter(corpus);
   for (const raw of corpus.words) {
     const w = raw.normalize('NFC').toLowerCase();
-    if (!seen.has(w) && [...w].every((c) => allowed.has(c))) out.push(w);
+    if (!seen.has(w) && [...w].every((c) => allowed.has(c)) && !blocked(w)) out.push(w);
     seen.add(w);
   }
   return out;
