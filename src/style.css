@@ -129,6 +129,7 @@ button.link { border: 0; padding: 0; color: var(--muted); text-decoration: under
 
 /* --- Finger guide --- */
 .fg-toggle { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+.setting-toggle { display: inline-flex; gap: 6px; align-items: center; }
 .finger-guide { margin: 16px 0 4px; display: flex; flex-direction: column; align-items: center; text-align: center; }
 .finger-guide[hidden] { display: none; }
 .fg-caption { margin: 0 0 8px; font-size: 1rem; min-height: 1.5em; }
