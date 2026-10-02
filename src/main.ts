@@ -491,6 +491,7 @@ async function finishDrill(): Promise<void> {
         drillName: stepName(typed), wpm: result.wpm, accuracy: result.accuracy, errors, paceWpm: finished.paceWpm,
         recovery, news: changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
         improved: improved.map(itemLabel), slipped: slipped.map(itemLabel), next: next && stepName(next),
+        nextKey: next?.kind === 'focus' && curriculum?.focusKey ? keyCap(curriculum.focusKey) : null,
       }, () => {
         if (!finishing && breakEndsAt === null) startDrill().catch((err) => console.error('Failed to start drill', err));
       });

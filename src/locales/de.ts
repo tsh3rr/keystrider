@@ -169,6 +169,7 @@ export const de: Messages = {
   'result.noBetter': 'Diesmal nichts deutlich besser.',
   'result.noWorse': 'Nichts ist schlechter geworden.',
   'result.next': 'Als Nächstes: {name}',
+  'result.nextOn': 'Als Nächstes: {name} auf {key}',
   'result.nextDrill': 'Nächste Übung',
   'result.continue': 'Weiter',
   'result.enter': '⏎ Enter',

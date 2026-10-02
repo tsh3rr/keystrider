@@ -173,6 +173,7 @@ export const en = {
   'result.noBetter': 'Nothing clearly better this time.',
   'result.noWorse': 'Nothing got worse.',
   'result.next': 'Next: {name}',
+  'result.nextOn': 'Next: {name} on {key}',
   'result.nextDrill': 'Next drill',
   'result.continue': 'Continue',
   'result.enter': '⏎ Enter',

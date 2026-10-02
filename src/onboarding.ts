@@ -1,4 +1,5 @@
 import { availableLanguages, getCorpus } from './corpus';
+import { stairMark } from './stairMark';
 import { initialCurriculum, tierWpm, unlockSteps, type CurriculumState } from './drill';
 import { KeyObserver, LAYOUTS, ROWS, charLabel, detectLayout, getLayout, keyLabel } from './layouts';
 import { placeFromTest, placementText, type Placement } from './placement';
@@ -309,7 +310,10 @@ export class Onboarding {
       });
       b.setAttribute('role', 'radio');
       b.setAttribute('aria-checked', String(id === this.choice));
-      b.append(el('b', '', title), el('span', '', text));
+      const words = el('span', 'ob-option-text');
+      words.append(el('b', '', title), el('span', '', text));
+      if (id === 'new' || id === 'test') b.append(stairMark(id === 'new' ? 3 : 4));
+      b.append(words);
       b.addEventListener('dblclick', () => next.click());
       options.append(b);
     }

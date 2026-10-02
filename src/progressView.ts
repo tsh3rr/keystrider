@@ -145,8 +145,10 @@ function lineChart(host: HTMLElement, sessions: readonly SessionSummary[], ys: n
     label.textContent = fmtDate(sessions[i].start);
     root.append(label);
   }
-  root.append(svg('polyline', { points: ys.map((v, i) => `${x(i)},${y(v)}`).join(' '), class: 'line' }));
-  if (n <= 60) for (let i = 0; i < n; i++) root.append(svg('circle', { cx: x(i), cy: y(ys[i]), r: 3.5, class: 'dot' }));
+  const points = ys.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  if (n > 1) root.append(svg('polygon', { points: `${x(0)},${m.t + ih} ${points} ${x(n - 1)},${m.t + ih}`, class: 'area' }));
+  root.append(svg('polyline', { points, class: 'line' }));
+  root.append(svg('circle', { cx: x(n - 1), cy: y(ys[n - 1]), r: 5, class: 'dot last' }));
 
   const cross = svg('line', { y1: m.t, y2: m.t + ih, class: 'crosshair', visibility: 'hidden' });
   const focus = svg('circle', { r: 5, class: 'dot focus', visibility: 'hidden' });
