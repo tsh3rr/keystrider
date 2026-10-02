@@ -100,57 +100,79 @@
       </section>
 
       <section id="progress-view" hidden>
-        <div class="progress-bar">
-          <span id="progress-context"></span>
-          <label data-i18n="progress.show">Show <select id="progress-range">
-            <option value="7" data-i18n="progress.range7">Last 7 days</option>
-            <option value="30" selected data-i18n="progress.range30">Last 30 days</option>
-            <option value="all" data-i18n="progress.rangeAll">All time</option>
-          </select></label>
+        <div class="pg-head">
+          <div>
+            <h1 data-i18n="nav.progress">Progress</h1>
+            <span id="progress-context" class="pg-context"></span>
+          </div>
+          <div id="progress-range" class="segmented pg-range" role="radiogroup" aria-label="Period" data-i18n-aria-label="progress.period">
+            <button role="radio" data-range="7" data-i18n="progress.range7">7 days</button>
+            <button role="radio" data-range="30" data-i18n="progress.range30">30 days</button>
+            <button role="radio" data-range="all" data-i18n="progress.rangeAll">All time</button>
+          </div>
         </div>
-        <p id="progress-empty" class="hint" data-i18n="progress.empty" hidden>No practice logged for this language and keyboard layout yet. Finish a text on the Practice tab and your progress shows up here.</p>
-        <div id="progress-body">
-          <div id="progress-tiles" class="tiles"></div>
-          <p id="progress-no-sessions" class="hint" data-i18n="progress.noSessions" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
-          <div id="progress-charts">
-            <h2 data-i18n="progress.speedChart">Speed per session</h2>
+        <div id="progress-empty" class="pg-card pg-empty" hidden>
+          <h2 data-i18n="progress.emptyTitle">Nothing here yet</h2>
+          <p data-i18n="progress.empty">No practice logged for this language and keyboard layout yet. Finish a drill and your progress shows up here.</p>
+          <button id="progress-start" class="primary" data-i18n="progress.start">Start practising</button>
+        </div>
+        <div id="progress-body" class="pg-body">
+          <div id="progress-tiles" class="pg-tiles"></div>
+          <p id="progress-no-sessions" class="pg-card pg-quiet" data-i18n="progress.noSessions" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
+          <section id="progress-path" class="pg-card" hidden>
+            <div class="pg-card-head"><h2 data-i18n="coach.pathTitle">Your path</h2></div>
+            <ol id="path-stages" class="pg-stages"></ol>
+            <p id="path-about" class="pg-note"></p>
+          </section>
+          <section id="progress-speed" class="pg-card">
+            <div class="pg-card-head">
+              <h2 data-i18n="progress.speedTitle">Speed and accuracy</h2>
+              <div class="segmented pg-metric" role="radiogroup" aria-label="Chart" data-i18n-aria-label="progress.chart">
+                <button role="radio" data-metric="wpm" aria-checked="true" data-i18n="progress.tileSpeed">Speed</button>
+                <button role="radio" data-metric="acc" aria-checked="false" data-i18n="progress.colAccuracy">Accuracy</button>
+              </div>
+            </div>
+            <p id="chart-caption" class="pg-sub">Words per minute in each session.</p>
             <div id="chart-wpm" class="chart"></div>
-            <h2 data-i18n="progress.accChart">First-try accuracy per session</h2>
-            <div id="chart-acc" class="chart"></div>
-            <details>
+            <div id="chart-acc" class="chart" hidden></div>
+            <details class="pg-details">
               <summary data-i18n="progress.table">Show sessions as a table</summary>
-              <table>
-                <thead><tr><th data-i18n="progress.colWhen">When</th><th data-i18n="progress.colWpm">WPM</th><th data-i18n="progress.colAccuracy">Accuracy</th><th data-i18n="progress.colChars">Characters</th></tr></thead>
-                <tbody id="sessions-rows"></tbody>
-              </table>
+              <div class="pg-scroll">
+                <table>
+                  <thead><tr><th data-i18n="progress.colWhen">When</th><th data-i18n="progress.colWpm">WPM</th><th data-i18n="progress.colAccuracy">Accuracy</th><th data-i18n="progress.colChars">Characters</th></tr></thead>
+                  <tbody id="sessions-rows"></tbody>
+                </table>
+              </div>
             </details>
-          </div>
-          <h2 data-i18n="progress.heatTitle">Errors by key</h2>
-          <p class="hint" data-i18n="progress.heatHint">How often each key goes wrong on the first try, recent practice counting most.</p>
-          <div id="keyboard-heat"></div>
-          <div class="heat-legend" aria-hidden="true">
-            <span data-i18n="progress.heat0"><i class="kb-key heat-0"></i>under 2%</span>
-            <span data-i18n="progress.heat1"><i class="kb-key heat-1"></i>2–5%</span>
-            <span data-i18n="progress.heat2"><i class="kb-key heat-2"></i>5–8%</span>
-            <span data-i18n="progress.heat3"><i class="kb-key heat-3"></i>8–12%</span>
-            <span data-i18n="progress.heat4"><i class="kb-key heat-4"></i>12% or more</span>
-            <span data-i18n="progress.heatNone"><i class="kb-key heat-none"></i>not typed yet</span>
-          </div>
-          <div class="weak-grid">
-            <div>
-              <h2 data-i18n="progress.weakKeys">Weakest keys</h2>
+          </section>
+          <section id="progress-keys" class="pg-card">
+            <div class="pg-card-head"><h2 data-i18n="progress.heatTitle">Errors by key</h2></div>
+            <p class="pg-sub" data-i18n="progress.heatHint">How often each key goes wrong on the first try, recent practice counting most.</p>
+            <div id="keyboard-heat" class="pg-kb"></div>
+            <div class="heat-legend" aria-hidden="true">
+              <span data-i18n="progress.heat0"><i class="kb-key heat-0"></i>under 2%</span>
+              <span data-i18n="progress.heat1"><i class="kb-key heat-1"></i>2–5%</span>
+              <span data-i18n="progress.heat2"><i class="kb-key heat-2"></i>5–8%</span>
+              <span data-i18n="progress.heat3"><i class="kb-key heat-3"></i>8–12%</span>
+              <span data-i18n="progress.heat4"><i class="kb-key heat-4"></i>12% or more</span>
+              <span data-i18n="progress.heatNone"><i class="kb-key heat-none"></i>not typed yet</span>
+            </div>
+          </section>
+          <div id="progress-weak" class="pg-weak-grid">
+            <section class="pg-card">
+              <div class="pg-card-head"><h2 data-i18n="progress.weakKeys">Weakest keys</h2></div>
               <table class="weak">
-                <thead><tr><th data-i18n="progress.colKey">Key</th><th data-i18n="progress.colErrors">Errors</th><th data-i18n="progress.colTime">Typical time</th><th data-i18n="progress.colTrend">Last 14 days</th><th data-i18n="progress.colTries">Tries</th></tr></thead>
+                <thead><tr><th data-i18n="progress.colKey">Key</th><th data-i18n="progress.colErrors">Errors</th><th data-i18n="progress.colTime">Time</th><th data-i18n="progress.colTrend">Last 14 days</th></tr></thead>
                 <tbody id="weak-keys"></tbody>
               </table>
-            </div>
-            <div>
-              <h2 data-i18n="progress.weakPairs">Weakest letter pairs</h2>
+            </section>
+            <section class="pg-card">
+              <div class="pg-card-head"><h2 data-i18n="progress.weakPairs">Weakest letter pairs</h2></div>
               <table class="weak">
-                <thead><tr><th data-i18n="progress.colPair">Pair</th><th data-i18n="progress.colErrors">Errors</th><th data-i18n="progress.colTime">Typical time</th><th data-i18n="progress.colTrend">Last 14 days</th><th data-i18n="progress.colTries">Tries</th></tr></thead>
+                <thead><tr><th data-i18n="progress.colPair">Pair</th><th data-i18n="progress.colErrors">Errors</th><th data-i18n="progress.colTime">Time</th><th data-i18n="progress.colTrend">Last 14 days</th></tr></thead>
                 <tbody id="weak-bigrams"></tbody>
               </table>
-            </div>
+            </section>
           </div>
         </div>
         <div id="progress-tip" class="tooltip" role="tooltip" hidden></div>

@@ -7,6 +7,8 @@ import { pct, t, tNodes } from './i18n';
  */
 
 export type ChipId = 'path' | 'round' | 'now' | 'fresh';
+/** The Progress card a bubble's link opens. */
+export type ProgressTarget = 'path' | 'speed' | 'keys' | 'weak';
 
 export interface CoachData {
   path: {
@@ -65,13 +67,13 @@ export class CoachBar {
   private readonly chips: Map<ChipId, HTMLButtonElement>;
 
   /**
-   * `onProgress` opens the Progress view; `onClose` runs when a bubble closes
+   * `onProgress` opens the Progress view at the given card; `onClose` runs when a bubble closes
    * so the caller can put the focus back on the typing field.
    */
   constructor(
     bar: HTMLElement,
     private readonly pop: HTMLElement,
-    private readonly onProgress: () => void,
+    private readonly onProgress: (target: ProgressTarget) => void,
     private readonly onClose: () => void,
   ) {
     this.chips = new Map([...bar.querySelectorAll<HTMLButtonElement>('[data-pop]')].map((b) => [b.dataset.pop as ChipId, b]));
@@ -183,6 +185,16 @@ export class CoachBar {
     }
   }
 
+  /** A link at the foot of a bubble to the matching card in Progress. */
+  private more(text: string, target: ProgressTarget): HTMLButtonElement {
+    const b = el('button', 'pop-more', text);
+    b.addEventListener('click', () => {
+      this.close(false);
+      this.onProgress(target);
+    });
+    return b;
+  }
+
   private renderPop(): void {
     const d = this.data!;
     const sec = el('div', 'pop-sec');
@@ -199,7 +211,7 @@ export class CoachBar {
           li.append(bar, s.total > 1 && s.state === 'current' ? `${s.name} ${s.done}/${s.total}` : s.name);
           list.append(li);
         }
-        sec.append(title(t('coach.pathTitle')), list, el('p', 'pop-note', d.path.about));
+        sec.append(title(t('coach.pathTitle')), list, el('p', 'pop-note', d.path.about), this.more(t('coach.pathMore'), 'path'));
         break;
       }
       case 'round': {
@@ -212,7 +224,7 @@ export class CoachBar {
           for (const f of d.round.focus) focus.append(el('kbd', '', f));
           sec.append(focus);
         }
-        sec.append(el('p', 'pop-note', d.round.about));
+        sec.append(el('p', 'pop-note', d.round.about), this.more(t('round.more'), 'weak'));
         break;
       }
       case 'now': {
@@ -244,12 +256,7 @@ export class CoachBar {
           }
           sec.append(rows);
         }
-        const more = el('button', 'pop-more', t('now.more'));
-        more.addEventListener('click', () => {
-          this.close(false);
-          this.onProgress();
-        });
-        sec.append(more);
+        sec.append(this.more(t('now.more'), 'speed'));
         break;
       }
       case 'fresh': {

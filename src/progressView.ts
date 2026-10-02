@@ -1,4 +1,4 @@
-import { num, pct as fmtPct, t, uiLanguage } from './i18n';
+import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
   dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, weakest,
@@ -6,8 +6,12 @@ import {
 } from './progress';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import type { BigramStats, KeyStats, WeaknessModel } from './weakness';
+import type { CoachData, ProgressTarget } from './coachView';
 
-/** The Progress tab: speed and accuracy over time, a per-key heatmap, and the weakest keys and pairs. */
+/**
+ * The Progress tab: where you are on the path, speed and accuracy over time,
+ * a per-key heatmap, and the weakest keys and pairs, each in its own card.
+ */
 
 const DAY_MS = 86_400_000;
 const TREND_DAYS = 14;
@@ -15,6 +19,9 @@ const TREND_DAYS = 14;
 const HEAT_BINS = [0.02, 0.05, 0.08, 0.12];
 
 export type Range = 7 | 30 | 'all';
+/** Cards the coach bubbles link to. */
+export type ProgressSection = ProgressTarget;
+type Metric = 'wpm' | 'acc';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -33,6 +40,8 @@ function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string,
 }
 
 const pct = (x: number, digits = 1) => fmtPct(x, digits);
+/** Bar widths in CSS percent. */
+const width = (x: number) => `${Math.round(x * 100)}%`;
 const showChars = (s: string) => s.replace(/ /g, '␣');
 const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(uiLanguage(), { day: 'numeric', month: 'short' });
 const fmtDateTime = (ms: number) =>
@@ -73,13 +82,16 @@ function tipOnHover(target: HTMLElement | SVGElement, lines: () => string[]): vo
 
 // --- Stat tiles ---
 
-function tile(label: string, value: string, delta?: string, good?: boolean): HTMLElement {
-  const t = el('div', 'tile');
-  t.append(el('div', 'tile-label', label), el('div', 'tile-value', value));
-  if (delta) t.append(el('div', `tile-delta ${good === undefined ? '' : good ? 'good' : 'bad'}`, delta));
+function tile(label: string, value: string, unit?: string, delta?: string, good?: boolean): HTMLElement {
+  const t = el('div', 'pg-tile');
+  const big = el('div', 'pg-big', value);
+  if (unit) big.append(el('small', undefined, unit));
+  t.append(el('div', 'pg-label', label), big);
+  t.append(el('div', `pg-delta ${good === undefined ? '' : good ? 'good' : 'bad'}`, delta ?? '\u00a0'));
   return t;
 }
 
+/** `days` is the period length, or 0 for all time. */
 function renderTiles(cur: PeriodTotals, prev: PeriodTotals | null, days: number): void {
   const vs = prev && prev.sessions > 0;
   const change = (a: number | null, b: number | null, fmt: (d: number) => string) => {
@@ -90,9 +102,9 @@ function renderTiles(cur: PeriodTotals, prev: PeriodTotals | null, days: number)
   const wpm = change(cur.wpm, prev?.wpm ?? null, (d) => t('progress.wpm', { n: num(d, 1) }));
   const acc = change(cur.accuracy, prev?.accuracy ?? null, (d) => t('progress.pts', { n: num(d * 100, 1) }));
   $('progress-tiles').replaceChildren(
-    tile(t('progress.tileSpeed'), cur.wpm === null ? '–' : t('progress.wpm', { n: num(cur.wpm) }), wpm.delta, wpm.good),
-    tile(t('progress.tileAccuracy'), cur.accuracy === null ? '–' : pct(cur.accuracy), acc.delta, acc.good),
-    tile(t('progress.tileTime'), fmtDuration(cur.activeMs)),
+    tile(t('progress.tileSpeed'), cur.wpm === null ? '–' : num(cur.wpm), cur.wpm === null ? undefined : t('now.wpm'), wpm.delta, wpm.good),
+    tile(t('progress.tileAccuracy'), cur.accuracy === null ? '–' : pct(cur.accuracy), undefined, acc.delta, acc.good),
+    tile(t('progress.tileTime'), fmtDuration(cur.activeMs), undefined, days === 0 ? t('progress.allTime') : t('progress.inLastDays', { n: days })),
     tile(t('progress.tileSessions'), num(cur.sessions)),
   );
 }
@@ -165,7 +177,22 @@ function niceMax(v: number, step: number): number {
   return Math.max(step, Math.ceil(v / step) * step);
 }
 
-function renderCharts(sessions: readonly SessionSummary[]): void {
+let chartSessions: readonly SessionSummary[] = [];
+let metric: Metric = 'wpm';
+
+const CHART_CAPTIONS: Record<Metric, MessageKey> = {
+  wpm: 'progress.captionWpm',
+  acc: 'progress.captionAcc',
+};
+
+/** Draws the chart for the picked metric; the other one stays hidden so it is drawn at the right width when picked. */
+function renderChart(): void {
+  const sessions = chartSessions;
+  if (sessions.length === 0) return;
+  $('chart-wpm').hidden = metric !== 'wpm';
+  $('chart-acc').hidden = metric !== 'acc';
+  $('chart-caption').textContent = t(CHART_CAPTIONS[metric]);
+  document.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.metric === metric)));
   const tip = (i: number) => {
     const s = sessions[i];
     return [
@@ -173,15 +200,18 @@ function renderCharts(sessions: readonly SessionSummary[]): void {
       t('progress.tipAccuracy', { acc: pct(s.accuracy) }), t('progress.tipChars', { n: num(s.chars) }),
     ];
   };
-  const wpmMax = niceMax(Math.max(...sessions.map((s) => s.wpm)) * 1.1, 10);
-  const wpmStep = wpmMax <= 40 ? 10 : wpmMax <= 100 ? 20 : 40;
-  lineChart($('chart-wpm'), sessions, sessions.map((s) => s.wpm), {
-    yMin: 0,
-    yMax: niceMax(wpmMax, wpmStep),
-    ticks: Array.from({ length: niceMax(wpmMax, wpmStep) / wpmStep + 1 }, (_, i) => i * wpmStep),
-    format: (v) => String(v),
-    tip,
-  });
+  if (metric === 'wpm') {
+    const wpmMax = niceMax(Math.max(...sessions.map((s) => s.wpm)) * 1.1, 10);
+    const wpmStep = wpmMax <= 40 ? 10 : wpmMax <= 100 ? 20 : 40;
+    lineChart($('chart-wpm'), sessions, sessions.map((s) => s.wpm), {
+      yMin: 0,
+      yMax: niceMax(wpmMax, wpmStep),
+      ticks: Array.from({ length: niceMax(wpmMax, wpmStep) / wpmStep + 1 }, (_, i) => i * wpmStep),
+      format: (v) => String(v),
+      tip,
+    });
+    return;
+  }
   // Accuracy lives near the top, so zoom in on the range the user actually covers.
   const accMin = Math.min(0.9, Math.floor(Math.min(...sessions.map((s) => s.accuracy)) * 20) / 20);
   const accStep = 1 - accMin > 0.2 ? 0.1 : 0.05;
@@ -194,7 +224,11 @@ function renderCharts(sessions: readonly SessionSummary[]): void {
     format: (v) => fmtPct(v),
     tip,
   });
+}
 
+function renderCharts(sessions: readonly SessionSummary[]): void {
+  chartSessions = sessions;
+  renderChart();
   const rows = [...sessions].reverse().map((s) => {
     const tr = el('tr');
     for (const c of [fmtDateTime(s.start), num(s.wpm, 1), pct(s.accuracy), num(s.chars)]) tr.append(el('td', undefined, c));
@@ -202,6 +236,13 @@ function renderCharts(sessions: readonly SessionSummary[]): void {
   });
   $('sessions-rows').replaceChildren(...rows);
 }
+
+document.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach((b) =>
+  b.addEventListener('click', () => {
+    metric = b.dataset.metric as Metric;
+    renderChart();
+  }),
+);
 
 // --- Keyboard heatmap ---
 
@@ -249,7 +290,7 @@ function renderKeyboard(model: WeaknessModel): void {
 // --- Weakest keys and pairs ---
 
 function sparkline(values: (number | null)[]): SVGSVGElement {
-  const W = 84;
+  const W = 60;
   const H = 22;
   const s = svg('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, class: 'spark' });
   const known = values.map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] !== null);
@@ -283,41 +324,82 @@ function renderWeakTable(
   if (items.length === 0) {
     const tr = el('tr');
     const td = el('td', 'muted', empty);
-    td.colSpan = 5;
+    td.colSpan = 4;
     tr.append(td);
     tbody.replaceChildren(tr);
     return;
   }
+  const maxRate = Math.max(0.05, ...items.map((it) => it.errorRate));
   tbody.replaceChildren(
     ...items.map((it) => {
       const tr = el('tr');
-      const name = it.kind === 'key' ? it.label : showChars(it.item);
-      const nameTd = el('td', 'item', name);
+      tr.title = t('progress.tries', { n: num(it.attempts) });
+      const name = it.kind === 'key' ? (it.item === ' ' ? t('key.space') : it.label) : showChars(it.item);
+      const nameTd = el('td', 'item');
+      nameTd.append(el('kbd', undefined, name));
       if (it.kind === 'key' && it.confusions.length > 0) {
-        nameTd.title = t('progress.confusions', { list: it.confusions.slice(0, 3).map((c) => showChars(c.typed)).join(', ') });
+        tr.title += '. ' + t('progress.confusions', { list: it.confusions.slice(0, 3).map((c) => showChars(c.typed)).join(', ') });
       }
+      const errTd = el('td', 'num');
+      const bar = el('span', 'bar');
+      const fill = el('i');
+      fill.style.width = width(it.errorRate / maxRate);
+      bar.append(fill);
+      const errWrap = el('span', 'err-cell');
+      errWrap.append(bar, el('span', undefined, pct(it.errorRate)));
+      errTd.append(errWrap);
       const trend = errorRateTrend(models, it.kind, it.item, minTries[it.kind]);
       const trendTd = el('td', 'trend');
       const text = trendText(trend);
       trendTd.append(sparkline(trend), el('span', text.startsWith('▼') ? 'good' : text.startsWith('▲') ? 'bad' : 'muted', text));
       trendTd.title = t('progress.trendTitle', { days: TREND_DAYS, n: minTries[it.kind] });
-      tr.append(nameTd, el('td', 'num', pct(it.errorRate)), el('td', 'num', `${num(it.latencyMs)} ms`), trendTd, el('td', 'num', num(it.attempts)));
+      tr.append(nameTd, errTd, el('td', 'num', `${num(it.latencyMs)} ms`), trendTd);
       return tr;
     }),
   );
 }
 
+// --- Path ---
+
+/** The path card mirrors the Path chip's bubble, with room for every stage. */
+function renderPath(path: CoachData['path'] | null): void {
+  $('progress-path').hidden = path === null;
+  if (!path) return;
+  $('path-stages').replaceChildren(
+    ...path.stages.map((st) => {
+      const li = el('li', st.state);
+      const bar = el('i');
+      const fill = el('b');
+      fill.style.width = width(st.state === 'done' ? 1 : st.total ? st.done / st.total : 0);
+      bar.append(fill);
+      const state = st.state === 'done' ? t('progress.stageDone') : st.state === 'locked' ? t('progress.stageLocked')
+        : t('progress.stageOf', { done: st.done, total: st.total });
+      li.append(el('span', 'pg-stage-name', st.name), el('span', 'pg-stage-state', state), bar);
+      return li;
+    }),
+  );
+  $('path-about').textContent = path.about;
+}
+
 // --- Entry point ---
+
+export interface ProgressOptions {
+  range: Range;
+  /** What the context line shows, e.g. "English · German (QWERTZ)". */
+  contextName: string;
+  /** The coach's path summary, when practice has loaded one. */
+  path?: CoachData['path'] | null;
+  now?: number;
+}
 
 export async function renderProgress(
   store: { forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]> },
   context: PracticeContext,
-  range: Range,
-  layoutName: string,
-  now = Date.now(),
+  { range, contextName, path = null, now = Date.now() }: ProgressOptions,
 ): Promise<void> {
   const events = await store.forLanguage(context.language, context.layout);
-  $('progress-context').textContent = `${context.language.toUpperCase()} · ${layoutName}`;
+  $('progress-context').textContent = contextName;
+  document.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.range === String(range))));
   const all = sessionSummaries(events);
   const from = range === 'all' ? -Infinity : startOfDay(now) - (range - 1) * DAY_MS;
   const sessions = all.filter((s) => s.start >= from);
@@ -329,7 +411,8 @@ export async function renderProgress(
 
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
   renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 0 : range);
-  $('progress-charts').hidden = sessions.length === 0;
+  renderPath(path);
+  $('progress-speed').hidden = sessions.length === 0;
   $('progress-no-sessions').hidden = sessions.length > 0;
   if (sessions.length > 0) renderCharts(sessions);
 
@@ -338,4 +421,15 @@ export async function renderProgress(
   renderKeyboard(model);
   renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, t('progress.emptyKeys'));
   renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, t('progress.emptyPairs'));
+}
+
+/** Scrolls a card into view and outlines it for a moment, so a link from a coach bubble shows where it landed. */
+export function revealSection(section: ProgressSection): void {
+  const card = $(`progress-${section}`);
+  if (!card || card.hidden || card.offsetParent === null) return;
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  card.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  card.classList.remove('pg-flash');
+  void card.offsetWidth;
+  card.classList.add('pg-flash');
 }
