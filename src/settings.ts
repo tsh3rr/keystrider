@@ -174,3 +174,24 @@ export function saveLanguageSetting(language: string, storage: Storage | undefin
     // ignore, see saveLayoutSetting
   }
 }
+
+export type Theme = 'system' | 'light' | 'dark';
+const THEME_KEY = 'typing-trainer.theme';
+
+/** Light, dark, or following the system setting (the default). */
+export function loadThemeSetting(storage: Storage | undefined = safeStorage()): Theme {
+  try {
+    const v = storage?.getItem(THEME_KEY);
+    return v === 'light' || v === 'dark' ? v : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+export function saveThemeSetting(theme: Theme, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(THEME_KEY, theme);
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
