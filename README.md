@@ -1,4 +1,4 @@
-# Typing Trainer
+# Keystrider
 
 A touch-typing trainer that analyzes your errors and weak keys and adapts practice to make you faster.
 
