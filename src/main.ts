@@ -18,8 +18,9 @@ import { renderProgress, revealSection, type ProgressSection, type Range } from 
 import { weakest } from './progress';
 import { CoachBar, type CoachData } from './coachView';
 import { renderResult, type Tone } from './resultCard';
+import { Onboarding } from './onboarding';
 import {
-  backfillDone, loadBreakRemindersSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
+  backfillDone, loadBreakRemindersSetting, loadOnboardedSetting, saveOnboardedSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
   loadShowKeysSetting, loadThemeSetting, loadWordFilterSetting, markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting,
   saveGuideFadeSetting, saveLanguageSetting, saveLayoutSetting, saveShowKeysSetting, saveThemeSetting, saveWordFilterSetting,
   type LayoutSetting, type Theme,
@@ -598,8 +599,8 @@ breakSkip.addEventListener('click', () => {
 // log (both keyed by language and layout), so switching back and forth
 // keeps progress in each.
 
-/** Switches the practice language and starts a drill in it. */
-function setLanguage(language: string): void {
+/** Switches the practice language and, unless `start` is false, starts a drill in it. */
+function setLanguage(language: string, start = true): void {
   // A finished drill is still being scored under the old language: keep it.
   if (finishing || language === context.language) return;
   context.language = language;
@@ -608,7 +609,7 @@ function setLanguage(language: string): void {
   fatigue.reset();
   drill = null;
   renderLanguage();
-  startDrill().catch((err) => console.error('Failed to start drill', err));
+  if (start) startDrill().catch((err) => console.error('Failed to start drill', err));
 }
 
 function renderLanguage(): void {
@@ -672,6 +673,7 @@ async function setLayout(layout: string, source: LayoutSetting['source']): Promi
   renderText();
   renderLayout();
   showSuggestion(null);
+  onboarding.layoutChanged();
   if (changed) {
     // Keystrokes already logged in this text (and any earlier session whose own
     // keys contradict its tag) were recorded under the wrong layout: retag them.
@@ -948,6 +950,43 @@ document.querySelectorAll<HTMLButtonElement>('[data-theme-choice]').forEach((b) 
 });
 applyTheme();
 
+// --- First-run setup ---
+//
+// Keyboard check, where to start (with an optional placement test) and how
+// the method works; see onboarding.ts. Shown once on a first visit, and
+// again from Settings. The top bar stays out of the way meanwhile.
+
+const onboarding = new Onboarding($('onboarding-view'), {
+  context: () => context,
+  layoutSource: () => layoutSetting.source,
+  hasLessons: () => loadCurriculum(context) !== null,
+  setLanguage: (language) => setLanguage(language, false),
+  setLayout,
+  log: (event) => store.add(event),
+  finish: (lessons) => {
+    saveOnboardedSetting();
+    // Saved even when it was only guessed, so the next visit keeps it (see startLanguage).
+    saveLanguageSetting(context.language);
+    document.body.classList.remove('onboarding');
+    practiceView.hidden = false;
+    if (lessons) {
+      saveCurriculum(lessons);
+      curriculum = lessons;
+    }
+    startDrill(lessons ? 'core' : undefined).catch((err) => console.error('Failed to start drill', err));
+  },
+}, locales);
+
+function openOnboarding(): void {
+  showView('practice');
+  closeSettings(false);
+  practiceView.hidden = true;
+  document.body.classList.add('onboarding');
+  onboarding.open();
+}
+
+$('rerun-setup').addEventListener('click', openOnboarding);
+
 // Console access for ad-hoc inspection: `await typingLog.all()`
 declare global {
   interface Window {
@@ -960,7 +999,9 @@ KeystrokeStore.open().then((s) => {
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();
   renderLanguage();
-  startDrill().catch((err) => console.error('Failed to start drill', err));
+  // A browser that practised before the setup existed goes straight to practice.
+  if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
+  else startDrill().catch((err) => console.error('Failed to start drill', err));
   detectFromBrowser()
     .then(backfillLegacyLog)
     .catch((err) => console.error('Layout detection failed', err));
