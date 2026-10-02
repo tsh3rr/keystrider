@@ -119,14 +119,17 @@ On macOS/Linux use `python3` and `scripts/build-corpus.py`. Another language nee
 
 ## Deployment
 
-The app is static, so any static host can serve the `dist` folder.
+Hosting is Cloudflare Workers (static assets only) and, once accounts exist, Supabase for login and data.
 
-- Build command: `npm run build`
-- Output folder: `dist`
-- Node version: 22 (pinned in `.nvmrc`)
+- `wrangler.jsonc` tells Cloudflare to serve the built `dist` folder. Build command `npm run build`, deploy command `npx wrangler deploy`; other branches upload previews with `npx wrangler versions upload`.
+- Node version: 22 (pinned in `.nvmrc`).
+- `supabase/` holds the Supabase CLI project. Database changes go in `supabase/migrations/` as SQL files.
+- `.env.example` lists the two Supabase values the app will read. Copy it to `.env.local` for local development.
 
-Production deploys from `main`; each pull request gets its own preview deploy for testing.
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests and build on every pull request.
+GitHub Actions:
+
+- `ci.yml` runs typecheck, tests and build on every pull request and on `main`.
+- `supabase-migrations.yml` applies new migrations to the staging database on pull requests and to production after merge. It skips until the `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` and `SUPABASE_PROJECT_ID` secrets are set in the `staging` and `production` environments.
 
 ## Impressum and privacy policy
 
