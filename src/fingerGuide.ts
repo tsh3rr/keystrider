@@ -1,5 +1,6 @@
 import { ROWS, keyLabel } from './layouts';
-import { HOME_KEYS, HOME_ROW, describeFinger, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
+import { HOME_KEYS, HOME_ROW, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
+import { t, type MessageKey } from './i18n';
 
 const svgNS = 'http://www.w3.org/2000/svg';
 
@@ -21,6 +22,7 @@ export class FingerGuide {
   private lit: Element[] = [];
   private readonly fingerEls = new Map<string, SVGElement>();
   private current: string | undefined;
+  private revealed = true;
   private moved: SVGElement[] = [];
 
   constructor(private readonly root: HTMLElement) {
@@ -51,18 +53,24 @@ export class FingerGuide {
         const isShift = code.startsWith('Shift');
         // Keys this layout lacks (e.g. no ISO key on US) are left out.
         if (!isShift && label(code) === code) continue;
-        rowEl.append(this.key(code, isShift ? 'Shift' : label(code), isShift ? 'fg-shift' : ''));
+        rowEl.append(this.key(code, isShift ? t('guide.shiftKey') : label(code), isShift ? 'fg-shift' : ''));
       }
       return rowEl;
     });
     const space = el('div', 'kb-row kb-row-space');
-    space.append(this.key('Space', 'Space', 'kb-space'));
+    space.append(this.key('Space', t('key.space'), 'kb-space'));
     this.keysEl.replaceChildren(...rows, space);
 
     const [left, right] = [HOME_ROW.slice(0, 4), HOME_ROW.slice(4)].map((codes) => codes.map(label).join(' '));
-    this.homeEl.textContent =
-      `Home row: rest your fingers on ${left} and ${right}, thumbs on Space. ` +
-      `Feel for the bumps on ${label('KeyF')} and ${label('KeyJ')}, and return there after each key.`;
+    this.homeEl.textContent = t('guide.home', { left, right, f: label('KeyF'), j: label('KeyJ') });
+  }
+
+  /** Redraws the keyboard and caption in the current interface language. */
+  retranslate(): void {
+    const layout = this.layout;
+    this.layout = '';
+    this.setLayout(layout);
+    this.show(this.current, this.revealed);
   }
 
   /**
@@ -71,6 +79,7 @@ export class FingerGuide {
    */
   show(ch: string | undefined, revealed = true): void {
     this.current = ch;
+    this.revealed = revealed;
     for (const k of this.lit) k.classList.remove('fg-next', 'fg-from', 'fg-hold');
     this.lit = [];
     for (const m of this.moved) m.style.transform = '';
@@ -81,12 +90,12 @@ export class FingerGuide {
       return;
     }
     if (!revealed) {
-      this.captionEl.textContent = 'Type from memory. The guide lights up if you pause or slip.';
+      this.captionEl.textContent = t('guide.fromMemory');
       return;
     }
     const g = guideFor(this.layout, ch);
     if (!g) {
-      this.captionEl.textContent = `No finger hint for ${ch} yet.`;
+      this.captionEl.textContent = t('guide.noHint', { ch });
       return;
     }
     const light = (code: string | null, cls: string) => {
@@ -106,12 +115,13 @@ export class FingerGuide {
     }
     if (g.shift) this.lightFinger(g.shift === 'ShiftLeft' ? 'left-pinky' : 'right-pinky', 'fg-hold');
 
-    const name = ch === ' ' ? 'Space' : keyLabel(this.layout, g.code);
+    const name = ch === ' ' ? t('key.space') : keyLabel(this.layout, g.code);
     // A shifted symbol is named by its key too: "Shift + ß for ?" on German QWERTZ.
-    const keys = g.shift ? `Shift + ${name}${ch.toUpperCase() === name ? '' : ` for ${ch}`}` : name;
-    let text = `${keys}: ${describeFinger(g.finger)}`;
-    if (g.home) text += `, reaching from ${keyLabel(this.layout, g.home)}`;
-    if (g.shift) text += `. Hold Shift with your ${g.shift === 'ShiftLeft' ? 'left' : 'right'} pinky`;
+    const keys = !g.shift ? name : ch.toUpperCase() === name ? t('guide.shift', { key: name }) : t('guide.shiftFor', { key: name, ch });
+    const finger = t((g.finger.name === 'thumb' ? 'finger.thumb' : `finger.${fingerId(g.finger)}`) as MessageKey);
+    let text = t('guide.caption', { keys, finger });
+    if (g.home) text += t('guide.reach', { home: keyLabel(this.layout, g.home) });
+    if (g.shift) text += t(g.shift === 'ShiftLeft' ? 'guide.holdShift.left' : 'guide.holdShift.right');
     this.captionEl.textContent = text + '.';
   }
 

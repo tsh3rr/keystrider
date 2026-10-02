@@ -174,3 +174,62 @@ export function saveLanguageSetting(language: string, storage: Storage | undefin
     // ignore, see saveLayoutSetting
   }
 }
+
+export type Theme = 'system' | 'light' | 'dark';
+const THEME_KEY = 'typing-trainer.theme';
+
+/** Light, dark, or following the system setting (the default). */
+export function loadThemeSetting(storage: Storage | undefined = safeStorage()): Theme {
+  try {
+    const v = storage?.getItem(THEME_KEY);
+    return v === 'light' || v === 'dark' ? v : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+export function saveThemeSetting(theme: Theme, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(THEME_KEY, theme);
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
+
+const UI_LANGUAGE_KEY = 'typing-trainer.ui-language';
+
+/** The interface language the user picked, "auto" or null to follow the browser. */
+export function loadUiLanguageSetting(storage: Storage | undefined = safeStorage()): string | null {
+  try {
+    return storage?.getItem(UI_LANGUAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveUiLanguageSetting(language: string, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(UI_LANGUAGE_KEY, language);
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
+
+const ONBOARDED_KEY = 'typing-trainer.onboarded';
+
+/** Whether the first-run setup (keyboard check, placement, how it works) was finished or skipped. */
+export function loadOnboardedSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(ONBOARDED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveOnboardedSetting(storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(ONBOARDED_KEY, '1');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}

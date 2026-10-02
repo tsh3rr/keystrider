@@ -1,4 +1,4 @@
-# Typing Trainer
+# Keystrider
 
 A touch-typing trainer that analyzes your errors and weak keys and adapts practice to make you faster.
 
@@ -12,6 +12,12 @@ npm run build    # typecheck + production build into dist/
 ```
 
 Static app (TypeScript + Vite). No backend: all data stays in the browser.
+
+## Screens
+
+- **Practice**: the drill text in one centred column with the finger guide below it. A slim coach bar above the text has four chips: **Path** (unlock stage and next letter), **Round** (where this drill sits in the round, and its focus keys), **Now** (live speed and accuracy) and the **break check**. Each chip opens a bubble with only its own details (`src/coachView.ts`).
+- **Progress**: speed and accuracy per session, an error heatmap and the weakest keys and letter pairs.
+- **Settings** (top right): theme (system, light or dark), finger-guide and break-reminder switches, the offensive-word filter, the keystroke log and restarting lessons.
 
 ## Keystroke log
 
@@ -37,7 +43,7 @@ Input is read from what the OS keyboard layout produces, not from raw key names,
 
 ## Keyboard layouts
 
-The practice screen has a **Keyboard layout** picker. The layout is found automatically, strongest source last:
+The top bar has a **keyboard layout** menu (the button showing e.g. QWERTZ). The layout is found automatically, strongest source last:
 
 1. a guess from the browser language (`de-DE` → German QWERTZ),
 2. the browser's Keyboard API (`navigator.keyboard.getLayoutMap()`, Chrome and Edge on https or localhost), which reports the OS layout directly,
@@ -66,9 +72,9 @@ Each item carries a shrunk error rate, typical latency, review half-life, the fo
 
 ## Languages
 
-Practice text comes from a per-language `Corpus` (`src/corpus.ts`): English and German (Deutsch) so far. Pick one with **Language** on the Practice tab; a first visit starts in the browser language if there is a corpus for it. Each language keeps its own lessons and its own stats, so switching back and forth loses nothing. Letters the keyboard layout can't type are left out of the lessons (German on US QWERTY practises words without ä, ö, ü and ß). German word drills are lowercase, nouns included, until capitals unlock; sentence drills have the real capitals. Adding a language means adding a file under `src/corpora/` and registering it.
+Practice text comes from a per-language `Corpus` (`src/corpus.ts`): English and German (Deutsch) so far. Pick one with the **language** menu in the top bar; a first visit starts in the browser language if there is a corpus for it. Each language keeps its own lessons and its own stats, so switching back and forth loses nothing. Letters the keyboard layout can't type are left out of the lessons (German on US QWERTY practises words without ä, ö, ü and ß). German word drills are lowercase, nouns included, until capitals unlock; sentence drills have the real capitals. Adding a language means adding a file under `src/corpora/` and registering it.
 
-Inspect it on the **Keystroke log** tab (export JSON or CSV, or clear), in DevTools under Application → IndexedDB, or from the console with `await typingLog.all()`.
+Inspect it under **Settings → Keystroke log and export** (export JSON or CSV, or clear), in DevTools under Application → IndexedDB, or from the console with `await typingLog.all()`.
 
 ## Warm-ups and sentence drills
 
@@ -91,7 +97,7 @@ On macOS/Linux use `python3` and `scripts/build-sentences.py`. Another language 
 
 ## Offensive-word filter
 
-Drills never show offensive words, real or made up. `src/wordfilter.ts` blocks the terms from the [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (npm `naughty-words`, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) for the corpus' language, about 30 languages in all, plus any `blockedSubstrings` the corpus adds. Made-up words are rejected if they contain a term of three letters or more anywhere. Real words are dropped only if they are a term (plus endings like "-s" or "-ing" in English), so innocent words that merely contain one stay. A new language is covered automatically if the list has it. Users can turn the filter off with the **Hide offensive words** checkbox on the Practice tab (saved in localStorage, on by default).
+Drills never show offensive words, real or made up. `src/wordfilter.ts` blocks the terms from the [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (npm `naughty-words`, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) for the corpus' language, about 30 languages in all, plus any `blockedSubstrings` the corpus adds. Made-up words are rejected if they contain a term of three letters or more anywhere. Real words are dropped only if they are a term (plus endings like "-s" or "-ing" in English), so innocent words that merely contain one stay. A new language is covered automatically if the list has it. Users can turn the filter off with **Hide offensive words** in Settings (saved in localStorage, on by default).
 
 ## Word lists
 
@@ -122,3 +128,7 @@ GitHub Actions:
 
 - `ci.yml` runs typecheck, tests and build on every pull request and on `main`.
 - `supabase-migrations.yml` applies new migrations to the staging database on pull requests and to production after merge. It skips until the `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` and `SUPABASE_PROJECT_ID` secrets are set in the `staging` and `production` environments.
+
+## Impressum and privacy policy
+
+`/impressum` and `/datenschutz` (`impressum.html`, `datenschutz.html`, texts in `src/legal/content.ts`) are written for a private, non-commercial site run from Austria, in German (binding) and English. Fill in your name, town and e-mail in `src/legal/owner.ts` before going public. The privacy policy says the site sets no cookies, has no analytics and only stores practice data in the browser; if that changes (accounts, Cloudflare Web Analytics, ads), update the texts first. A cookie banner is not needed while all browser storage is strictly necessary for the trainer (§ 165 Abs. 3 TKG 2021).

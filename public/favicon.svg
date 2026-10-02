@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <style>
+    .k { fill: #ffffff; stroke: #0e6f68; }
+    .f { fill: #0e6f68; }
+    .p { fill: #b5631a; }
+    @media (prefers-color-scheme: dark) {
+      .k { fill: #1b2027; stroke: #4cc1b5; }
+      .f { fill: #4cc1b5; }
+      .p { fill: #f0a35e; }
+    }
+  </style>
+  <rect class="k" x="8" y="8" width="84" height="84" rx="18" stroke-width="8" stroke-linejoin="round"/>
+  <rect class="f" x="22" y="64" width="13" height="14" rx="3"/>
+  <rect class="f" x="40" y="52" width="13" height="26" rx="3"/>
+  <rect class="f" x="58" y="40" width="13" height="38" rx="3"/>
+  <polygon class="p" points="69,12 72,22 82,25 72,28 69,38 66,28 56,25 66,22"/>
+</svg>

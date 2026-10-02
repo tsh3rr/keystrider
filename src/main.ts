@@ -14,27 +14,40 @@ import {
 import { FingerGuide } from './fingerGuide';
 import { DEFAULT_FATIGUE_PARAMS, FatigueTracker, type FatigueSignal } from './fatigue';
 import { learningPath, sessionPlan, type StageId } from './path';
-import { renderProgress, type Range } from './progressView';
+import { renderProgress, revealSection, type ProgressSection, type Range } from './progressView';
+import { weakest } from './progress';
+import { CoachBar, type CoachData } from './coachView';
+import { renderResult, type Tone } from './resultCard';
+import { Onboarding } from './onboarding';
 import {
-  backfillDone, loadBreakRemindersSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
-  loadShowKeysSetting, loadWordFilterSetting, markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting, saveGuideFadeSetting,
-  saveLanguageSetting, saveLayoutSetting, saveShowKeysSetting, saveWordFilterSetting,
-  type LayoutSetting,
+  backfillDone, loadBreakRemindersSetting, loadOnboardedSetting, saveOnboardedSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
+  loadShowKeysSetting, loadThemeSetting, loadWordFilterSetting, markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting,
+  saveGuideFadeSetting, saveLanguageSetting, saveLayoutSetting, saveShowKeysSetting, saveThemeSetting, saveWordFilterSetting,
+  loadUiLanguageSetting, saveUiLanguageSetting,
+  type LayoutSetting, type Theme,
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
+import {
+  UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, uiLanguage,
+} from './i18n';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const textEl = $('text');
 const inputEl = $<HTMLTextAreaElement>('input');
-const statsEl = $('stats');
 const logRows = $('log-rows');
 const logSummary = $('log-summary');
 
 const LOG_TABLE_LIMIT = 500;
 
 const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
+
+// Interface language: the learner's pick, else the browser's language if we have it, else English.
+const savedUiLanguage = loadUiLanguageSetting();
+setUiLanguage(isUiLanguage(savedUiLanguage) ? savedUiLanguage : guessUiLanguage(locales));
+document.documentElement.lang = uiLanguage();
+applyTranslations();
 // Until a key is pressed or the browser reports the layout, guess from the browser language.
 let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLocale(locales), source: 'guessed' };
 
@@ -126,14 +139,27 @@ function renderText(): void {
   updateFingerGuide();
 }
 
+/** Live speed and accuracy for the coach bar's speed chip. */
+function nowData(): CoachData['now'] {
+  const started = drillEvents.length > 0;
+  // In accuracy recovery the live speed is hidden so the learner is not tempted to chase it.
+  const recovery = curriculum?.recovery ?? false;
+  return {
+    wpm: started && !recovery ? Math.round(session.wpm()) : null,
+    accuracy: started ? session.accuracy() : null,
+    usualWpm: model && model.baseline.attempts > 0 ? Math.round(model.baseline.wpm) : null,
+    recovery,
+    level: curriculum
+      ? t('now.level', { tier: curriculum.tier, wpm: tierWpm(curriculum.tier), pace: Math.round(drill?.paceWpm ?? curriculum.paceWpm) })
+      : '',
+    weakest: model ? weakest(model.keys, 10, 5).map((k) => ({ label: keyCap(k.item), errorRate: k.errorRate })) : [],
+  };
+}
+
 function renderStats(): void {
   // Once the drill is done, finishDrill writes the summary.
   if (session.done) return;
-  const wpm = session.wpm().toFixed(0);
-  const acc = (session.accuracy() * 100).toFixed(1);
-  // In accuracy recovery the live speed is hidden so the learner is not tempted to chase it.
-  const speed = curriculum?.recovery ? '' : `${wpm} WPM · `;
-  statsEl.textContent = `${speed}${acc}% accuracy · ${session.errors} errors`;
+  coach.updateNow(nowData());
 }
 
 function flashError(): void {
@@ -179,6 +205,7 @@ function flushInput(): void {
   const typed = inputEl.value;
   inputEl.value = '';
   if (!typed) return;
+  coach.close(false);
   for (const ch of typed.normalize('NFC')) handleChar(ch);
   lastCode = null;
   renderText();
@@ -196,8 +223,9 @@ inputEl.addEventListener('compositionend', flushInput);
 // Pasted or dropped text would be logged as keystrokes, so refuse it.
 inputEl.addEventListener('paste', (e) => e.preventDefault());
 inputEl.addEventListener('drop', (e) => e.preventDefault());
-inputEl.addEventListener('focus', () => textEl.classList.add('focused'));
-inputEl.addEventListener('blur', () => textEl.classList.remove('focused'));
+const typeHint = $('type-hint');
+inputEl.addEventListener('focus', () => { textEl.classList.add('focused'); typeHint.hidden = true; });
+inputEl.addEventListener('blur', () => { textEl.classList.remove('focused'); typeHint.hidden = false; });
 textEl.addEventListener('click', () => inputEl.focus());
 
 $('new-text').addEventListener('click', () => {
@@ -211,9 +239,9 @@ $('new-text').addEventListener('click', () => {
 // rules decide on unlocks, tier and pace; the summary shows what changed.
 
 const drillKeysEl = $('drill-keys');
-const drillInfoEl = $('drill-info');
 const drillCueEl = $('drill-cue');
-const feedbackEl = $('drill-feedback');
+const resultEl = $('result');
+const practiceView = $('practice-view');
 
 let curriculum: CurriculumState | null = null;
 let model: WeaknessModel | null = null;
@@ -224,6 +252,8 @@ let pendingWrites: Promise<unknown>[] = [];
 let finishing = false;
 /** When the last drill was finished; null until one is, so the first drill of a visit opens a session. */
 let lastDrillAt: number | null = null;
+/** Redraws the results card on screen; null while there is none. */
+let redrawResult: (() => void) | null = null;
 
 const corpus = () => getCorpus(context.language);
 
@@ -237,12 +267,10 @@ function keyCap(ch: string): string {
 
 /** The unlock message for a step: a letter, capitals, a mark or a digit. */
 function unlockMessage(step: string): string {
-  if (step === CAPITALS) {
-    return 'Capitals unlocked: hold Shift with the little finger of the other hand, then press the letter. Sentences now start with a capital.';
-  }
-  const shift = needsShift(step, context.layout) ? ' (with Shift)' : '';
-  const what = /^\p{L}$/u.test(step) ? 'letter' : /^\p{Nd}$/u.test(step) ? 'digit' : 'punctuation key';
-  return `New ${what} unlocked: ${keyCap(step)}${shift}. Drills lean on it until it is up to speed.`;
+  if (step === CAPITALS) return t('unlock.capitals');
+  const shift = needsShift(step, context.layout);
+  const what = /^\p{L}$/u.test(step) ? 'letter' : /^\p{Nd}$/u.test(step) ? 'digit' : 'mark';
+  return t(`unlock.${what}${shift ? 'Shift' : ''}`, { key: keyCap(step) });
 }
 
 const showItem = (item: string) => [...item].map((c) => (c === ' ' ? '␣' : c)).join('');
@@ -270,85 +298,102 @@ function renderDrillBar(): void {
     const span = document.createElement('span');
     span.textContent = keyCap(ch);
     span.className = 'key' + (unlocked.has(ch) ? '' : ' locked') + (ch === curriculum.focusKey ? ' focus' : '');
-    span.title = ch === curriculum.focusKey ? 'Focus key' : unlocked.has(ch) ? 'Unlocked' : 'Locked';
+    span.title = t(ch === curriculum.focusKey ? 'keys.focus' : unlocked.has(ch) ? 'keys.unlocked' : 'keys.locked');
     frag.append(span);
   }
   drillKeysEl.replaceChildren(frag);
-  drillInfoEl.textContent =
-    `Level ${curriculum.tier} (${tierWpm(curriculum.tier)} WPM) · target pace ${Math.round(curriculum.paceWpm)} WPM`;
   drillCueEl.hidden = !curriculum.recovery;
-  renderPath();
+  renderCoach();
 }
 
-// --- Learning path ---
+// --- Coach bar ---
 //
-// Read-only view of the curriculum: which stage of unlocks you are in, what
-// the next unlock waits on, and where this drill sits in the round of drills.
+// Read-only view of the curriculum and the session: which stage of unlocks
+// you are in and what the next unlock waits on, where this drill sits in the
+// round, live speed, and the break check. Each chip opens its own details.
 
-const STAGE_NAMES: Record<StageId, string> = {
-  letters: 'Letters', capitals: 'Capitals', punctuation: 'Punctuation', digits: 'Numbers',
-};
-const PLAN_NAMES = { warmup: 'Warm-up', core: 'Drill', focus: 'Focus burst', sentence: 'Sentences' } as const;
+const stageName = (id: StageId) => t(`stage.${id}`);
+/** A drill in the round; core drills are numbered ("Drill 2"). */
+interface RoundStep { kind: Drill['kind']; n: number }
+const stepName = (step: RoundStep) => (step.kind === 'core' && step.n > 0 ? t('plan.coreN', { n: step.n }) : t(`plan.${step.kind}`));
 /** Whether this session opened with a warm-up, so the round shows it. */
 let warmedUp = false;
+/** The drill in the round that is being typed, or that Enter starts once it is done. */
+let roundStep: RoundStep | null = null;
 
-/** A chip whose explanation shows on hover or keyboard focus. */
-function chip(text: string, cls: string, tip: string): HTMLLIElement {
-  const el = Object.assign(document.createElement('li'), { textContent: text, className: cls, tabIndex: 0 });
-  el.dataset.tip = tip;
-  el.setAttribute('aria-label', `${text}. ${tip}`);
-  return el;
-}
+const coach = new CoachBar(
+  document.querySelector<HTMLElement>('.coach-bar')!,
+  $('coach-pop'),
+  (section) => showView('progress', section),
+  () => inputEl.focus(),
+);
+/** The last path summary the coach showed; the Progress page repeats it in its path card. */
+let coachPath: CoachData['path'] | null = null;
 
-function renderPath(): void {
+function renderCoach(): void {
   if (!curriculum || !drill) return;
   const path = learningPath(curriculum, corpus(), model);
 
-  // What the next unlock waits on, shown on the current stage.
+  // What the next unlock waits on.
   let nextTip: string;
   if (path.next === null) {
-    nextTip = `Everything is unlocked. Level ${curriculum.tier + 1} comes once your drills average ${tierWpm(curriculum.tier)} WPM at 96% accuracy.`;
+    nextTip = t('path.allUnlocked', { next: curriculum.tier + 1, wpm: tierWpm(curriculum.tier), acc: pct(0.96) });
   } else {
-    const what = path.next === CAPITALS ? 'Capitals unlock' : `Next up: ${keyCap(path.next)}. It unlocks`;
-    const bar = `under ${Math.round(DEFAULT_DRILL_PARAMS.unlockMaxErrorRate * 100)}% errors and ${Math.round(tierTargetMs(curriculum.tier))} ms per key or faster`;
-    nextTip = `${what} once every key you have is ${bar}. Ready: ${path.ready} of ${path.unlocked}.`;
+    const bar = {
+      err: pct(DEFAULT_DRILL_PARAMS.unlockMaxErrorRate),
+      ms: Math.round(tierTargetMs(curriculum.tier)),
+      ready: path.ready,
+      unlocked: path.unlocked,
+    };
+    nextTip = path.next === CAPITALS ? t('path.nextCapitals', bar) : t('path.nextKey', { ...bar, key: keyCap(path.next) });
     if (path.blocking.length > 0) {
-      nextTip += ` Still practising: ${path.blocking.slice(0, 8).map(keyCap).join(' ')}${path.blocking.length > 8 ? ' …' : ''}`;
+      nextTip += ' ' + t('path.blocking', {
+        keys: path.blocking.slice(0, 8).map(keyCap).join(' ') + (path.blocking.length > 8 ? ' …' : ''),
+      });
     }
   }
-  const stageAbout: Record<StageId, string> = {
-    letters: 'Letters unlock a few at a time, most common first.',
-    capitals: 'Capitals: Shift plus a letter, practised in short sentences.',
-    punctuation: 'Punctuation marks, one at a time, most common first.',
-    digits: 'Numbers, one digit at a time.',
-  };
-  $('path-stages').replaceChildren(...path.stages.map((s) => {
-    const count = s.total > 1 ? ` ${s.done}/${s.total}` : '';
-    const tip = s.state === 'current' ? `${stageAbout[s.id]} ${nextTip}`
-      : s.state === 'done' ? `${stageAbout[s.id]} Done.`
-      : `${stageAbout[s.id]} Comes later.`;
-    return chip(STAGE_NAMES[s.id] + count, s.state, tip);
-  }));
+  const current = path.stages.find((st) => st.state === 'current') ?? path.stages[path.stages.length - 1];
 
   // Once a drill is done, the round shows the one Enter starts next.
   const kind = session.done ? nextKind(curriculum, drill.kind, { sentences: path.sentencesOpen }) : drill.kind;
   const plan = sessionPlan(curriculum, kind, { warmedUp, sentencesOpen: path.sentencesOpen });
-  const focus = curriculum.focusKey === null ? 'your newest key' : keyCap(curriculum.focusKey);
-  const about = {
-    warmup: 'Easy, common words with keys you have not practised for a while. Does not count toward unlocks or your level.',
-    core: 'Built from your weakest keys and letter pairs. Counts toward the next unlock and your level.',
-    focus: `A short drill on ${focus} and the letter pairs around it.`,
-    sentence: 'Real sentences, so your practice carries over to everyday typing. Adjusts your pace, but not unlocks or level.',
-  };
-  const status = { done: 'Done.', current: session.done ? 'Up next.' : 'You are here.', upcoming: 'Coming up.' };
+  const focus = curriculum.focusKey === null ? t('round.newestKey') : keyCap(curriculum.focusKey);
+  const about = t(`round.about.${kind}`, { focus });
   let core = 0;
-  $('session-plan').replaceChildren(...plan.map((step) => {
-    const name = step.kind === 'core' ? `${PLAN_NAMES.core} ${++core}` : PLAN_NAMES[step.kind];
-    const tip = step.state === 'locked'
-      ? `${about[step.kind]} Opens at ${path.sentenceLetters} letters (you have ${path.letters}).`
-      : `${status[step.state]} ${about[step.kind]}`;
-    return chip(name, step.state, tip);
-  }));
+  const rounds = plan.map((step) => ({ kind: step.kind, n: step.kind === 'core' ? ++core : 0 }));
+  const steps = plan.map((step, i) => ({ name: stepName(rounds[i]), state: step.state }));
+  const at = Math.max(0, plan.findIndex((step) => step.state === 'current'));
+  roundStep = rounds[at];
+  const currentStep = steps[at];
+  const sentenceNote = plan.some((step) => step.kind === 'sentence' && step.state === 'locked')
+    ? ' ' + t('round.sentencesLocked', { need: path.sentenceLetters, have: path.letters }) : '';
+
+  coachPath = {
+    stage: stageName(current.id),
+    done: current.done,
+    total: current.total,
+    next: path.next === null ? null : keyCap(path.next),
+    stages: path.stages.map((st) => ({ name: stageName(st.id), done: st.done, total: st.total, state: st.state })),
+    about: nextTip,
+  };
+  coach.update({
+    path: coachPath,
+    round: {
+      steps,
+      current: session.done ? t('round.next', { name: currentStep.name }) : currentStep.name,
+      about: (session.done ? t('round.upNext') + ' ' : '') + about + sentenceNote,
+      // Targets of the drill being typed; a finished drill's next targets are not known yet.
+      focus: session.done || kind === 'warmup' || kind === 'sentence'
+        ? [] : drill.targets.slice(0, 6).map((t) => ([...t].length === 1 ? keyCap(t) : showItem(t))),
+    },
+    now: nowData(),
+    fresh: {
+      enabled: breakToggle.checked,
+      minutes: fatigue.practiceMinutes(),
+      due: !breakCard.hidden,
+      longMinutes: DEFAULT_FATIGUE_PARAMS.longStretchMinutes,
+    },
+  });
 }
 
 /** Starts a drill of the given kind, or of the kind that comes next in the session. */
@@ -367,7 +412,9 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
   session = new TypingSession(drill.text, context);
   drillEvents = [];
   pendingWrites = [];
-  feedbackEl.hidden = true;
+  resultEl.hidden = true;
+  redrawResult = null;
+  practiceView.classList.remove('showing-result');
   renderDrillBar();
   renderText();
   renderStats();
@@ -377,28 +424,23 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
 function describeChange(c: CurriculumChange): string {
   switch (c.type) {
     case 'unlock': return unlockMessage(c.key);
-    case 'focus-met': return `${keyCap(c.key)} is up to speed.`;
-    case 'stuck': return `${keyCap(c.key)} has been holding you back, so its speed bar is a little lower and it gets extra practice.`;
-    case 'tier': return `Level up: level ${c.tier}, aiming for ${tierWpm(c.tier)} WPM.`;
-    case 'recovery': return c.on
-      ? 'Two drills in a row under 92% accuracy: slow down until you are typing cleanly again.'
-      : 'Accuracy is back. Speed is shown again.';
+    case 'focus-met': return t('change.focusMet', { key: keyCap(c.key) });
+    case 'stuck': return t('change.stuck', { key: keyCap(c.key) });
+    case 'tier': return t('change.tier', { tier: c.tier, wpm: tierWpm(c.tier) });
+    case 'recovery': return c.on ? t('change.recoveryOn', { acc: pct(0.92) }) : t('change.recoveryOff');
   }
 }
 
-function itemList(label: string, items: ItemChange[]): HTMLElement | null {
-  if (items.length === 0) return null;
-  const p = document.createElement('p');
-  p.append(`${label}: `);
-  items.forEach((it, i) => {
-    if (i) p.append(', ');
-    const span = document.createElement('span');
-    span.className = 'item';
-    span.textContent = it.kind === 'key' ? keyCap(it.item) : showItem(it.item);
-    p.append(span);
-  });
-  return p;
+function changeTone(c: CurriculumChange): Tone {
+  switch (c.type) {
+    case 'unlock': case 'tier': return 'win';
+    case 'focus-met': return 'good';
+    case 'stuck': return 'info';
+    case 'recovery': return c.on ? 'warn' : 'good';
+  }
 }
+
+const itemLabel = (it: ItemChange) => (it.kind === 'key' ? keyCap(it.item) : showItem(it.item));
 
 async function finishDrill(): Promise<void> {
   if (!drill || !curriculum) return;
@@ -407,39 +449,51 @@ async function finishDrill(): Promise<void> {
     await Promise.all(pendingWrites);
     lastDrillAt = Date.now();
     const result = drillResult(drillEvents);
-    const head = `Done: ${result.wpm.toFixed(0)} WPM, ${(result.accuracy * 100).toFixed(1)}% accuracy` +
-      ` (target pace ${Math.round(drill.paceWpm)} WPM). Press Enter for the next drill.`;
-    statsEl.textContent = head;
+    const finished = drill;
+    const typed: RoundStep = roundStep ?? { kind: finished.kind, n: 0 };
+    const errors = session.errors;
+    const recovery = curriculum.recovery;
+    // Kept so a switch of interface language can redraw the card in the new language.
+    const show = (changes: CurriculumChange[], improved: ItemChange[], slipped: ItemChange[], next: RoundStep | null) => {
+      redrawResult = () => renderResult(resultEl, {
+        drillName: stepName(typed), wpm: result.wpm, accuracy: result.accuracy, errors, paceWpm: finished.paceWpm,
+        recovery, news: changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
+        improved: improved.map(itemLabel), slipped: slipped.map(itemLabel), next: next && stepName(next),
+      }, () => {
+        if (!finishing && breakEndsAt === null) startDrill().catch((err) => console.error('Failed to start drill', err));
+      });
+      redrawResult();
+      practiceView.classList.add('showing-result');
+    };
     // A layout switch mid-drill moved these keystrokes to another curriculum; just start fresh.
-    if (curriculum.layout !== context.layout || curriculum.language !== context.language) return;
+    if (curriculum.layout !== context.layout || curriculum.language !== context.language) {
+      show([], [], [], null);
+      return;
+    }
 
     const before = model;
     if (before) {
-      fatigue.addDrill(drillEvents, before, drill.kind, slowOnPurpose);
+      fatigue.addDrill(drillEvents, before, finished.kind, slowOnPurpose);
       const signal = fatigue.check();
       if (signal && breakToggle.checked) showBreakCard(signal);
     }
     const after = await buildModel(curriculum);
-    const { state, changes } = afterDrill(after, curriculum, corpus(), drill, result);
+    const { state, changes } = afterDrill(after, curriculum, corpus(), finished, result);
     curriculum = state;
     saveCurriculum(state);
     model = after;
 
-    const lines: HTMLElement[] = changes.map((c) => Object.assign(document.createElement('p'), { textContent: describeChange(c) }));
-    if (before) {
-      const { improved, slipped } = drillFeedback(before, after, drill);
-      for (const el of [itemList('Improved', improved), itemList('Slipped', slipped)]) if (el) lines.push(el);
-    }
-    feedbackEl.replaceChildren(...lines);
-    feedbackEl.hidden = lines.length === 0;
+    const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
     renderDrillBar();
+    show(changes, improved, slipped, roundStep);
   } finally {
     finishing = false;
   }
 }
 
 $('reset-lessons').addEventListener('click', () => {
-  if (!confirm('Start the lessons over from the first six letters? Your keystroke log is kept.')) return;
+  if (!confirm(t('settings.resetConfirm'))) return;
+  closeSettings(false);
   clearCurriculum(context);
   curriculum = initialCurriculum(corpus(), context);
   saveCurriculum(curriculum);
@@ -471,40 +525,52 @@ breakToggle.checked = loadBreakRemindersSetting();
 breakToggle.addEventListener('change', () => {
   saveBreakRemindersSetting(breakToggle.checked);
   if (!breakToggle.checked && breakEndsAt === null) hideBreakCard();
-  inputEl.focus();
+  renderCoach();
 });
 
-const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
-const BREAK_ADVICE = 'Stand up, shake out your hands and look at something far away.';
+/** The signal behind the break suggestion on screen, so it can be redrawn in another language. */
+let breakSignal: FatigueSignal | null = null;
 
 function breakMessage(s: FatigueSignal): string {
   switch (s.type) {
-    case 'accuracy':
-      return `Your accuracy has dropped from ${pct(s.accuracyBefore)} to ${pct(s.accuracyNow)} over the last two drills, ` +
-        'measured against how you usually type these keys. That is often tiredness, and practising tired trains in mistakes. ' +
-        'A short break now will help more than pushing on.';
-    case 'speed':
-      return `Your keystrokes are about ${pct(s.slowerBy)} slower over the last two drills than earlier in this session, ` +
-        'for the same keys. That is often tiredness. A short break now will help more than pushing on.';
-    case 'long':
-      return `You have been typing for ${s.minutes} minutes. Short stretches with breaks build skill faster than long ones, ` +
-        'so this is a good moment for a pause.';
+    case 'accuracy': return t('break.accuracy', { before: pct(s.accuracyBefore), now: pct(s.accuracyNow) });
+    case 'speed': return t('break.speed', { slower: pct(s.slowerBy) });
+    case 'long': return t('break.long', { n: s.minutes });
+  }
+}
+
+/** Fills the break card's text for the step it is in: suggestion, countdown, or over. */
+function renderBreakText(): void {
+  breakStart.textContent = t('break.start', { n: DEFAULT_FATIGUE_PARAMS.breakMinutes });
+  if (breakTimer.hidden) {
+    if (breakSignal) breakText.textContent = breakMessage(breakSignal);
+    return;
+  }
+  breakText.textContent = t('break.advice');
+  if (breakEndsAt === null) {
+    breakTimer.textContent = t('break.over');
+    breakBack.textContent = t('break.next');
+  } else {
+    breakBack.textContent = t('break.back');
   }
 }
 
 function showBreakCard(signal: FatigueSignal): void {
+  breakSignal = signal;
   breakText.textContent = breakMessage(signal);
   breakTimer.hidden = true;
   breakStart.hidden = false;
   breakBack.hidden = true;
   breakSkip.hidden = false;
   breakCard.hidden = false;
+  renderCoach();
 }
 
 function hideBreakCard(): void {
   clearInterval(breakTick);
   breakEndsAt = null;
   breakCard.hidden = true;
+  renderCoach();
 }
 
 function renderBreakTimer(): void {
@@ -512,9 +578,8 @@ function renderBreakTimer(): void {
   const left = Math.max(0, Math.ceil((breakEndsAt - Date.now()) / 1000));
   if (left === 0) {
     clearInterval(breakTick);
-    breakTimer.textContent = 'Break over. Press Enter or click below for the next drill.';
-    breakBack.textContent = 'Next drill';
     breakEndsAt = null;
+    renderBreakText();
     return;
   }
   breakTimer.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
@@ -522,12 +587,11 @@ function renderBreakTimer(): void {
 
 breakStart.addEventListener('click', () => {
   breakEndsAt = Date.now() + DEFAULT_FATIGUE_PARAMS.breakMinutes * 60_000;
-  breakText.textContent = BREAK_ADVICE;
   breakTimer.hidden = false;
   breakStart.hidden = true;
   breakSkip.hidden = true;
   breakBack.hidden = false;
-  breakBack.textContent = "I'm back";
+  renderBreakText();
   renderBreakTimer();
   breakTick = setInterval(renderBreakTimer, 1000);
 });
@@ -552,22 +616,25 @@ breakSkip.addEventListener('click', () => {
 // log (both keyed by language and layout), so switching back and forth
 // keeps progress in each.
 
-const languageSelect = $<HTMLSelectElement>('language-select');
-for (const c of availableLanguages()) languageSelect.append(new Option(c.name, c.language));
-languageSelect.value = context.language;
-languageSelect.addEventListener('change', () => {
+/** Switches the practice language and, unless `start` is false, starts a drill in it. */
+function setLanguage(language: string, start = true): void {
   // A finished drill is still being scored under the old language: keep it.
-  if (finishing) {
-    languageSelect.value = context.language;
-    return;
-  }
-  context.language = languageSelect.value;
+  if (finishing || language === context.language) return;
+  context.language = language;
   saveLanguageSetting(context.language);
   // The fatigue yardstick is a model of the old language's keys.
   fatigue.reset();
   drill = null;
-  startDrill().catch((err) => console.error('Failed to start drill', err));
-});
+  renderLanguage();
+  if (start) startDrill().catch((err) => console.error('Failed to start drill', err));
+}
+
+function renderLanguage(): void {
+  const lang = availableLanguages().find((c) => c.language === context.language);
+  $('language-name').textContent = lang?.name ?? context.language;
+  $('language-options').replaceChildren(...availableLanguages().map((c) =>
+    menuItem(c.name, '', c.language === context.language, () => setLanguage(c.language))));
+}
 
 // --- Keyboard layout ---
 //
@@ -577,7 +644,6 @@ languageSelect.addEventListener('change', () => {
 // character). The user can always override in the picker; after that,
 // detection only suggests a switch instead of making it.
 
-const layoutSelect = $<HTMLSelectElement>('layout-select');
 const layoutStatus = $('layout-status');
 const suggestBox = $('layout-suggest');
 const observer = new KeyObserver();
@@ -585,17 +651,20 @@ let suggested: string | null = null;
 /** Suggestions the user answered "Keep mine" to, so they are not asked again this visit. */
 const declined = new Set<string>();
 
-for (const l of LAYOUTS) layoutSelect.append(new Option(l.name, l.id));
-
-const layoutName = (id: string) => getLayout(id)?.name ?? id;
+const layoutName = (id: string) => tMaybe(`layout.${id}`) ?? getLayout(id)?.name ?? id;
+/** Short name for the top bar: the letter order ("QWERTZ") when the name ends in one, else the whole name. */
+const layoutShortName = (id: string) => {
+  const name = layoutName(id);
+  return /\b(QWERTY|QWERTZ|AZERTY)$/.exec(name)?.[1] ?? name;
+};
 
 function renderLayout(): void {
-  layoutSelect.value = layoutSetting.layout;
-  layoutStatus.textContent = {
-    user: 'chosen by you',
-    detected: 'detected from your keyboard',
-    guessed: 'best guess so far; checked as you type',
-  }[layoutSetting.source];
+  $('layout-name').textContent = layoutShortName(layoutSetting.layout);
+  $('layout-btn').title = t('menu.layoutTitle', { name: layoutName(layoutSetting.layout) });
+  $('layout-options').replaceChildren(...LAYOUTS.map((l) => menuItem(layoutName(l.id), '', l.id === layoutSetting.layout, () => {
+    setLayout(l.id, 'user').catch((err) => console.error('Failed to update layout', err));
+  })));
+  layoutStatus.textContent = t(`layout.source.${layoutSetting.source}`);
 }
 
 function showSuggestion(id: string | null): void {
@@ -603,7 +672,7 @@ function showSuggestion(id: string | null): void {
   suggestBox.hidden = id === null;
   if (id !== null) {
     $('layout-suggest-text').textContent =
-      `Your key presses look like ${layoutName(id)}, but the layout is set to ${layoutName(layoutSetting.layout)}.`;
+      t('layout.suggest', { detected: layoutName(id), current: layoutName(layoutSetting.layout) });
   }
 }
 
@@ -617,6 +686,7 @@ async function setLayout(layout: string, source: LayoutSetting['source']): Promi
   renderText();
   renderLayout();
   showSuggestion(null);
+  onboarding.layoutChanged();
   if (changed) {
     // Keystrokes already logged in this text (and any earlier session whose own
     // keys contradict its tag) were recorded under the wrong layout: retag them.
@@ -661,10 +731,6 @@ async function detectFromBrowser(): Promise<void> {
   if (d.layout) await setLayout(d.layout, 'detected');
 }
 
-layoutSelect.addEventListener('change', () => {
-  setLayout(layoutSelect.value, 'user').catch((err) => console.error('Failed to update layout', err));
-  inputEl.focus();
-});
 $('layout-suggest-yes').addEventListener('click', () => {
   if (suggested) setLayout(suggested, 'user').catch((err) => console.error('Failed to update layout', err));
   inputEl.focus();
@@ -688,15 +754,15 @@ async function renderLog(): Promise<void> {
   const errors = events.filter((e) => !e.correct).length;
   const sessions = new Set(events.map((e) => e.sessionId)).size;
   logSummary.textContent =
-    `${events.length} keystrokes · ${errors} errors · ${sessions} sessions` +
-    (events.length > LOG_TABLE_LIMIT ? ` (showing latest ${LOG_TABLE_LIMIT})` : '');
+    t('log.summary', { keys: num(events.length), errors: num(errors), sessions: num(sessions) }) +
+    (events.length > LOG_TABLE_LIMIT ? ' ' + t('log.showingLatest', { n: num(LOG_TABLE_LIMIT) }) : '');
 
   const frag = document.createDocumentFragment();
   for (const e of events.slice(-LOG_TABLE_LIMIT).reverse()) {
     const tr = document.createElement('tr');
     if (!e.correct) tr.className = 'wrong';
     const cells = [
-      new Date(e.timestamp).toLocaleTimeString(),
+      new Date(e.timestamp).toLocaleTimeString(uiLanguage()),
       e.sessionId,
       `${e.language} · ${e.layout}`,
       String(e.position),
@@ -734,38 +800,247 @@ $('export-csv').addEventListener('click', async () => {
   download('keystrokes.csv', 'text/csv', toCsv(await store.all()));
 });
 $('clear-log').addEventListener('click', async () => {
-  if (!confirm('Delete all logged keystrokes?')) return;
+  if (!confirm(t('log.clearConfirm'))) return;
   await store.clear();
   await renderLog();
 });
 
 // --- Progress ---
 
-const progressRange = $<HTMLSelectElement>('progress-range');
+const RANGE_KEY = 'typing-trainer.progressRange';
+let progressRange: Range = 30;
+try {
+  const saved = localStorage.getItem(RANGE_KEY);
+  if (saved === '7' || saved === '30') progressRange = Number(saved) as Range;
+  else if (saved === 'all') progressRange = 'all';
+} catch { /* storage blocked: keep the default */ }
 
-function showProgress(): void {
-  const v = progressRange.value;
-  const range: Range = v === 'all' ? 'all' : (Number(v) as Range);
-  renderProgress(store, context, range, layoutName(context.layout)).catch((err) =>
-    console.error('Failed to render progress', err),
-  );
+/** Renders the Progress page, then scrolls to the card a coach bubble asked for. */
+async function showProgress(section?: ProgressSection): Promise<void> {
+  try {
+    const lang = availableLanguages().find((c) => c.language === context.language)?.name ?? context.language;
+    await renderProgress(store, context, { range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}`, path: coachPath });
+    if (section) revealSection(section);
+  } catch (err) {
+    console.error('Failed to render progress', err);
+  }
 }
 
-progressRange.addEventListener('change', showProgress);
+document.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const v = b.dataset.range!;
+    progressRange = v === 'all' ? 'all' : (Number(v) as Range);
+    try { localStorage.setItem(RANGE_KEY, v); } catch { /* not remembered */ }
+    void showProgress();
+  }),
+);
+$('progress-start').addEventListener('click', () => showView('practice'));
 
-// --- Navigation ---
+// --- Navigation, menus and settings ---
 
-document.querySelectorAll<HTMLButtonElement>('nav button').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.view;
-    document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b === btn));
-    $('practice-view').hidden = view !== 'practice';
-    $('log-view').hidden = view !== 'log';
-    $('progress-view').hidden = view !== 'progress';
-    if (view === 'log') renderLog();
-    else if (view === 'progress') showProgress();
-    else inputEl.focus();
+type View = 'practice' | 'progress' | 'log';
+
+function showView(view: View, section?: ProgressSection): void {
+  document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => {
+    const on = b.dataset.view === view;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
   });
+  coach.close(false);
+  $('practice-view').hidden = view !== 'practice';
+  $('log-view').hidden = view !== 'log';
+  $('progress-view').hidden = view !== 'progress';
+  if (view === 'log') renderLog();
+  else if (view === 'progress') void showProgress(section);
+  else inputEl.focus();
+}
+
+document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((btn) => {
+  btn.addEventListener('click', () => showView(btn.dataset.view as View));
+});
+$('log-back').addEventListener('click', () => showView('practice'));
+
+/** One choice in a top-bar menu, with a tick on the current one. */
+function menuItem(label: string, detail: string, checked: boolean, pick: () => void): HTMLButtonElement {
+  const b = Object.assign(document.createElement('button'), { type: 'button', className: 'menu-item' });
+  b.setAttribute('role', 'menuitemradio');
+  b.setAttribute('aria-checked', String(checked));
+  b.append(label);
+  if (detail) b.append(Object.assign(document.createElement('small'), { textContent: detail }));
+  b.addEventListener('click', () => {
+    closeMenus();
+    pick();
+    inputEl.focus();
+  });
+  return b;
+}
+
+const menus = [
+  { btn: $('language-btn'), menu: $('language-menu') },
+  { btn: $('layout-btn'), menu: $('layout-menu') },
+];
+
+function closeMenus(): void {
+  for (const m of menus) {
+    m.menu.hidden = true;
+    m.btn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+for (const m of menus) {
+  m.btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = m.menu.hidden;
+    closeMenus();
+    coach.close(false);
+    m.menu.hidden = !open;
+    m.btn.setAttribute('aria-expanded', String(open));
+    if (open) m.menu.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
+  });
+  m.menu.addEventListener('click', (e) => e.stopPropagation());
+}
+
+const drawer = $('settings-drawer');
+const settingsBtn = $('settings-btn');
+
+function openSettings(): void {
+  closeMenus();
+  coach.close(false);
+  drawer.hidden = false;
+  settingsBtn.setAttribute('aria-expanded', 'true');
+  $('settings-close').focus();
+}
+
+function closeSettings(refocus = true): void {
+  if (drawer.hidden) return;
+  drawer.hidden = true;
+  settingsBtn.setAttribute('aria-expanded', 'false');
+  if (refocus) inputEl.focus();
+}
+
+settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (drawer.hidden) openSettings();
+  else closeSettings();
+});
+$('settings-close').addEventListener('click', () => closeSettings());
+drawer.addEventListener('click', (e) => e.stopPropagation());
+$('open-log').addEventListener('click', () => {
+  closeSettings(false);
+  showView('log');
+});
+
+document.addEventListener('click', () => {
+  closeMenus();
+  closeSettings(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const menuOpen = menus.some((m) => !m.menu.hidden);
+  if (menuOpen) {
+    closeMenus();
+    inputEl.focus();
+  } else closeSettings();
+});
+
+// Theme: follows the system unless the learner picks light or dark.
+let theme: Theme = loadThemeSetting();
+
+function applyTheme(): void {
+  if (theme === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.dataset.theme = theme;
+  document.querySelectorAll<HTMLButtonElement>('[data-theme-choice]').forEach((b) =>
+    b.setAttribute('aria-checked', String(b.dataset.themeChoice === theme)));
+}
+
+document.querySelectorAll<HTMLButtonElement>('[data-theme-choice]').forEach((b) => {
+  b.addEventListener('click', () => {
+    theme = b.dataset.themeChoice as Theme;
+    saveThemeSetting(theme);
+    applyTheme();
+  });
+});
+applyTheme();
+
+// --- First-run setup ---
+//
+// Keyboard check, where to start (with an optional placement test) and how
+// the method works; see onboarding.ts. Shown once on a first visit, and
+// again from Settings. The top bar stays out of the way meanwhile.
+
+const onboarding = new Onboarding($('onboarding-view'), {
+  context: () => context,
+  layoutSource: () => layoutSetting.source,
+  hasLessons: () => loadCurriculum(context) !== null,
+  setLanguage: (language) => setLanguage(language, false),
+  setLayout,
+  log: (event) => store.add(event),
+  finish: (lessons) => {
+    saveOnboardedSetting();
+    // Saved even when it was only guessed, so the next visit keeps it (see startLanguage).
+    saveLanguageSetting(context.language);
+    document.body.classList.remove('onboarding');
+    practiceView.hidden = false;
+    if (lessons) {
+      saveCurriculum(lessons);
+      curriculum = lessons;
+    }
+    startDrill(lessons ? 'core' : undefined).catch((err) => console.error('Failed to start drill', err));
+  },
+}, locales);
+
+function openOnboarding(): void {
+  showView('practice');
+  closeSettings(false);
+  practiceView.hidden = true;
+  document.body.classList.add('onboarding');
+  onboarding.open();
+}
+
+$('rerun-setup').addEventListener('click', openOnboarding);
+
+// Interface language: every string on screen is redrawn in place, so a drill in progress carries on.
+const uiLanguageEl = $('ui-language');
+
+/** "auto" follows the browser language; otherwise the language the learner picked. */
+let uiChoice: string = isUiLanguage(savedUiLanguage) ? savedUiLanguage : 'auto';
+
+function renderUiLanguagePicker(): void {
+  const choices = [{ id: 'auto', name: t('settings.uiAuto') }, ...UI_LANGUAGES];
+  uiLanguageEl.replaceChildren(...choices.map((l) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: l.name });
+    b.setAttribute('role', 'radio');
+    if (isUiLanguage(l.id)) b.setAttribute('lang', l.id);
+    else b.title = t('settings.uiAutoTitle');
+    b.setAttribute('aria-checked', String(l.id === uiChoice));
+    b.addEventListener('click', () => {
+      uiChoice = l.id;
+      saveUiLanguageSetting(l.id);
+      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(locales));
+      // The language may not change (e.g. Automatic picks the one already shown); the choice did.
+      renderUiLanguagePicker();
+    });
+    return b;
+  }));
+}
+renderUiLanguagePicker();
+renderBreakText();
+
+onUiLanguageChange(() => {
+  applyTranslations();
+  renderUiLanguagePicker();
+  renderLayout();
+  if (suggested) showSuggestion(suggested);
+  fingerGuide.retranslate();
+  onboarding.languageChanged();
+  renderDrillBar();
+  renderStats();
+  redrawResult?.();
+  renderBreakText();
+  renderBreakTimer();
+  if (!$('progress-view').hidden) void showProgress();
+  if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
 });
 
 // Console access for ad-hoc inspection: `await typingLog.all()`
@@ -779,7 +1054,10 @@ KeystrokeStore.open().then((s) => {
   store = s;
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();
-  startDrill().catch((err) => console.error('Failed to start drill', err));
+  renderLanguage();
+  // A browser that practised before the setup existed goes straight to practice.
+  if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
+  else startDrill().catch((err) => console.error('Failed to start drill', err));
   detectFromBrowser()
     .then(backfillLegacyLog)
     .catch((err) => console.error('Layout detection failed', err));
