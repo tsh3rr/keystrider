@@ -46,7 +46,7 @@ export const de: Messages = {
   'settings.fingerGuide': 'Fingerhilfe anzeigen',
   'settings.guideFade': 'Bei sicheren Tasten abblenden',
   'settings.guideFadeTitle': 'Die Hilfe bleibt bei Tasten gedimmt, die du schon gut tippst, und leuchtet auf, wenn du zögerst oder dich vertippst',
-  'settings.showKeys': 'Alle Tasten zeigen und welche frei sind',
+  'settings.showKeys': 'Alle Tasten und Freischaltungen zeigen',
   'settings.showKeysTitle': 'Zeigt jede Taste und welche schon freigeschaltet sind',
   'settings.breaks': 'Pausen-Erinnerungen',
   'settings.breaksTitle': 'Schlägt eine kurze Pause vor, wenn dein Tippen schlechter wird oder du lange geübt hast',
