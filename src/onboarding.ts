@@ -5,6 +5,7 @@ import { placeFromTest, placementText, type Placement } from './placement';
 import { TypingSession } from './session';
 import type { LayoutSetting } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
+import { num, pct, t, tMaybe } from './i18n';
 
 /**
  * First-run setup, three short steps before the first drill:
@@ -17,69 +18,64 @@ import type { KeystrokeEvent, PracticeContext } from './types';
  * 3. How it works: the method in four points.
  *
  * The screen only talks to the rest of the app through `OnboardingHost`.
- * All its text is in `T` below, so it can move to the translation files.
+ * Its text comes from the translation files (`onboarding.*` keys) through `T` below.
  */
 
 const T = {
-  steps: ['Keyboard', 'Where to start', 'How it works'],
-  stepOf: (n: number, total: number) => `Step ${n} of ${total}`,
-  skip: 'Skip setup',
-  next: 'Continue',
-  back: 'Back',
+  get steps() { return [t('onboarding.stepKeyboard'), t('onboarding.stepStart'), t('onboarding.stepMethod')]; },
+  stepOf: (n: number, total: number) => t('onboarding.stepOf', { n, total }),
+  get skip() { return t('onboarding.skip'); },
+  get next() { return t('onboarding.next'); },
+  get back() { return t('onboarding.back'); },
 
-  keyboardTitle: 'Welcome! First, your keyboard',
-  keyboardIntro: 'Drills are built for the language you practise and the keyboard you type on, so the finger guide shows your keys.',
-  language: 'Practice language',
-  layout: 'Keyboard layout',
-  source: {
-    user: 'Chosen by you.',
-    detected: 'Detected from your keyboard.',
-    guessed: 'A guess from your browser language. Check it below.',
-  } as Record<LayoutSetting['source'], string>,
-  checkLabel: 'To check, type the top row of letters on your keyboard, from left to right:',
-  checkPlaceholder: 'Type here',
-  checkMatch: (name: string) => `✓ Your keys match ${name}.`,
-  checkFits: (name: string) => `✓ That fits ${name}.`,
-  checkSwitched: (name: string) => `Your keys look like ${name}, so the layout was switched.`,
-  checkNone: 'Type letters only, without Shift.',
+  get keyboardTitle() { return t('onboarding.keyboardTitle'); },
+  get keyboardIntro() { return t('onboarding.keyboardIntro'); },
+  get language() { return t('menu.practiceLanguage'); },
+  get layout() { return t('menu.layout'); },
+  source: (s: LayoutSetting['source']) => t(s === 'guessed' ? 'onboarding.sourceGuessed' : `layout.source.${s}`),
+  get checkLabel() { return t('onboarding.checkLabel'); },
+  get checkPlaceholder() { return t('onboarding.checkPlaceholder'); },
+  checkMatch: (name: string) => t('onboarding.checkMatch', { name }),
+  checkFits: (name: string) => t('onboarding.checkFits', { name }),
+  checkSwitched: (name: string) => t('onboarding.checkSwitched', { name }),
+  get checkNone() { return t('onboarding.checkNone'); },
 
-  startTitle: 'Where would you like to start?',
-  startIntro: 'Touch typing means typing without looking at your hands. Either way, the drills adapt to you as you go.',
-  newTitle: "I'm new to touch typing",
-  newText: 'Start with six common letters and add one key at a time.',
-  testTitle: 'I can already type without looking',
-  testText: 'Take a one-minute test and skip the keys you already know.',
-  keepTitle: 'Keep my current lessons',
-  keepText: 'Go on where you left off.',
-  replaceNote: (lang: string, layout: string) =>
-    `You already have lessons for ${lang} on ${layout}. Starting over or taking the test replaces them; your keystroke log is kept.`,
+  get startTitle() { return t('onboarding.startTitle'); },
+  get startIntro() { return t('onboarding.startIntro'); },
+  get newTitle() { return t('onboarding.newTitle'); },
+  get newText() { return t('onboarding.newText'); },
+  get testTitle() { return t('onboarding.testTitle'); },
+  get testText() { return t('onboarding.testText'); },
+  get keepTitle() { return t('onboarding.keepTitle'); },
+  get keepText() { return t('onboarding.keepText'); },
+  replaceNote: (lang: string, layout: string) => t('onboarding.replaceNote', { lang, layout }),
 
-  testTitleRun: 'Placement test',
-  testIntro: 'Type the text at your normal pace, without looking at your hands. Mistakes are fine: a wrong key holds you on the same letter.',
-  testHint: 'Click the text and start typing.',
-  testProgress: (done: number, total: number) => `${done} of ${total} words`,
-  retry: 'Take the test again',
+  get testTitleRun() { return t('onboarding.testTitleRun'); },
+  get testIntro() { return t('onboarding.testIntro'); },
+  get testHint() { return t('onboarding.testHint'); },
+  testProgress: (done: number, total: number) => t('onboarding.testProgress', { done, total }),
+  get retry() { return t('onboarding.retry'); },
 
-  resultTitle: 'Your starting point',
-  wpm: 'WPM',
-  accuracy: 'accuracy',
+  get resultTitle() { return t('onboarding.resultTitle'); },
+  get wpm() { return t('result.wpm'); },
+  get accuracy() { return t('onboarding.accuracy'); },
   placedAhead: (tier: number, letters: number, total: number) =>
-    `You start at level ${tier} (${tierWpm(tier)} WPM) with ${letters} of ${total} letters unlocked.`,
-  placedStop: (key: string) => `${key} comes next; from there, new keys unlock one at a time.`,
-  placedAll: 'Capitals, punctuation and numbers come next.',
-  placedSlow: 'You start from the beginning: six letters, then one new key at a time. Building the habit of not looking pays off fastest.',
-  placedSloppy: 'You start from the beginning, with accuracy first. Typing cleanly at a slower pace builds speed faster than rushing.',
+    t('onboarding.placedAhead', { tier, wpm: tierWpm(tier), letters, total }),
+  placedStop: (key: string) => t('onboarding.placedStop', { key }),
+  get placedAll() { return t('onboarding.placedAll'); },
+  get placedSlow() { return t('onboarding.placedSlow'); },
+  get placedSloppy() { return t('onboarding.placedSloppy'); },
 
-  methodTitle: 'How it works',
-  method: [
-    ['One new key at a time', 'The most common letters come first, so drills read like real words early on. A new key unlocks once every key you have is accurate and quick.'],
-    ['Accuracy before speed', 'A wrong key holds you on the same letter. If your accuracy drops below 92%, speed is hidden until you type cleanly again.'],
-    ['Drills aimed at your weak spots', 'Every keystroke is measured. Each drill leans on the keys and letter pairs that slow you down, and brings back keys you have not practised for a while.'],
-    ['Short rounds and breaks', 'A session opens with a warm-up and mixes in short focus bursts and real sentences. When your typing gets worse, you get a nudge to take a break.'],
-  ] as [string, string][],
-  methodTip: 'Keep your eyes on the screen. The keyboard under the text shows which finger to use for each key.',
-  start: 'Start practising',
+  get methodTitle() { return t('onboarding.methodTitle'); },
+  get method(): [string, string][] {
+    return ([1, 2, 3, 4] as const).map((n) => [t(`onboarding.method${n}Title`), t(`onboarding.method${n}`, { acc: pct(0.92) })]);
+  },
+  get methodTip() { return t('onboarding.methodTip'); },
+  get start() { return t('onboarding.start'); },
 };
+
+/** A layout's name in the interface language. */
+const layoutName = (id: string) => tMaybe(`layout.${id}`) ?? getLayout(id)?.name ?? id;
 
 /** What the onboarding screen needs from the app. */
 export interface OnboardingHost {
@@ -135,6 +131,11 @@ export class Onboarding {
     this.choice = this.host.hasLessons() ? 'keep' : 'new';
     this.root.hidden = false;
     this.render();
+  }
+
+  /** Redraws in a new interface language, unless the placement test is being typed. */
+  languageChanged(): void {
+    if (!this.root.hidden && !this.test) this.render();
   }
 
   /** Redraws the keyboard step after the layout changed elsewhere (e.g. the browser reported it), unless the learner is typing in it. */
@@ -217,11 +218,11 @@ export class Onboarding {
     const field = el('label', 'ob-field');
     field.append(el('span', 'ob-label', T.layout));
     const select = el('select', 'ob-select');
-    for (const l of LAYOUTS) select.append(new Option(l.name, l.id, false, l.id === ctx.layout));
+    for (const l of LAYOUTS) select.append(new Option(layoutName(l.id), l.id, false, l.id === ctx.layout));
     select.addEventListener('change', () => {
       this.host.setLayout(select.value, 'user').then(() => this.render()).catch((err) => console.error('Failed to update layout', err));
     });
-    field.append(select, el('span', 'ob-note', T.source[this.host.layoutSource()]));
+    field.append(select, el('span', 'ob-note', T.source(this.host.layoutSource())));
     card.append(field);
 
     const kb = el('div', 'kb ob-kb');
@@ -254,10 +255,9 @@ export class Onboarding {
     input.addEventListener('input', () => {
       const d = detectLayout(this.observer.observations(), this.locales);
       const current = this.host.context().layout;
-      const name = (id: string) => getLayout(id)?.name ?? id;
       if (!d.layout) status.textContent = input.value ? T.checkNone : '';
       else if (d.candidates.includes(current)) {
-        status.textContent = d.confidence === 'high' ? T.checkMatch(name(current)) : T.checkFits(name(current));
+        status.textContent = d.confidence === 'high' ? T.checkMatch(layoutName(current)) : T.checkFits(layoutName(current));
         status.classList.add('ok');
       } else {
         // The keys contradict the chosen layout: switch, and keep what was typed.
@@ -268,7 +268,7 @@ export class Onboarding {
           const note = this.root.querySelector<HTMLElement>('.ob-status');
           if (again && note) {
             again.value = typed;
-            note.textContent = T.checkSwitched(name(d.layout!));
+            note.textContent = T.checkSwitched(layoutName(d.layout!));
             again.focus();
           }
         }).catch((err) => console.error('Failed to update layout', err));
@@ -317,7 +317,7 @@ export class Onboarding {
     if (hasLessons) {
       const ctx = this.host.context();
       const lang = availableLanguages().find((c) => c.language === ctx.language)?.name ?? ctx.language;
-      card.append(el('p', 'ob-note', T.replaceNote(lang, getLayout(ctx.layout)?.name ?? ctx.layout)));
+      card.append(el('p', 'ob-note', T.replaceNote(lang, layoutName(ctx.layout))));
     }
     const next = button(T.next, '', () => {
       if (this.choice === 'test') this.startTest();
@@ -420,7 +420,7 @@ export class Onboarding {
       t.append(big);
       return t;
     };
-    nums.append(tile(String(Math.round(p.wpm)), T.wpm), tile(`${Math.round(p.accuracy * 100)}%`, T.accuracy));
+    nums.append(tile(num(p.wpm), T.wpm), tile(pct(p.accuracy), T.accuracy));
     card.append(nums);
 
     const letters = unlockSteps(getCorpus(ctx.language), ctx.layout).filter((s) => /^\p{L}$/u.test(s));

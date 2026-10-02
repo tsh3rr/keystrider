@@ -1,3 +1,4 @@
+import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
   dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, weakest,
@@ -38,15 +39,17 @@ function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string,
   return e;
 }
 
-const pct = (x: number, digits = 1) => `${(x * 100).toFixed(digits)}%`;
+const pct = (x: number, digits = 1) => fmtPct(x, digits);
+/** Bar widths in CSS percent. */
+const width = (x: number) => `${Math.round(x * 100)}%`;
 const showChars = (s: string) => s.replace(/ /g, '␣');
-const fmtDate = (t: number) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-const fmtDateTime = (t: number) =>
-  new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(uiLanguage(), { day: 'numeric', month: 'short' });
+const fmtDateTime = (ms: number) =>
+  new Date(ms).toLocaleString(uiLanguage(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 function fmtDuration(ms: number): string {
   const min = Math.round(ms / 60_000);
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`;
+  return min < 60 ? t('progress.minutes', { m: min }) : t('progress.hours', { h: Math.floor(min / 60), m: min % 60 });
 }
 
 // --- Tooltip (one shared element) ---
@@ -88,20 +91,21 @@ function tile(label: string, value: string, unit?: string, delta?: string, good?
   return t;
 }
 
-function renderTiles(cur: PeriodTotals, prev: PeriodTotals | null, rangeText: string): void {
+/** `days` is the period length, or 0 for all time. */
+function renderTiles(cur: PeriodTotals, prev: PeriodTotals | null, days: number): void {
   const vs = prev && prev.sessions > 0;
   const change = (a: number | null, b: number | null, fmt: (d: number) => string) => {
     if (!vs || a === null || b === null) return {};
     const d = a - b;
-    return { delta: `${d >= 0 ? '▲' : '▼'} ${fmt(Math.abs(d))} vs the ${rangeText.replace('last', 'previous')}`, good: d >= 0 };
+    return { delta: t('progress.delta', { arrow: d >= 0 ? '▲' : '▼', d: fmt(Math.abs(d)), n: days }), good: d >= 0 };
   };
-  const wpm = change(cur.wpm, prev?.wpm ?? null, (d) => `${d.toFixed(1)} WPM`);
-  const acc = change(cur.accuracy, prev?.accuracy ?? null, (d) => `${(d * 100).toFixed(1)} pts`);
+  const wpm = change(cur.wpm, prev?.wpm ?? null, (d) => t('progress.wpm', { n: num(d, 1) }));
+  const acc = change(cur.accuracy, prev?.accuracy ?? null, (d) => t('progress.pts', { n: num(d * 100, 1) }));
   $('progress-tiles').replaceChildren(
-    tile('Speed', cur.wpm === null ? '–' : cur.wpm.toFixed(0), cur.wpm === null ? undefined : 'wpm', wpm.delta, wpm.good),
-    tile('First-try accuracy', cur.accuracy === null ? '–' : pct(cur.accuracy), undefined, acc.delta, acc.good),
-    tile('Practice time', fmtDuration(cur.activeMs), undefined, rangeText === 'all time' ? 'all time' : `in the ${rangeText}`),
-    tile('Sessions', String(cur.sessions)),
+    tile(t('progress.tileSpeed'), cur.wpm === null ? '–' : num(cur.wpm), cur.wpm === null ? undefined : t('now.wpm'), wpm.delta, wpm.good),
+    tile(t('progress.tileAccuracy'), cur.accuracy === null ? '–' : pct(cur.accuracy), undefined, acc.delta, acc.good),
+    tile(t('progress.tileTime'), fmtDuration(cur.activeMs), undefined, days === 0 ? t('progress.allTime') : t('progress.inLastDays', { n: days })),
+    tile(t('progress.tileSessions'), num(cur.sessions)),
   );
 }
 
@@ -176,9 +180,9 @@ function niceMax(v: number, step: number): number {
 let chartSessions: readonly SessionSummary[] = [];
 let metric: Metric = 'wpm';
 
-const CHART_CAPTIONS: Record<Metric, string> = {
-  wpm: 'Words per minute in each session.',
-  acc: 'Share of keys typed right on the first try in each session.',
+const CHART_CAPTIONS: Record<Metric, MessageKey> = {
+  wpm: 'progress.captionWpm',
+  acc: 'progress.captionAcc',
 };
 
 /** Draws the chart for the picked metric; the other one stays hidden so it is drawn at the right width when picked. */
@@ -187,11 +191,14 @@ function renderChart(): void {
   if (sessions.length === 0) return;
   $('chart-wpm').hidden = metric !== 'wpm';
   $('chart-acc').hidden = metric !== 'acc';
-  $('chart-caption').textContent = CHART_CAPTIONS[metric];
+  $('chart-caption').textContent = t(CHART_CAPTIONS[metric]);
   document.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.metric === metric)));
   const tip = (i: number) => {
     const s = sessions[i];
-    return [fmtDateTime(s.start), `${s.wpm.toFixed(1)} WPM`, `${pct(s.accuracy)} first-try accuracy`, `${s.chars} characters`];
+    return [
+      fmtDateTime(s.start), t('progress.wpm', { n: num(s.wpm, 1) }),
+      t('progress.tipAccuracy', { acc: pct(s.accuracy) }), t('progress.tipChars', { n: num(s.chars) }),
+    ];
   };
   if (metric === 'wpm') {
     const wpmMax = niceMax(Math.max(...sessions.map((s) => s.wpm)) * 1.1, 10);
@@ -214,7 +221,7 @@ function renderChart(): void {
     yMin: accMin,
     yMax: 1,
     ticks: accTicks,
-    format: (v) => `${Math.round(v * 100)}%`,
+    format: (v) => fmtPct(v),
     tip,
   });
 }
@@ -224,7 +231,7 @@ function renderCharts(sessions: readonly SessionSummary[]): void {
   renderChart();
   const rows = [...sessions].reverse().map((s) => {
     const tr = el('tr');
-    for (const c of [fmtDateTime(s.start), s.wpm.toFixed(1), pct(s.accuracy), String(s.chars)]) tr.append(el('td', undefined, c));
+    for (const c of [fmtDateTime(s.start), num(s.wpm, 1), pct(s.accuracy), num(s.chars)]) tr.append(el('td', undefined, c));
     return tr;
   });
   $('sessions-rows').replaceChildren(...rows);
@@ -255,8 +262,11 @@ function renderKeyboard(model: WeaknessModel): void {
     k.tabIndex = 0;
     const lines = () =>
       h
-        ? [`${label} key`, `${pct(h.errorRate)} first-try errors`, `${h.attempts} tries (${h.chars.map(showChars).join(' ')})`]
-        : [`${label} key`, 'Not typed yet'];
+        ? [
+          t('progress.keyTitle', { label }), t('progress.keyErrors', { pct: pct(h.errorRate) }),
+          t('progress.keyTries', { n: num(h.attempts), chars: h.chars.map(showChars).join(' ') }),
+        ]
+        : [t('progress.keyTitle', { label }), t('progress.keyNotTyped')];
     k.setAttribute('aria-label', lines().join(', '));
     tipOnHover(k, lines);
     return k;
@@ -272,7 +282,7 @@ function renderKeyboard(model: WeaknessModel): void {
     kb.append(rowEl);
   });
   const space = el('div', 'kb-row kb-row-space');
-  space.append(keyEl('Space', 'Space', 'kb-space'));
+  space.append(keyEl('Space', t('key.space'), 'kb-space'));
   kb.append(space);
   $('keyboard-heat').replaceChildren(kb);
 }
@@ -296,10 +306,10 @@ function sparkline(values: (number | null)[]): SVGSVGElement {
 
 function trendText(values: (number | null)[]): string {
   const known = values.filter((v): v is number => v !== null);
-  if (known.length < 2) return 'New';
+  if (known.length < 2) return t('progress.trendNew');
   const d = known[known.length - 1] - known[0];
-  if (Math.abs(d) < 0.005) return 'Steady';
-  return d < 0 ? `▼ ${(Math.abs(d) * 100).toFixed(1)} pts better` : `▲ ${(d * 100).toFixed(1)} pts worse`;
+  if (Math.abs(d) < 0.005) return t('progress.trendSteady');
+  return d < 0 ? t('progress.trendBetter', { d: num(Math.abs(d) * 100, 1) }) : t('progress.trendWorse', { d: num(d * 100, 1) });
 }
 
 /** Fewer tries than this and the model's rate is mostly its prior, so it is left out of rankings and trends. */
@@ -323,17 +333,17 @@ function renderWeakTable(
   tbody.replaceChildren(
     ...items.map((it) => {
       const tr = el('tr');
-      tr.title = `${it.attempts} tries`;
-      const name = it.kind === 'key' ? it.label : showChars(it.item);
+      tr.title = t('progress.tries', { n: num(it.attempts) });
+      const name = it.kind === 'key' ? (it.item === ' ' ? t('key.space') : it.label) : showChars(it.item);
       const nameTd = el('td', 'item');
       nameTd.append(el('kbd', undefined, name));
       if (it.kind === 'key' && it.confusions.length > 0) {
-        tr.title += `. Often typed instead: ${it.confusions.slice(0, 3).map((c) => showChars(c.typed)).join(', ')}`;
+        tr.title += '. ' + t('progress.confusions', { list: it.confusions.slice(0, 3).map((c) => showChars(c.typed)).join(', ') });
       }
       const errTd = el('td', 'num');
       const bar = el('span', 'bar');
       const fill = el('i');
-      fill.style.width = pct(it.errorRate / maxRate, 0);
+      fill.style.width = width(it.errorRate / maxRate);
       bar.append(fill);
       const errWrap = el('span', 'err-cell');
       errWrap.append(bar, el('span', undefined, pct(it.errorRate)));
@@ -342,8 +352,8 @@ function renderWeakTable(
       const trendTd = el('td', 'trend');
       const text = trendText(trend);
       trendTd.append(sparkline(trend), el('span', text.startsWith('▼') ? 'good' : text.startsWith('▲') ? 'bad' : 'muted', text));
-      trendTd.title = `First-try error rate over the last ${TREND_DAYS} days, from when it had ${minTries[it.kind]} tries`;
-      tr.append(nameTd, errTd, el('td', 'num', `${Math.round(it.latencyMs)} ms`), trendTd);
+      trendTd.title = t('progress.trendTitle', { days: TREND_DAYS, n: minTries[it.kind] });
+      tr.append(nameTd, errTd, el('td', 'num', `${num(it.latencyMs)} ms`), trendTd);
       return tr;
     }),
   );
@@ -360,9 +370,10 @@ function renderPath(path: CoachData['path'] | null): void {
       const li = el('li', st.state);
       const bar = el('i');
       const fill = el('b');
-      fill.style.width = pct(st.state === 'done' ? 1 : st.total ? st.done / st.total : 0, 0);
+      fill.style.width = width(st.state === 'done' ? 1 : st.total ? st.done / st.total : 0);
       bar.append(fill);
-      const state = st.state === 'done' ? 'done' : st.state === 'locked' ? 'not started' : `${st.done} of ${st.total}`;
+      const state = st.state === 'done' ? t('progress.stageDone') : st.state === 'locked' ? t('progress.stageLocked')
+        : t('progress.stageOf', { done: st.done, total: st.total });
       li.append(el('span', 'pg-stage-name', st.name), el('span', 'pg-stage-state', state), bar);
       return li;
     }),
@@ -399,7 +410,7 @@ export async function renderProgress(
   if (empty) return;
 
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
-  renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 'all time' : `last ${range} days`);
+  renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 0 : range);
   renderPath(path);
   $('progress-speed').hidden = sessions.length === 0;
   $('progress-no-sessions').hidden = sessions.length > 0;
@@ -408,8 +419,8 @@ export async function renderProgress(
   const models = dailyModels(events, context, { days: TREND_DAYS, now });
   const model = models[models.length - 1];
   renderKeyboard(model);
-  renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, 'Type a bit more to see your weakest keys.');
-  renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, 'Type a bit more to see your weakest letter pairs.');
+  renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, t('progress.emptyKeys'));
+  renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, t('progress.emptyPairs'));
 }
 
 /** Scrolls a card into view and outlines it for a moment, so a link from a coach bubble shows where it landed. */

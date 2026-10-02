@@ -23,10 +23,14 @@ import {
   backfillDone, loadBreakRemindersSetting, loadOnboardedSetting, saveOnboardedSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
   loadShowKeysSetting, loadThemeSetting, loadWordFilterSetting, markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting,
   saveGuideFadeSetting, saveLanguageSetting, saveLayoutSetting, saveShowKeysSetting, saveThemeSetting, saveWordFilterSetting,
+  loadUiLanguageSetting, saveUiLanguageSetting,
   type LayoutSetting, type Theme,
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
+import {
+  UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, uiLanguage,
+} from './i18n';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -38,6 +42,12 @@ const logSummary = $('log-summary');
 const LOG_TABLE_LIMIT = 500;
 
 const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
+
+// Interface language: the learner's pick, else the browser's language if we have it, else English.
+const savedUiLanguage = loadUiLanguageSetting();
+setUiLanguage(isUiLanguage(savedUiLanguage) ? savedUiLanguage : guessUiLanguage(locales));
+document.documentElement.lang = uiLanguage();
+applyTranslations();
 // Until a key is pressed or the browser reports the layout, guess from the browser language.
 let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLocale(locales), source: 'guessed' };
 
@@ -140,7 +150,7 @@ function nowData(): CoachData['now'] {
     usualWpm: model && model.baseline.attempts > 0 ? Math.round(model.baseline.wpm) : null,
     recovery,
     level: curriculum
-      ? `Level ${curriculum.tier} (${tierWpm(curriculum.tier)} WPM). Target pace for this drill: ${Math.round(drill?.paceWpm ?? curriculum.paceWpm)} WPM.`
+      ? t('now.level', { tier: curriculum.tier, wpm: tierWpm(curriculum.tier), pace: Math.round(drill?.paceWpm ?? curriculum.paceWpm) })
       : '',
     weakest: model ? weakest(model.keys, 10, 5).map((k) => ({ label: keyCap(k.item), errorRate: k.errorRate })) : [],
   };
@@ -242,6 +252,8 @@ let pendingWrites: Promise<unknown>[] = [];
 let finishing = false;
 /** When the last drill was finished; null until one is, so the first drill of a visit opens a session. */
 let lastDrillAt: number | null = null;
+/** Redraws the results card on screen; null while there is none. */
+let redrawResult: (() => void) | null = null;
 
 const corpus = () => getCorpus(context.language);
 
@@ -255,12 +267,10 @@ function keyCap(ch: string): string {
 
 /** The unlock message for a step: a letter, capitals, a mark or a digit. */
 function unlockMessage(step: string): string {
-  if (step === CAPITALS) {
-    return 'Capitals unlocked: hold Shift with the little finger of the other hand, then press the letter. Sentences now start with a capital.';
-  }
-  const shift = needsShift(step, context.layout) ? ' (with Shift)' : '';
-  const what = /^\p{L}$/u.test(step) ? 'letter' : /^\p{Nd}$/u.test(step) ? 'digit' : 'punctuation key';
-  return `New ${what} unlocked: ${keyCap(step)}${shift}. Drills lean on it until it is up to speed.`;
+  if (step === CAPITALS) return t('unlock.capitals');
+  const shift = needsShift(step, context.layout);
+  const what = /^\p{L}$/u.test(step) ? 'letter' : /^\p{Nd}$/u.test(step) ? 'digit' : 'mark';
+  return t(`unlock.${what}${shift ? 'Shift' : ''}`, { key: keyCap(step) });
 }
 
 const showItem = (item: string) => [...item].map((c) => (c === ' ' ? '␣' : c)).join('');
@@ -288,7 +298,7 @@ function renderDrillBar(): void {
     const span = document.createElement('span');
     span.textContent = keyCap(ch);
     span.className = 'key' + (unlocked.has(ch) ? '' : ' locked') + (ch === curriculum.focusKey ? ' focus' : '');
-    span.title = ch === curriculum.focusKey ? 'Focus key' : unlocked.has(ch) ? 'Unlocked' : 'Locked';
+    span.title = t(ch === curriculum.focusKey ? 'keys.focus' : unlocked.has(ch) ? 'keys.unlocked' : 'keys.locked');
     frag.append(span);
   }
   drillKeysEl.replaceChildren(frag);
@@ -302,14 +312,14 @@ function renderDrillBar(): void {
 // you are in and what the next unlock waits on, where this drill sits in the
 // round, live speed, and the break check. Each chip opens its own details.
 
-const STAGE_NAMES: Record<StageId, string> = {
-  letters: 'Letters', capitals: 'Capitals', punctuation: 'Punctuation', digits: 'Numbers',
-};
-const PLAN_NAMES = { warmup: 'Warm-up', core: 'Drill', focus: 'Focus burst', sentence: 'Sentences' } as const;
+const stageName = (id: StageId) => t(`stage.${id}`);
+/** A drill in the round; core drills are numbered ("Drill 2"). */
+interface RoundStep { kind: Drill['kind']; n: number }
+const stepName = (step: RoundStep) => (step.kind === 'core' && step.n > 0 ? t('plan.coreN', { n: step.n }) : t(`plan.${step.kind}`));
 /** Whether this session opened with a warm-up, so the round shows it. */
 let warmedUp = false;
-/** Name of the drill in the round that is being typed, or that Enter starts once it is done. */
-let roundStepName: string | null = null;
+/** The drill in the round that is being typed, or that Enter starts once it is done. */
+let roundStep: RoundStep | null = null;
 
 const coach = new CoachBar(
   document.querySelector<HTMLElement>('.coach-bar')!,
@@ -327,13 +337,19 @@ function renderCoach(): void {
   // What the next unlock waits on.
   let nextTip: string;
   if (path.next === null) {
-    nextTip = `Everything is unlocked. Level ${curriculum.tier + 1} comes once your drills average ${tierWpm(curriculum.tier)} WPM at 96% accuracy.`;
+    nextTip = t('path.allUnlocked', { next: curriculum.tier + 1, wpm: tierWpm(curriculum.tier), acc: pct(0.96) });
   } else {
-    const what = path.next === CAPITALS ? 'Capitals unlock' : `Next up: ${keyCap(path.next)}. It unlocks`;
-    const bar = `under ${Math.round(DEFAULT_DRILL_PARAMS.unlockMaxErrorRate * 100)}% errors and ${Math.round(tierTargetMs(curriculum.tier))} ms per key or faster`;
-    nextTip = `${what} once every key you have is ${bar}. Ready: ${path.ready} of ${path.unlocked}.`;
+    const bar = {
+      err: pct(DEFAULT_DRILL_PARAMS.unlockMaxErrorRate),
+      ms: Math.round(tierTargetMs(curriculum.tier)),
+      ready: path.ready,
+      unlocked: path.unlocked,
+    };
+    nextTip = path.next === CAPITALS ? t('path.nextCapitals', bar) : t('path.nextKey', { ...bar, key: keyCap(path.next) });
     if (path.blocking.length > 0) {
-      nextTip += ` Still practising: ${path.blocking.slice(0, 8).map(keyCap).join(' ')}${path.blocking.length > 8 ? ' …' : ''}`;
+      nextTip += ' ' + t('path.blocking', {
+        keys: path.blocking.slice(0, 8).map(keyCap).join(' ') + (path.blocking.length > 8 ? ' …' : ''),
+      });
     }
   }
   const current = path.stages.find((st) => st.state === 'current') ?? path.stages[path.stages.length - 1];
@@ -341,37 +357,31 @@ function renderCoach(): void {
   // Once a drill is done, the round shows the one Enter starts next.
   const kind = session.done ? nextKind(curriculum, drill.kind, { sentences: path.sentencesOpen }) : drill.kind;
   const plan = sessionPlan(curriculum, kind, { warmedUp, sentencesOpen: path.sentencesOpen });
-  const focus = curriculum.focusKey === null ? 'your newest key' : keyCap(curriculum.focusKey);
-  const about = {
-    warmup: 'Easy, common words with keys you have not practised for a while. Does not count toward unlocks or your level.',
-    core: 'Built from your weakest keys and letter pairs. Counts toward the next unlock and your level.',
-    focus: `A short drill on ${focus} and the letter pairs around it.`,
-    sentence: 'Real sentences, so your practice carries over to everyday typing. Adjusts your pace, but not unlocks or level.',
-  };
+  const focus = curriculum.focusKey === null ? t('round.newestKey') : keyCap(curriculum.focusKey);
+  const about = t(`round.about.${kind}`, { focus });
   let core = 0;
-  const steps = plan.map((step) => ({
-    name: step.kind === 'core' ? `${PLAN_NAMES.core} ${++core}` : PLAN_NAMES[step.kind],
-    state: step.state,
-  }));
-  const currentStep = steps[plan.findIndex((step) => step.state === 'current')] ?? steps[0];
-  roundStepName = currentStep.name;
+  const rounds = plan.map((step) => ({ kind: step.kind, n: step.kind === 'core' ? ++core : 0 }));
+  const steps = plan.map((step, i) => ({ name: stepName(rounds[i]), state: step.state }));
+  const at = Math.max(0, plan.findIndex((step) => step.state === 'current'));
+  roundStep = rounds[at];
+  const currentStep = steps[at];
   const sentenceNote = plan.some((step) => step.kind === 'sentence' && step.state === 'locked')
-    ? ` Sentences open at ${path.sentenceLetters} letters (you have ${path.letters}).` : '';
+    ? ' ' + t('round.sentencesLocked', { need: path.sentenceLetters, have: path.letters }) : '';
 
   coachPath = {
-    stage: STAGE_NAMES[current.id],
+    stage: stageName(current.id),
     done: current.done,
     total: current.total,
     next: path.next === null ? null : keyCap(path.next),
-    stages: path.stages.map((st) => ({ name: STAGE_NAMES[st.id], done: st.done, total: st.total, state: st.state })),
+    stages: path.stages.map((st) => ({ name: stageName(st.id), done: st.done, total: st.total, state: st.state })),
     about: nextTip,
   };
   coach.update({
     path: coachPath,
     round: {
       steps,
-      current: session.done ? `Next: ${currentStep.name}` : currentStep.name,
-      about: (session.done ? 'Up next. ' : '') + about[kind] + sentenceNote,
+      current: session.done ? t('round.next', { name: currentStep.name }) : currentStep.name,
+      about: (session.done ? t('round.upNext') + ' ' : '') + about + sentenceNote,
       // Targets of the drill being typed; a finished drill's next targets are not known yet.
       focus: session.done || kind === 'warmup' || kind === 'sentence'
         ? [] : drill.targets.slice(0, 6).map((t) => ([...t].length === 1 ? keyCap(t) : showItem(t))),
@@ -403,6 +413,7 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
   drillEvents = [];
   pendingWrites = [];
   resultEl.hidden = true;
+  redrawResult = null;
   practiceView.classList.remove('showing-result');
   renderDrillBar();
   renderText();
@@ -413,12 +424,10 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
 function describeChange(c: CurriculumChange): string {
   switch (c.type) {
     case 'unlock': return unlockMessage(c.key);
-    case 'focus-met': return `${keyCap(c.key)} is up to speed.`;
-    case 'stuck': return `${keyCap(c.key)} has been holding you back, so its speed bar is a little lower and it gets extra practice.`;
-    case 'tier': return `Level up: level ${c.tier}, aiming for ${tierWpm(c.tier)} WPM.`;
-    case 'recovery': return c.on
-      ? 'Two drills in a row under 92% accuracy: slow down until you are typing cleanly again.'
-      : 'Accuracy is back. Speed is shown again.';
+    case 'focus-met': return t('change.focusMet', { key: keyCap(c.key) });
+    case 'stuck': return t('change.stuck', { key: keyCap(c.key) });
+    case 'tier': return t('change.tier', { tier: c.tier, wpm: tierWpm(c.tier) });
+    case 'recovery': return c.on ? t('change.recoveryOn', { acc: pct(0.92) }) : t('change.recoveryOff');
   }
 }
 
@@ -441,14 +450,19 @@ async function finishDrill(): Promise<void> {
     lastDrillAt = Date.now();
     const result = drillResult(drillEvents);
     const finished = drill;
-    const drillName = roundStepName ?? PLAN_NAMES[finished.kind];
-    const show = (news: { tone: Tone; text: string }[], improved: string[], slipped: string[], next: string | null) => {
-      renderResult(resultEl, {
-        drillName, wpm: result.wpm, accuracy: result.accuracy, errors: session.errors, paceWpm: finished.paceWpm,
-        recovery: curriculum?.recovery ?? false, news, improved, slipped, next,
+    const typed: RoundStep = roundStep ?? { kind: finished.kind, n: 0 };
+    const errors = session.errors;
+    const recovery = curriculum.recovery;
+    // Kept so a switch of interface language can redraw the card in the new language.
+    const show = (changes: CurriculumChange[], improved: ItemChange[], slipped: ItemChange[], next: RoundStep | null) => {
+      redrawResult = () => renderResult(resultEl, {
+        drillName: stepName(typed), wpm: result.wpm, accuracy: result.accuracy, errors, paceWpm: finished.paceWpm,
+        recovery, news: changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
+        improved: improved.map(itemLabel), slipped: slipped.map(itemLabel), next: next && stepName(next),
       }, () => {
         if (!finishing && breakEndsAt === null) startDrill().catch((err) => console.error('Failed to start drill', err));
       });
+      redrawResult();
       practiceView.classList.add('showing-result');
     };
     // A layout switch mid-drill moved these keystrokes to another curriculum; just start fresh.
@@ -471,19 +485,14 @@ async function finishDrill(): Promise<void> {
 
     const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
     renderDrillBar();
-    show(
-      changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
-      improved.map(itemLabel),
-      slipped.map(itemLabel),
-      roundStepName,
-    );
+    show(changes, improved, slipped, roundStep);
   } finally {
     finishing = false;
   }
 }
 
 $('reset-lessons').addEventListener('click', () => {
-  if (!confirm('Start the lessons over from the first six letters? Your keystroke log is kept.')) return;
+  if (!confirm(t('settings.resetConfirm'))) return;
   closeSettings(false);
   clearCurriculum(context);
   curriculum = initialCurriculum(corpus(), context);
@@ -519,25 +528,35 @@ breakToggle.addEventListener('change', () => {
   renderCoach();
 });
 
-const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
-const BREAK_ADVICE = 'Stand up, shake out your hands and look at something far away.';
+/** The signal behind the break suggestion on screen, so it can be redrawn in another language. */
+let breakSignal: FatigueSignal | null = null;
 
 function breakMessage(s: FatigueSignal): string {
   switch (s.type) {
-    case 'accuracy':
-      return `Your accuracy has dropped from ${pct(s.accuracyBefore)} to ${pct(s.accuracyNow)} over the last two drills, ` +
-        'measured against how you usually type these keys. That is often tiredness, and practising tired trains in mistakes. ' +
-        'A short break now will help more than pushing on.';
-    case 'speed':
-      return `Your keystrokes are about ${pct(s.slowerBy)} slower over the last two drills than earlier in this session, ` +
-        'for the same keys. That is often tiredness. A short break now will help more than pushing on.';
-    case 'long':
-      return `You have been typing for ${s.minutes} minutes. Short stretches with breaks build skill faster than long ones, ` +
-        'so this is a good moment for a pause.';
+    case 'accuracy': return t('break.accuracy', { before: pct(s.accuracyBefore), now: pct(s.accuracyNow) });
+    case 'speed': return t('break.speed', { slower: pct(s.slowerBy) });
+    case 'long': return t('break.long', { n: s.minutes });
+  }
+}
+
+/** Fills the break card's text for the step it is in: suggestion, countdown, or over. */
+function renderBreakText(): void {
+  breakStart.textContent = t('break.start', { n: DEFAULT_FATIGUE_PARAMS.breakMinutes });
+  if (breakTimer.hidden) {
+    if (breakSignal) breakText.textContent = breakMessage(breakSignal);
+    return;
+  }
+  breakText.textContent = t('break.advice');
+  if (breakEndsAt === null) {
+    breakTimer.textContent = t('break.over');
+    breakBack.textContent = t('break.next');
+  } else {
+    breakBack.textContent = t('break.back');
   }
 }
 
 function showBreakCard(signal: FatigueSignal): void {
+  breakSignal = signal;
   breakText.textContent = breakMessage(signal);
   breakTimer.hidden = true;
   breakStart.hidden = false;
@@ -559,9 +578,8 @@ function renderBreakTimer(): void {
   const left = Math.max(0, Math.ceil((breakEndsAt - Date.now()) / 1000));
   if (left === 0) {
     clearInterval(breakTick);
-    breakTimer.textContent = 'Break over. Press Enter or click below for the next drill.';
-    breakBack.textContent = 'Next drill';
     breakEndsAt = null;
+    renderBreakText();
     return;
   }
   breakTimer.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
@@ -569,12 +587,11 @@ function renderBreakTimer(): void {
 
 breakStart.addEventListener('click', () => {
   breakEndsAt = Date.now() + DEFAULT_FATIGUE_PARAMS.breakMinutes * 60_000;
-  breakText.textContent = BREAK_ADVICE;
   breakTimer.hidden = false;
   breakStart.hidden = true;
   breakSkip.hidden = true;
   breakBack.hidden = false;
-  breakBack.textContent = "I'm back";
+  renderBreakText();
   renderBreakTimer();
   breakTick = setInterval(renderBreakTimer, 1000);
 });
@@ -634,7 +651,7 @@ let suggested: string | null = null;
 /** Suggestions the user answered "Keep mine" to, so they are not asked again this visit. */
 const declined = new Set<string>();
 
-const layoutName = (id: string) => getLayout(id)?.name ?? id;
+const layoutName = (id: string) => tMaybe(`layout.${id}`) ?? getLayout(id)?.name ?? id;
 /** Short name for the top bar: the letter order ("QWERTZ") when the name ends in one, else the whole name. */
 const layoutShortName = (id: string) => {
   const name = layoutName(id);
@@ -643,15 +660,11 @@ const layoutShortName = (id: string) => {
 
 function renderLayout(): void {
   $('layout-name').textContent = layoutShortName(layoutSetting.layout);
-  $('layout-btn').title = `Keyboard layout: ${layoutName(layoutSetting.layout)}`;
-  $('layout-options').replaceChildren(...LAYOUTS.map((l) => menuItem(l.name, '', l.id === layoutSetting.layout, () => {
+  $('layout-btn').title = t('menu.layoutTitle', { name: layoutName(layoutSetting.layout) });
+  $('layout-options').replaceChildren(...LAYOUTS.map((l) => menuItem(layoutName(l.id), '', l.id === layoutSetting.layout, () => {
     setLayout(l.id, 'user').catch((err) => console.error('Failed to update layout', err));
   })));
-  layoutStatus.textContent = {
-    user: 'Chosen by you.',
-    detected: 'Detected from your keyboard.',
-    guessed: 'Best guess so far; checked as you type.',
-  }[layoutSetting.source];
+  layoutStatus.textContent = t(`layout.source.${layoutSetting.source}`);
 }
 
 function showSuggestion(id: string | null): void {
@@ -659,7 +672,7 @@ function showSuggestion(id: string | null): void {
   suggestBox.hidden = id === null;
   if (id !== null) {
     $('layout-suggest-text').textContent =
-      `Your key presses look like ${layoutName(id)}, but the layout is set to ${layoutName(layoutSetting.layout)}.`;
+      t('layout.suggest', { detected: layoutName(id), current: layoutName(layoutSetting.layout) });
   }
 }
 
@@ -741,15 +754,15 @@ async function renderLog(): Promise<void> {
   const errors = events.filter((e) => !e.correct).length;
   const sessions = new Set(events.map((e) => e.sessionId)).size;
   logSummary.textContent =
-    `${events.length} keystrokes · ${errors} errors · ${sessions} sessions` +
-    (events.length > LOG_TABLE_LIMIT ? ` (showing latest ${LOG_TABLE_LIMIT})` : '');
+    t('log.summary', { keys: num(events.length), errors: num(errors), sessions: num(sessions) }) +
+    (events.length > LOG_TABLE_LIMIT ? ' ' + t('log.showingLatest', { n: num(LOG_TABLE_LIMIT) }) : '');
 
   const frag = document.createDocumentFragment();
   for (const e of events.slice(-LOG_TABLE_LIMIT).reverse()) {
     const tr = document.createElement('tr');
     if (!e.correct) tr.className = 'wrong';
     const cells = [
-      new Date(e.timestamp).toLocaleTimeString(),
+      new Date(e.timestamp).toLocaleTimeString(uiLanguage()),
       e.sessionId,
       `${e.language} · ${e.layout}`,
       String(e.position),
@@ -787,7 +800,7 @@ $('export-csv').addEventListener('click', async () => {
   download('keystrokes.csv', 'text/csv', toCsv(await store.all()));
 });
 $('clear-log').addEventListener('click', async () => {
-  if (!confirm('Delete all logged keystrokes?')) return;
+  if (!confirm(t('log.clearConfirm'))) return;
   await store.clear();
   await renderLog();
 });
@@ -986,6 +999,49 @@ function openOnboarding(): void {
 }
 
 $('rerun-setup').addEventListener('click', openOnboarding);
+
+// Interface language: every string on screen is redrawn in place, so a drill in progress carries on.
+const uiLanguageEl = $('ui-language');
+
+/** "auto" follows the browser language; otherwise the language the learner picked. */
+let uiChoice: string = isUiLanguage(savedUiLanguage) ? savedUiLanguage : 'auto';
+
+function renderUiLanguagePicker(): void {
+  const choices = [{ id: 'auto', name: t('settings.uiAuto') }, ...UI_LANGUAGES];
+  uiLanguageEl.replaceChildren(...choices.map((l) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: l.name });
+    b.setAttribute('role', 'radio');
+    if (isUiLanguage(l.id)) b.setAttribute('lang', l.id);
+    else b.title = t('settings.uiAutoTitle');
+    b.setAttribute('aria-checked', String(l.id === uiChoice));
+    b.addEventListener('click', () => {
+      uiChoice = l.id;
+      saveUiLanguageSetting(l.id);
+      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(locales));
+      // The language may not change (e.g. Automatic picks the one already shown); the choice did.
+      renderUiLanguagePicker();
+    });
+    return b;
+  }));
+}
+renderUiLanguagePicker();
+renderBreakText();
+
+onUiLanguageChange(() => {
+  applyTranslations();
+  renderUiLanguagePicker();
+  renderLayout();
+  if (suggested) showSuggestion(suggested);
+  fingerGuide.retranslate();
+  onboarding.languageChanged();
+  renderDrillBar();
+  renderStats();
+  redrawResult?.();
+  renderBreakText();
+  renderBreakTimer();
+  if (!$('progress-view').hidden) void showProgress();
+  if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
+});
 
 // Console access for ad-hoc inspection: `await typingLog.all()`
 declare global {
