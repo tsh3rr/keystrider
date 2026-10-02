@@ -3,8 +3,8 @@ import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, getCorpus } from './corpus';
 import { clearCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
-  CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, modelOptions, needsShift, nextDrill,
-  nextKind, sentencesReady, tierTargetMs, tierWpm, unlockSteps,
+  CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, meetsBar, modelOptions, needsShift,
+  nextDrill, nextKind, sentencesReady, tierTargetMs, tierWpm, unlockSteps,
   type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
 } from './drill';
 import { loadWeaknessModel, type WeaknessModel } from './weakness';
@@ -15,8 +15,9 @@ import { FingerGuide } from './fingerGuide';
 import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, type Range } from './progressView';
 import {
-  backfillDone, loadFingerGuideSetting, loadLayoutSetting, loadShowKeysSetting, loadWordFilterSetting, markBackfillDone, saveFingerGuideSetting, saveShowKeysSetting,
-  saveLayoutSetting, saveWordFilterSetting, type LayoutSetting,
+  backfillDone, loadFingerGuideSetting, loadGuideFadeSetting, loadLayoutSetting, loadShowKeysSetting, loadWordFilterSetting,
+  markBackfillDone, saveFingerGuideSetting, saveGuideFadeSetting, saveLayoutSetting, saveShowKeysSetting, saveWordFilterSetting,
+  type LayoutSetting,
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
@@ -64,6 +65,35 @@ fingerGuideToggle.addEventListener('change', () => {
   inputEl.focus();
 });
 
+// Faded guidance: for keys that already meet the unlock bar the guide stays
+// dim, so the learner recalls the finger instead of reading it, and lights
+// up only after a slip or a pause on the current character.
+const guideFadeToggle = $<HTMLInputElement>('guide-fade-toggle');
+guideFadeToggle.checked = loadGuideFadeSetting();
+guideFadeToggle.addEventListener('change', () => {
+  saveGuideFadeSetting(guideFadeToggle.checked);
+  renderText();
+  inputEl.focus();
+});
+/** Keys that meet the unlock bar, refreshed at the start of each drill. */
+let knownKeys = new Set<string>();
+/** Position of the latest wrong keystroke, so the guide lights up until it is fixed. */
+let slipAt = -1;
+let hesitationTimer: ReturnType<typeof setTimeout> | undefined;
+
+function updateFingerGuide(): void {
+  clearTimeout(hesitationTimer);
+  const ch = session.done ? undefined : [...session.text][session.position];
+  const revealed = ch === undefined || !guideFadeToggle.checked || slipAt === session.position ||
+    !knownKeys.has(ch.toLowerCase());
+  fingerGuide.show(ch, revealed);
+  if (!revealed) {
+    // A pause of a few typical keystrokes (at least a second) counts as being stuck.
+    const wait = Math.max(1000, 3 * (model?.baseline.latencyMs ?? 0));
+    hesitationTimer = setTimeout(() => fingerGuide.reveal(), wait);
+  }
+}
+
 // Offensive-word filter for drills; a new drill starts so the change shows at once.
 const wordFilterToggle = $<HTMLInputElement>('word-filter-toggle');
 wordFilterToggle.checked = loadWordFilterSetting();
@@ -86,7 +116,7 @@ function renderText(): void {
     frag.append(span);
   });
   textEl.replaceChildren(frag);
-  fingerGuide.show(session.done ? undefined : [...session.text][session.position]);
+  updateFingerGuide();
 }
 
 function renderStats(): void {
@@ -132,7 +162,10 @@ function handleChar(ch: string): void {
   if (!event) return;
   drillEvents.push(event);
   pendingWrites.push(store.add(event).catch((err) => console.error('Failed to log keystroke', err)));
-  if (!event.correct) flashError();
+  if (!event.correct) {
+    slipAt = event.position;
+    flashError();
+  }
 }
 
 function flushInput(): void {
@@ -319,6 +352,8 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
   kind ??= nextKind(state, drill?.kind ?? null, { newSession, sentences: sentencesReady(state, corpus()) });
   if (kind === 'warmup') warmedUp = true;
   model = await buildModel(state);
+  knownKeys = new Set(model.keys.filter((k) => meetsBar(k, state)).map((k) => k.item));
+  slipAt = -1;
   drill = nextDrill(model, state, corpus(), kind, Date.now() >>> 0);
   session = new TypingSession(drill.text, context);
   drillEvents = [];
