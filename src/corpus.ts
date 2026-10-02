@@ -11,6 +11,13 @@ export interface Corpus {
   /** Display name in its own language, e.g. "English", "Polski". */
   name: string;
   words: readonly string[];
+  /**
+   * Order in which beginners unlock letters, first six together. Defaults to
+   * the corpus' own letter frequency (see `unlockOrder` in drill.ts).
+   */
+  unlockOrder?: readonly string[];
+  /** Substrings generated pseudo-words must not contain, e.g. offensive words. */
+  blockedSubstrings?: readonly string[];
 }
 
 const CORPORA = new Map<string, Corpus>([[en.language, en]]);

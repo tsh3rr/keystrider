@@ -1,6 +1,12 @@
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
-import { DEFAULT_LANGUAGE, getCorpus, randomText } from './corpus';
+import { DEFAULT_LANGUAGE, getCorpus } from './corpus';
+import { clearCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
+import {
+  afterDrill, drillFeedback, drillResult, initialCurriculum, modelOptions, nextDrill, nextKind, tierWpm, unlockOrder,
+  type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
+} from './drill';
+import { codeFor, loadWeaknessModel, type WeaknessModel } from './weakness';
 import {
   KeyObserver, LAYOUTS, browserLayoutMap, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
@@ -25,11 +31,8 @@ let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLoc
 // No language picker yet; English is the only corpus so far.
 const context: PracticeContext = { language: DEFAULT_LANGUAGE, layout: layoutSetting.layout };
 
-function newSession(): TypingSession {
-  return new TypingSession(randomText(getCorpus(context.language)), context);
-}
-
-let session = newSession();
+// Replaced by the first drill once the keystroke log is open.
+let session = new TypingSession('', context);
 let store: KeystrokeStore;
 
 function renderText(): void {
@@ -46,11 +49,13 @@ function renderText(): void {
 }
 
 function renderStats(): void {
+  // Once the drill is done, finishDrill writes the summary.
+  if (session.done) return;
   const wpm = session.wpm().toFixed(0);
   const acc = (session.accuracy() * 100).toFixed(1);
-  statsEl.textContent = session.done
-    ? `Done: ${wpm} WPM, ${acc}% accuracy. Press Enter for new text.`
-    : `${wpm} WPM · ${acc}% accuracy · ${session.errors} errors`;
+  // In accuracy recovery the live speed is hidden so the learner is not tempted to chase it.
+  const speed = curriculum?.recovery ? '' : `${wpm} WPM · `;
+  statsEl.textContent = `${speed}${acc}% accuracy · ${session.errors} errors`;
 }
 
 function flashError(): void {
@@ -60,12 +65,6 @@ function flashError(): void {
   cur?.classList.add('error');
 }
 
-function newText(): void {
-  session = newSession();
-  renderText();
-  renderStats();
-  inputEl.focus();
-}
 
 // Typing goes into a hidden textarea and is read from its `input` events
 // rather than from `keydown`. That way the OS keyboard layout does the work:
@@ -77,7 +76,9 @@ let lastCode: string | null = null;
 inputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    if (session.done) newText();
+    if (session.done && !finishing && drill && curriculum) {
+      startDrill(nextKind(curriculum, drill.kind)).catch((err) => console.error('Failed to start drill', err));
+    }
     return;
   }
   // A dead key only starts a composition; the key that completes it is the one logged.
@@ -88,7 +89,8 @@ inputEl.addEventListener('keydown', (e) => {
 function handleChar(ch: string): void {
   const event = session.press(ch, Date.now(), lastCode);
   if (!event) return;
-  store.add(event).catch((err) => console.error('Failed to log keystroke', err));
+  drillEvents.push(event);
+  pendingWrites.push(store.add(event).catch((err) => console.error('Failed to log keystroke', err)));
   if (!event.correct) flashError();
 }
 
@@ -101,6 +103,7 @@ function flushInput(): void {
   renderText();
   renderStats();
   checkObservedLayout();
+  if (session.done && !finishing) finishDrill().catch((err) => console.error('Failed to finish drill', err));
 }
 
 inputEl.addEventListener('input', (e) => {
@@ -116,7 +119,151 @@ inputEl.addEventListener('focus', () => textEl.classList.add('focused'));
 inputEl.addEventListener('blur', () => textEl.classList.remove('focused'));
 textEl.addEventListener('click', () => inputEl.focus());
 
-$('new-text').addEventListener('click', newText);
+$('new-text').addEventListener('click', () => {
+  if (!finishing) startDrill('core').catch((err) => console.error('Failed to start drill', err));
+});
+
+// --- Drills ---
+//
+// Each drill is written by the adaptive generator (drill.ts) from the
+// weakness model. When it is typed, the model is rebuilt and the curriculum
+// rules decide on unlocks, tier and pace; the summary shows what changed.
+
+const drillKeysEl = $('drill-keys');
+const drillInfoEl = $('drill-info');
+const drillCueEl = $('drill-cue');
+const feedbackEl = $('drill-feedback');
+
+let curriculum: CurriculumState | null = null;
+let model: WeaknessModel | null = null;
+let drill: Drill | null = null;
+let drillEvents: KeystrokeEvent[] = [];
+let pendingWrites: Promise<unknown>[] = [];
+/** Set while a finished drill is being scored, so Enter and Skip wait for it. */
+let finishing = false;
+
+const corpus = () => getCorpus(context.language);
+
+/** The key's label on the user's layout (from layouts.ts), or the letter itself if the layout lacks it. */
+function keyCap(ch: string): string {
+  if (ch === ' ') return '␣';
+  const code = codeFor(context.layout, ch);
+  return code === null ? ch.toUpperCase() : keyLabel(context.layout, code);
+}
+
+const showItem = (item: string) => [...item].map((c) => (c === ' ' ? '␣' : c)).join('');
+
+/** The curriculum for the current language and layout, created (with placement from history) on first use. */
+async function currentCurriculum(): Promise<CurriculumState> {
+  if (curriculum && curriculum.language === context.language && curriculum.layout === context.layout) return curriculum;
+  curriculum = loadCurriculum(context);
+  if (!curriculum) {
+    curriculum = initialCurriculum(corpus(), context, await loadWeaknessModel(store, context));
+    saveCurriculum(curriculum);
+  }
+  return curriculum;
+}
+
+async function buildModel(state: CurriculumState): Promise<WeaknessModel> {
+  return loadWeaknessModel(store, context, modelOptions(state, corpus()));
+}
+
+function renderDrillBar(): void {
+  if (!curriculum) return;
+  const unlocked = new Set(curriculum.unlocked);
+  const frag = document.createDocumentFragment();
+  for (const ch of unlockOrder(corpus())) {
+    const span = document.createElement('span');
+    span.textContent = keyCap(ch);
+    span.className = 'key' + (unlocked.has(ch) ? '' : ' locked') + (ch === curriculum.focusKey ? ' focus' : '');
+    span.title = ch === curriculum.focusKey ? 'Focus key' : unlocked.has(ch) ? 'Unlocked' : 'Locked';
+    frag.append(span);
+  }
+  drillKeysEl.replaceChildren(frag);
+  const kind = drill?.kind === 'focus' ? 'Focus burst · ' : '';
+  drillInfoEl.textContent =
+    `${kind}Level ${curriculum.tier} (${tierWpm(curriculum.tier)} WPM) · target pace ${Math.round(curriculum.paceWpm)} WPM`;
+  drillCueEl.hidden = !curriculum.recovery;
+}
+
+async function startDrill(kind: Drill['kind']): Promise<void> {
+  const state = await currentCurriculum();
+  model = await buildModel(state);
+  drill = nextDrill(model, state, corpus(), kind, Date.now() >>> 0);
+  session = new TypingSession(drill.text, context);
+  drillEvents = [];
+  pendingWrites = [];
+  feedbackEl.hidden = true;
+  renderDrillBar();
+  renderText();
+  renderStats();
+  inputEl.focus();
+}
+
+function describeChange(c: CurriculumChange): string {
+  switch (c.type) {
+    case 'unlock': return `New letter unlocked: ${keyCap(c.key)}. Drills lean on it until it is up to speed.`;
+    case 'focus-met': return `${keyCap(c.key)} is up to speed.`;
+    case 'stuck': return `${keyCap(c.key)} has been holding you back, so its speed bar is a little lower and it gets extra practice.`;
+    case 'tier': return `Level up: level ${c.tier}, aiming for ${tierWpm(c.tier)} WPM.`;
+    case 'recovery': return c.on
+      ? 'Two drills in a row under 92% accuracy: slow down until you are typing cleanly again.'
+      : 'Accuracy is back. Speed is shown again.';
+  }
+}
+
+function itemList(label: string, items: ItemChange[]): HTMLElement | null {
+  if (items.length === 0) return null;
+  const p = document.createElement('p');
+  p.append(`${label}: `);
+  items.forEach((it, i) => {
+    if (i) p.append(', ');
+    const span = document.createElement('span');
+    span.className = 'item';
+    span.textContent = it.kind === 'key' ? keyCap(it.item) : showItem(it.item);
+    p.append(span);
+  });
+  return p;
+}
+
+async function finishDrill(): Promise<void> {
+  if (!drill || !curriculum) return;
+  finishing = true;
+  try {
+    await Promise.all(pendingWrites);
+    const result = drillResult(drillEvents);
+    const head = `Done: ${result.wpm.toFixed(0)} WPM, ${(result.accuracy * 100).toFixed(1)}% accuracy` +
+      ` (target pace ${Math.round(drill.paceWpm)} WPM). Press Enter for the next drill.`;
+    statsEl.textContent = head;
+    // A layout switch mid-drill moved these keystrokes to another curriculum; just start fresh.
+    if (curriculum.layout !== context.layout || curriculum.language !== context.language) return;
+
+    const before = model;
+    const after = await buildModel(curriculum);
+    const { state, changes } = afterDrill(after, curriculum, corpus(), drill, result);
+    curriculum = state;
+    saveCurriculum(state);
+
+    const lines: HTMLElement[] = changes.map((c) => Object.assign(document.createElement('p'), { textContent: describeChange(c) }));
+    if (before) {
+      const { improved, slipped } = drillFeedback(before, after, drill);
+      for (const el of [itemList('Improved', improved), itemList('Slipped', slipped)]) if (el) lines.push(el);
+    }
+    feedbackEl.replaceChildren(...lines);
+    feedbackEl.hidden = lines.length === 0;
+    renderDrillBar();
+  } finally {
+    finishing = false;
+  }
+}
+
+$('reset-lessons').addEventListener('click', () => {
+  if (!confirm('Start the lessons over from the first six letters? Your keystroke log is kept.')) return;
+  clearCurriculum(context);
+  curriculum = initialCurriculum(corpus(), context);
+  saveCurriculum(curriculum);
+  startDrill('core').catch((err) => console.error('Failed to start drill', err));
+});
 
 // --- Keyboard layout ---
 //
@@ -326,9 +473,7 @@ KeystrokeStore.open().then((s) => {
   store = s;
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();
-  renderText();
-  renderStats();
-  inputEl.focus();
+  startDrill('core').catch((err) => console.error('Failed to start drill', err));
   detectFromBrowser()
     .then(backfillLegacyLog)
     .catch((err) => console.error('Layout detection failed', err));

@@ -100,6 +100,22 @@ tr.wrong td { color: var(--error); }
 .layout-suggest[hidden] { display: none; }
 .layout-suggest span { margin-right: auto; }
 
+.drill-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 0.9rem; }
+.drill-keys { display: flex; gap: 4px; flex-wrap: wrap; }
+.drill-keys .key {
+  font-family: ui-monospace, Menlo, Consolas, monospace; min-width: 1.6em; text-align: center;
+  padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px;
+}
+.drill-keys .key.locked { color: var(--typed); border-style: dashed; }
+.drill-keys .key.focus { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+#drill-info { color: var(--muted); margin-right: auto; }
+button.link { border: 0; padding: 0; color: var(--muted); text-decoration: underline; font-size: 0.85rem; }
+.drill-cue { padding: 8px 12px; border: 1px solid var(--error); border-radius: 8px; font-size: 0.9rem; }
+.drill-cue[hidden], .drill-feedback[hidden] { display: none; }
+.drill-feedback { font-size: 0.95rem; margin: 0 0 12px; }
+.drill-feedback p { margin: 4px 0; }
+.drill-feedback .item { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
 /* --- Progress --- */
 .progress-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; font-size: 0.9rem; }
 #progress-context { margin-right: auto; color: var(--muted); }
