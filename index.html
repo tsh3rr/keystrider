@@ -9,54 +9,58 @@
   <body>
     <header class="topbar">
       <span class="brand">Typing Trainer</span>
-      <nav class="tabs" aria-label="Main">
-        <button data-view="practice" class="active" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Practice</button>
-        <button data-view="progress" title="Your speed, accuracy and weak keys over time"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/></svg>Progress</button>
+      <nav class="tabs" aria-label="Main" data-i18n-aria-label="nav.aria">
+        <button data-view="practice" class="active" aria-current="page" data-i18n="nav.practice"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Practice</button>
+        <button data-view="progress" title="Your speed, accuracy and weak keys over time" data-i18n="nav.progress" data-i18n-title="nav.progressTitle"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/></svg>Progress</button>
       </nav>
       <span class="spacer"></span>
       <div class="menu-wrap">
-        <button id="language-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu" title="Practice language"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg><span id="language-name"></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
-        <div id="language-menu" class="menu" role="menu" aria-label="Practice language" hidden>
-          <span class="menu-title">Practice language</span>
+        <button id="language-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu" title="Practice language" data-i18n-title="menu.practiceLanguage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg><span id="language-name"></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
+        <div id="language-menu" class="menu" role="menu" aria-label="Practice language" data-i18n-aria-label="menu.practiceLanguage" hidden>
+          <span class="menu-title" data-i18n="menu.practiceLanguage">Practice language</span>
           <div id="language-options"></div>
         </div>
       </div>
       <div class="menu-wrap">
         <button id="layout-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="layout-menu" title="Keyboard layout"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg><span id="layout-name"></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
-        <div id="layout-menu" class="menu" role="menu" aria-label="Keyboard layout" hidden>
-          <span class="menu-title">Keyboard layout</span>
+        <div id="layout-menu" class="menu" role="menu" aria-label="Keyboard layout" data-i18n-aria-label="menu.layout" hidden>
+          <span class="menu-title" data-i18n="menu.layout">Keyboard layout</span>
           <div id="layout-options"></div>
           <span id="layout-status" class="menu-note"></span>
         </div>
       </div>
-      <button id="settings-btn" class="settings-btn" aria-expanded="false" aria-controls="settings-drawer"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3h3.4l.5 2.6 1.9 1.1 2.5-.9 1.7 2.9-2 1.8v2.2l2 1.8-1.7 2.9-2.5-.9-1.9 1.1-.5 2.6h-3.4l-.5-2.6-1.9-1.1-2.5.9-1.7-2.9 2-1.8v-2.2l-2-1.8 1.7-2.9 2.5.9 1.9-1.1z"/><circle cx="12" cy="12" r="2.6"/></svg><span>Settings</span></button>
+      <button id="settings-btn" class="settings-btn" aria-expanded="false" aria-controls="settings-drawer"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3h3.4l.5 2.6 1.9 1.1 2.5-.9 1.7 2.9-2 1.8v2.2l2 1.8-1.7 2.9-2.5-.9-1.9 1.1-.5 2.6h-3.4l-.5-2.6-1.9-1.1-2.5.9-1.7-2.9 2-1.8v-2.2l-2-1.8 1.7-2.9 2.5.9 1.9-1.1z"/><circle cx="12" cy="12" r="2.6"/></svg><span data-i18n="settings.button">Settings</span></button>
     </header>
 
-    <aside id="settings-drawer" class="drawer" aria-label="Settings" hidden>
+    <aside id="settings-drawer" class="drawer" aria-label="Settings" data-i18n-aria-label="settings.title" hidden>
       <div class="drawer-head">
-        <h2>Settings</h2>
-        <button id="settings-close" class="icon-btn" aria-label="Close settings">✕</button>
+        <h2 data-i18n="settings.title">Settings</h2>
+        <button id="settings-close" class="icon-btn" aria-label="Close settings" data-i18n-aria-label="settings.close">✕</button>
       </div>
       <section class="drawer-group">
-        <h3>Appearance</h3>
-        <div class="segmented" role="radiogroup" aria-label="Theme">
-          <button role="radio" data-theme-choice="system">System</button>
-          <button role="radio" data-theme-choice="light">Light</button>
-          <button role="radio" data-theme-choice="dark">Dark</button>
+        <h3 data-i18n="settings.uiLanguage">Interface language</h3>
+        <div id="ui-language" class="segmented" role="radiogroup" aria-label="Interface language" data-i18n-aria-label="settings.uiLanguage"></div>
+      </section>
+      <section class="drawer-group">
+        <h3 data-i18n="settings.appearance">Appearance</h3>
+        <div class="segmented" role="radiogroup" aria-label="Theme" data-i18n-aria-label="settings.theme">
+          <button role="radio" data-theme-choice="system" data-i18n="settings.themeSystem">System</button>
+          <button role="radio" data-theme-choice="light" data-i18n="settings.themeLight">Light</button>
+          <button role="radio" data-theme-choice="dark" data-i18n="settings.themeDark">Dark</button>
         </div>
       </section>
       <section class="drawer-group">
-        <h3>Help while typing</h3>
-        <label class="switch-row" for="finger-guide-toggle">Show the finger guide <input type="checkbox" id="finger-guide-toggle" checked /></label>
-        <label class="switch-row" for="guide-fade-toggle" title="Dim the guide for keys you already type well; it lights up when you pause or slip">Fade it for keys I know <input type="checkbox" id="guide-fade-toggle" checked /></label>
-        <label class="switch-row" for="keys-toggle" title="Show every key and which ones are unlocked">Show all keys and which are unlocked <input type="checkbox" id="keys-toggle" /></label>
-        <label class="switch-row" for="break-toggle" title="Suggest a short break when your typing gets worse or you have practised for a long time">Break reminders <input type="checkbox" id="break-toggle" checked /></label>
-        <label class="switch-row" for="word-filter-toggle" title="Leave out offensive words, real or made up">Hide offensive words <input type="checkbox" id="word-filter-toggle" checked /></label>
+        <h3 data-i18n="settings.help">Help while typing</h3>
+        <label class="switch-row" for="finger-guide-toggle" data-i18n="settings.fingerGuide">Show the finger guide <input type="checkbox" id="finger-guide-toggle" checked /></label>
+        <label class="switch-row" for="guide-fade-toggle" title="Dim the guide for keys you already type well; it lights up when you pause or slip" data-i18n="settings.guideFade" data-i18n-title="settings.guideFadeTitle">Fade it for keys I know <input type="checkbox" id="guide-fade-toggle" checked /></label>
+        <label class="switch-row" for="keys-toggle" title="Show every key and which ones are unlocked" data-i18n="settings.showKeys" data-i18n-title="settings.showKeysTitle">Show all keys and which are unlocked <input type="checkbox" id="keys-toggle" /></label>
+        <label class="switch-row" for="break-toggle" title="Suggest a short break when your typing gets worse or you have practised for a long time" data-i18n="settings.breaks" data-i18n-title="settings.breaksTitle">Break reminders <input type="checkbox" id="break-toggle" checked /></label>
+        <label class="switch-row" for="word-filter-toggle" title="Leave out offensive words, real or made up" data-i18n="settings.wordFilter" data-i18n-title="settings.wordFilterTitle">Hide offensive words <input type="checkbox" id="word-filter-toggle" checked /></label>
       </section>
       <section class="drawer-group">
-        <h3>Data</h3>
-        <button id="open-log" class="link-btn">Keystroke log and export</button>
-        <button id="reset-lessons" class="link-btn">Restart lessons</button>
+        <h3 data-i18n="settings.data">Data</h3>
+        <button id="open-log" class="link-btn" data-i18n="settings.openLog">Keystroke log and export</button>
+        <button id="reset-lessons" class="link-btn" data-i18n="settings.resetLessons">Restart lessons</button>
       </section>
     </aside>
 
@@ -64,86 +68,86 @@
       <section id="practice-view">
         <div id="layout-suggest" class="layout-suggest" hidden>
           <span id="layout-suggest-text"></span>
-          <button id="layout-suggest-yes">Switch</button>
-          <button id="layout-suggest-no">Keep mine</button>
+          <button id="layout-suggest-yes" data-i18n="layout.suggestYes">Switch</button>
+          <button id="layout-suggest-no" data-i18n="layout.suggestNo">Keep mine</button>
         </div>
         <div class="coach">
-          <div class="coach-bar" aria-label="Where you are">
-            <button class="chip" data-pop="path" aria-expanded="false" aria-controls="coach-pop" title="Your path"><span class="chip-label">Path</span><span id="chip-path"></span></button>
-            <button class="chip" data-pop="round" aria-expanded="false" aria-controls="coach-pop" title="This round"><span class="chip-label">Round</span><span id="chip-round"></span></button>
-            <button class="chip" data-pop="now" aria-expanded="false" aria-controls="coach-pop" title="Speed and accuracy"><span class="chip-label">Now</span><span id="chip-now"></span></button>
-            <button class="chip" data-pop="fresh" aria-expanded="false" aria-controls="coach-pop" title="Break check"><span id="chip-fresh"></span></button>
+          <div class="coach-bar" aria-label="Where you are" data-i18n-aria-label="practice.coachAria">
+            <button class="chip" data-pop="path" aria-expanded="false" aria-controls="coach-pop" title="Your path" data-i18n-title="coach.pathTitle"><span class="chip-label" data-i18n="coach.path">Path</span><span id="chip-path"></span></button>
+            <button class="chip" data-pop="round" aria-expanded="false" aria-controls="coach-pop" title="This round" data-i18n-title="coach.roundTitle"><span class="chip-label" data-i18n="coach.round">Round</span><span id="chip-round"></span></button>
+            <button class="chip" data-pop="now" aria-expanded="false" aria-controls="coach-pop" title="Speed and accuracy" data-i18n-title="coach.nowTitle"><span class="chip-label" data-i18n="coach.now">Now</span><span id="chip-now"></span></button>
+            <button class="chip" data-pop="fresh" aria-expanded="false" aria-controls="coach-pop" title="Break check" data-i18n-title="coach.freshTitle"><span id="chip-fresh"></span></button>
           </div>
-          <div id="coach-pop" class="coach-pop" role="dialog" aria-label="Details" hidden></div>
+          <div id="coach-pop" class="coach-pop" role="dialog" aria-label="Details" data-i18n-aria-label="coach.popAria" hidden></div>
         </div>
-        <div id="drill-keys" class="drill-keys" aria-label="Keys unlocked so far"></div>
-        <p id="drill-cue" class="drill-cue" hidden>Accuracy first: slow down and type cleanly. Speed is hidden until you are back on track.</p>
+        <div id="drill-keys" class="drill-keys" aria-label="Keys unlocked so far" data-i18n-aria-label="practice.keysAria"></div>
+        <p id="drill-cue" class="drill-cue" data-i18n="practice.cue" hidden>Accuracy first: slow down and type cleanly. Speed is hidden until you are back on track.</p>
         <div id="text" class="text" aria-hidden="true"></div>
-        <textarea id="input" class="typing-input" aria-label="Type the text shown above" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-        <p id="type-hint" class="type-hint">Click the text and start typing. A wrong key holds you on the same letter.</p>
+        <textarea id="input" class="typing-input" aria-label="Type the text shown above" data-i18n-aria-label="practice.inputAria" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+        <p id="type-hint" class="type-hint" data-i18n="practice.hint">Click the text and start typing. A wrong key holds you on the same letter.</p>
         <div id="result" class="result" role="status" hidden></div>
         <div id="break-card" class="break-card" role="status" hidden>
           <p id="break-text"></p>
           <p id="break-timer" class="break-timer" hidden></p>
           <div class="break-actions">
             <button id="break-start" class="primary">Take a 5-minute break</button>
-            <button id="break-back" hidden>I'm back</button>
-            <button id="break-skip" class="link-btn">Keep going</button>
+            <button id="break-back" data-i18n="break.back" hidden>I'm back</button>
+            <button id="break-skip" class="link-btn" data-i18n="break.skip">Keep going</button>
           </div>
         </div>
         <div id="finger-guide" class="finger-guide"></div>
-        <div class="practice-foot"><button id="new-text" class="link-btn">Skip drill</button></div>
+        <div class="practice-foot"><button id="new-text" class="link-btn" data-i18n="practice.skip">Skip drill</button></div>
       </section>
 
       <section id="progress-view" hidden>
         <div class="progress-bar">
           <span id="progress-context"></span>
-          <label>Show <select id="progress-range">
-            <option value="7">Last 7 days</option>
-            <option value="30" selected>Last 30 days</option>
-            <option value="all">All time</option>
+          <label data-i18n="progress.show">Show <select id="progress-range">
+            <option value="7" data-i18n="progress.range7">Last 7 days</option>
+            <option value="30" selected data-i18n="progress.range30">Last 30 days</option>
+            <option value="all" data-i18n="progress.rangeAll">All time</option>
           </select></label>
         </div>
-        <p id="progress-empty" class="hint" hidden>No practice logged for this language and keyboard layout yet. Finish a text on the Practice tab and your progress shows up here.</p>
+        <p id="progress-empty" class="hint" data-i18n="progress.empty" hidden>No practice logged for this language and keyboard layout yet. Finish a text on the Practice tab and your progress shows up here.</p>
         <div id="progress-body">
           <div id="progress-tiles" class="tiles"></div>
-          <p id="progress-no-sessions" class="hint" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
+          <p id="progress-no-sessions" class="hint" data-i18n="progress.noSessions" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
           <div id="progress-charts">
-            <h2>Speed per session</h2>
+            <h2 data-i18n="progress.speedChart">Speed per session</h2>
             <div id="chart-wpm" class="chart"></div>
-            <h2>First-try accuracy per session</h2>
+            <h2 data-i18n="progress.accChart">First-try accuracy per session</h2>
             <div id="chart-acc" class="chart"></div>
             <details>
-              <summary>Show sessions as a table</summary>
+              <summary data-i18n="progress.table">Show sessions as a table</summary>
               <table>
-                <thead><tr><th>When</th><th>WPM</th><th>Accuracy</th><th>Characters</th></tr></thead>
+                <thead><tr><th data-i18n="progress.colWhen">When</th><th data-i18n="progress.colWpm">WPM</th><th data-i18n="progress.colAccuracy">Accuracy</th><th data-i18n="progress.colChars">Characters</th></tr></thead>
                 <tbody id="sessions-rows"></tbody>
               </table>
             </details>
           </div>
-          <h2>Errors by key</h2>
-          <p class="hint">How often each key goes wrong on the first try, recent practice counting most.</p>
+          <h2 data-i18n="progress.heatTitle">Errors by key</h2>
+          <p class="hint" data-i18n="progress.heatHint">How often each key goes wrong on the first try, recent practice counting most.</p>
           <div id="keyboard-heat"></div>
           <div class="heat-legend" aria-hidden="true">
-            <span><i class="kb-key heat-0"></i>under 2%</span>
-            <span><i class="kb-key heat-1"></i>2–5%</span>
-            <span><i class="kb-key heat-2"></i>5–8%</span>
-            <span><i class="kb-key heat-3"></i>8–12%</span>
-            <span><i class="kb-key heat-4"></i>12% or more</span>
-            <span><i class="kb-key heat-none"></i>not typed yet</span>
+            <span data-i18n="progress.heat0"><i class="kb-key heat-0"></i>under 2%</span>
+            <span data-i18n="progress.heat1"><i class="kb-key heat-1"></i>2–5%</span>
+            <span data-i18n="progress.heat2"><i class="kb-key heat-2"></i>5–8%</span>
+            <span data-i18n="progress.heat3"><i class="kb-key heat-3"></i>8–12%</span>
+            <span data-i18n="progress.heat4"><i class="kb-key heat-4"></i>12% or more</span>
+            <span data-i18n="progress.heatNone"><i class="kb-key heat-none"></i>not typed yet</span>
           </div>
           <div class="weak-grid">
             <div>
-              <h2>Weakest keys</h2>
+              <h2 data-i18n="progress.weakKeys">Weakest keys</h2>
               <table class="weak">
-                <thead><tr><th>Key</th><th>Errors</th><th>Typical time</th><th>Last 14 days</th><th>Tries</th></tr></thead>
+                <thead><tr><th data-i18n="progress.colKey">Key</th><th data-i18n="progress.colErrors">Errors</th><th data-i18n="progress.colTime">Typical time</th><th data-i18n="progress.colTrend">Last 14 days</th><th data-i18n="progress.colTries">Tries</th></tr></thead>
                 <tbody id="weak-keys"></tbody>
               </table>
             </div>
             <div>
-              <h2>Weakest letter pairs</h2>
+              <h2 data-i18n="progress.weakPairs">Weakest letter pairs</h2>
               <table class="weak">
-                <thead><tr><th>Pair</th><th>Errors</th><th>Typical time</th><th>Last 14 days</th><th>Tries</th></tr></thead>
+                <thead><tr><th data-i18n="progress.colPair">Pair</th><th data-i18n="progress.colErrors">Errors</th><th data-i18n="progress.colTime">Typical time</th><th data-i18n="progress.colTrend">Last 14 days</th><th data-i18n="progress.colTries">Tries</th></tr></thead>
                 <tbody id="weak-bigrams"></tbody>
               </table>
             </div>
@@ -154,29 +158,29 @@
 
       <section id="log-view" hidden>
         <div class="log-head">
-          <button id="log-back" class="link-btn">← Back to practice</button>
-          <h2>Keystroke log</h2>
+          <button id="log-back" class="link-btn" data-i18n="log.back">← Back to practice</button>
+          <h2 data-i18n="log.title">Keystroke log</h2>
         </div>
         <div class="log-actions">
           <span id="log-summary"></span>
-          <button id="export-json">Export JSON</button>
-          <button id="export-csv">Export CSV</button>
-          <button id="clear-log" class="danger">Clear log</button>
+          <button id="export-json" data-i18n="log.exportJson">Export JSON</button>
+          <button id="export-csv" data-i18n="log.exportCsv">Export CSV</button>
+          <button id="clear-log" class="danger" data-i18n="log.clear">Clear log</button>
         </div>
         <table>
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Session</th>
-              <th>Lang · layout</th>
-              <th>Pos</th>
-              <th>Expected</th>
-              <th>Actual</th>
-              <th>Key</th>
-              <th>Prev expected</th>
-              <th>Prev actual</th>
-              <th>Δ ms</th>
-              <th>OK</th>
+              <th data-i18n="log.colTime">Time</th>
+              <th data-i18n="log.colSession">Session</th>
+              <th data-i18n="log.colContext">Lang · layout</th>
+              <th data-i18n="log.colPos">Pos</th>
+              <th data-i18n="log.colExpected">Expected</th>
+              <th data-i18n="log.colActual">Actual</th>
+              <th data-i18n="log.colKey">Key</th>
+              <th data-i18n="log.colPrevExpected">Prev expected</th>
+              <th data-i18n="log.colPrevActual">Prev actual</th>
+              <th data-i18n="log.colLatency">Δ ms</th>
+              <th data-i18n="log.colOk">OK</th>
             </tr>
           </thead>
           <tbody id="log-rows"></tbody>

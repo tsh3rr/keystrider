@@ -195,3 +195,22 @@ export function saveThemeSetting(theme: Theme, storage: Storage | undefined = sa
     // ignore, see saveLayoutSetting
   }
 }
+
+const UI_LANGUAGE_KEY = 'typing-trainer.ui-language';
+
+/** The interface language the user picked, or null to follow the browser. */
+export function loadUiLanguageSetting(storage: Storage | undefined = safeStorage()): string | null {
+  try {
+    return storage?.getItem(UI_LANGUAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveUiLanguageSetting(language: string, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(UI_LANGUAGE_KEY, language);
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}

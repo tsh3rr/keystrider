@@ -1,3 +1,5 @@
+import { pct, t, tNodes } from './i18n';
+
 /**
  * The slim coach bar above the practice text: four chips (path, round, speed,
  * break check) that each show a one-line summary and open a bubble with only
@@ -54,7 +56,8 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 };
 
-const pct = (x: number) => `${Math.round(x * 100)}%`;
+/** Bar widths in CSS percent; on-screen numbers go through i18n's `pct`. */
+const width = (x: number) => `${Math.round(x * 100)}%`;
 
 export class CoachBar {
   private data: CoachData | null = null;
@@ -147,11 +150,11 @@ export class CoachBar {
     const path = this.chips.get('path')!.querySelector('#chip-path')!;
     const meter = el('span', 'meter');
     meter.append(el('i'));
-    (meter.firstChild as HTMLElement).style.width = pct(d.path.total ? d.path.done / d.path.total : 1);
+    (meter.firstChild as HTMLElement).style.width = width(d.path.total ? d.path.done / d.path.total : 1);
     const parts: (Node | string)[] = [d.path.stage + ' '];
     if (d.path.total > 1) parts.push(el('b', '', `${d.path.done}/${d.path.total}`));
     parts.push(meter);
-    if (d.path.next) parts.push('next ', el('b', '', d.path.next));
+    if (d.path.next) parts.push(...tNodes('chip.next', { key: el('b', '', d.path.next) }));
     path.replaceChildren(...parts);
 
     const round = this.chips.get('round')!.querySelector('#chip-round')!;
@@ -165,18 +168,18 @@ export class CoachBar {
 
     const fresh = this.chips.get('fresh')!.querySelector('#chip-fresh')!;
     const state = !d.fresh.enabled ? 'off' : d.fresh.due ? 'due' : 'ok';
-    fresh.replaceChildren(el('span', `dot ${state}`), { off: 'Breaks off', due: 'Time for a break', ok: 'Fresh' }[state]);
+    fresh.replaceChildren(el('span', `dot ${state}`), t(({ off: 'chip.breaksOff', due: 'chip.breakDue', ok: 'chip.fresh' } as const)[state]));
   }
 
   private chipNow(): void {
     const n = this.data!.now;
     const now = this.chips.get('now')!.querySelector('#chip-now')!;
     if (n.accuracy === null) {
-      now.replaceChildren(...(n.usualWpm ? ['usual ', el('b', '', String(n.usualWpm)), ' wpm'] : ['ready']));
+      now.replaceChildren(...(n.usualWpm ? tNodes('chip.usual', { wpm: el('b', '', String(n.usualWpm)) }) : [t('chip.ready')]));
     } else if (n.wpm === null) {
-      now.replaceChildren(el('b', '', pct(n.accuracy)), ' accuracy');
+      now.replaceChildren(...tNodes('chip.accuracy', { acc: el('b', '', pct(n.accuracy)) }));
     } else {
-      now.replaceChildren(el('b', '', String(n.wpm)), ' wpm · ', el('b', '', pct(n.accuracy)));
+      now.replaceChildren(...tNodes('chip.live', { wpm: el('b', '', String(n.wpm)), acc: el('b', '', pct(n.accuracy)) }));
     }
   }
 
@@ -191,21 +194,21 @@ export class CoachBar {
           const li = el('li', s.state);
           const bar = el('i');
           const fill = el('b');
-          fill.style.width = pct(s.state === 'done' ? 1 : s.total ? s.done / s.total : 0);
+          fill.style.width = width(s.state === 'done' ? 1 : s.total ? s.done / s.total : 0);
           bar.append(fill);
           li.append(bar, s.total > 1 && s.state === 'current' ? `${s.name} ${s.done}/${s.total}` : s.name);
           list.append(li);
         }
-        sec.append(title('Your path'), list, el('p', 'pop-note', d.path.about));
+        sec.append(title(t('coach.pathTitle')), list, el('p', 'pop-note', d.path.about));
         break;
       }
       case 'round': {
         const list = el('ol', 'pop-round');
         for (const s of d.round.steps) list.append(el('li', s.state, s.name));
-        sec.append(title('This round'), list);
+        sec.append(title(t('coach.roundTitle')), list);
         if (d.round.focus.length) {
           const focus = el('div', 'pop-focus');
-          focus.append('Focus keys');
+          focus.append(t('round.focusKeys'));
           for (const f of d.round.focus) focus.append(el('kbd', '', f));
           sec.append(focus);
         }
@@ -215,32 +218,33 @@ export class CoachBar {
       case 'now': {
         const n = d.now;
         const nums = el('div', 'pop-nums');
-        const num = (v: string, label: string) => {
+        const numBox = (v: string, label: string) => {
           const box = el('div');
           box.append(el('b', '', v), el('span', '', label));
           return box;
         };
         nums.append(
-          num(n.wpm === null ? '–' : String(n.wpm), n.recovery ? 'wpm hidden: accuracy first' : n.usualWpm ? `wpm · usual ${n.usualWpm}` : 'wpm'),
-          num(n.accuracy === null ? '–' : pct(n.accuracy), 'first-try accuracy'),
+          numBox(n.wpm === null ? '–' : String(n.wpm),
+            n.recovery ? t('now.wpmHidden') : n.usualWpm ? t('now.wpmUsual', { wpm: n.usualWpm }) : t('now.wpm')),
+          numBox(n.accuracy === null ? '–' : pct(n.accuracy), t('now.accuracy')),
         );
-        sec.append(title('Right now'), nums, el('p', 'pop-small', n.level));
+        sec.append(title(t('now.title')), nums, el('p', 'pop-small', n.level));
         if (n.weakest.length) {
-          sec.append(title('Weakest keys'));
+          sec.append(title(t('now.weakest')));
           const max = Math.max(...n.weakest.map((w) => w.errorRate), 0.01);
           const rows = el('div', 'pop-weak');
           for (const w of n.weakest) {
             const row = el('div');
             const bar = el('span', 'bar');
             const fill = el('i');
-            fill.style.width = pct(w.errorRate / max);
+            fill.style.width = width(w.errorRate / max);
             bar.append(fill);
-            row.append(el('kbd', '', w.label), bar, el('small', '', `${(w.errorRate * 100).toFixed(1)}%`));
+            row.append(el('kbd', '', w.label), bar, el('small', '', pct(w.errorRate, 1)));
             rows.append(row);
           }
           sec.append(rows);
         }
-        const more = el('button', 'pop-more', 'Speed and weak keys over time in Progress');
+        const more = el('button', 'pop-more', t('now.more'));
         more.addEventListener('click', () => {
           this.close(false);
           this.onProgress();
@@ -255,18 +259,14 @@ export class CoachBar {
         const state = !f.enabled ? 'off' : f.due ? 'due' : 'ok';
         const text = el('span');
         if (state === 'off') {
-          text.append(el('b', '', 'Break reminders are off. '), 'You can turn them on in Settings.');
+          text.append(el('b', '', t('fresh.offLead')), ' ', t('fresh.off'));
         } else if (state === 'due') {
-          text.append(el('b', '', 'Time for a break. '), 'The suggestion below says why.');
+          text.append(el('b', '', t('fresh.dueLead')), ' ', t('fresh.due'));
         } else {
-          text.append(
-            el('b', '', 'Fresh. '),
-            `${mins} ${mins === 1 ? 'minute' : 'minutes'} of typing in this stretch. ` +
-              `You get a break suggestion if your errors start to climb, or after ${f.longMinutes} minutes.`,
-          );
+          text.append(el('b', '', t('fresh.okLead')), ' ', t('fresh.ok', { n: mins, long: f.longMinutes }));
         }
         line.append(el('span', `dot ${state}`), text);
-        sec.append(title('Break check'), line);
+        sec.append(title(t('coach.freshTitle')), line);
         break;
       }
     }
