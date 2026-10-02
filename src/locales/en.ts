@@ -59,6 +59,7 @@ export const en = {
   'settings.wordFilterTitle': 'Leave out offensive words, real or made up',
   'settings.data': 'Data',
   'settings.openLog': 'Keystroke log and export',
+  'settings.rerunSetup': 'Keyboard check and placement test',
   'settings.resetLessons': 'Restart lessons',
   'settings.resetConfirm': 'Start the lessons over from the first six letters? Your keystroke log is kept.',
 
@@ -274,6 +275,64 @@ export const en = {
   'progress.confusions': 'Often typed instead: {list}',
   'progress.emptyKeys': 'Type a bit more to see your weakest keys.',
   'progress.emptyPairs': 'Type a bit more to see your weakest letter pairs.',
+
+  // --- First-run setup (src/onboarding.ts) ---
+  'onboarding.aria': 'Setup',
+  'onboarding.stepKeyboard': 'Keyboard',
+  'onboarding.stepStart': 'Where to start',
+  'onboarding.stepMethod': 'How it works',
+  'onboarding.methodTitle': 'How it works',
+  'onboarding.stepOf': 'Step {n} of {total}',
+  'onboarding.skip': 'Skip setup',
+  'onboarding.next': 'Continue',
+  'onboarding.back': 'Back',
+  'onboarding.keyboardTitle': 'Welcome! First, your keyboard',
+  'onboarding.keyboardIntro': 'Drills are built for the language you practise and the keyboard you type on, so the finger guide shows your keys.',
+  'onboarding.sourceGuessed': 'A guess from your browser language. Check it below.',
+  'onboarding.checkLabel': 'To check, type the top row of letters on your keyboard, from left to right:',
+  'onboarding.checkPlaceholder': 'Type here',
+  'onboarding.checkMatch': '✓ Your keys match {name}.',
+  'onboarding.checkFits': '✓ That fits {name}.',
+  'onboarding.checkSwitched': 'Your keys look like {name}, so the layout was switched.',
+  'onboarding.checkNone': 'Type letters only, without Shift.',
+  'onboarding.startTitle': 'Where would you like to start?',
+  'onboarding.startIntro': 'Touch typing means typing without looking at your hands. Either way, the drills adapt to you as you go.',
+  'onboarding.newTitle': "I'm new to touch typing",
+  'onboarding.newText': 'Start with six common letters and add one key at a time.',
+  'onboarding.testTitle': 'I can already type without looking',
+  'onboarding.testText': 'Take a one-minute test and skip the keys you already know.',
+  'onboarding.keepTitle': 'Keep my current lessons',
+  'onboarding.keepText': 'Go on where you left off.',
+  'onboarding.replaceNote':
+    'You already have lessons for {lang} on {layout}. Starting over or taking the test replaces them; your keystroke log is kept.',
+  'onboarding.testTitleRun': 'Placement test',
+  'onboarding.testIntro':
+    'Type the text at your normal pace, without looking at your hands. Mistakes are fine: a wrong key holds you on the same letter.',
+  'onboarding.testHint': 'Click the text and start typing.',
+  'onboarding.testProgress': '{done} of {total} words',
+  'onboarding.retry': 'Take the test again',
+  'onboarding.resultTitle': 'Your starting point',
+  'onboarding.accuracy': 'accuracy',
+  'onboarding.placedAhead': 'You start at level {tier} ({wpm} WPM) with {letters} of {total} letters unlocked.',
+  'onboarding.placedStop': '{key} comes next; from there, new keys unlock one at a time.',
+  'onboarding.placedAll': 'Capitals, punctuation and numbers come next.',
+  'onboarding.placedSlow':
+    'You start from the beginning: six letters, then one new key at a time. Building the habit of not looking pays off fastest.',
+  'onboarding.placedSloppy':
+    'You start from the beginning, with accuracy first. Typing cleanly at a slower pace builds speed faster than rushing.',
+  'onboarding.method1Title': 'One new key at a time',
+  'onboarding.method1':
+    'The most common letters come first, so drills read like real words early on. A new key unlocks once every key you have is accurate and quick.',
+  'onboarding.method2Title': 'Accuracy before speed',
+  'onboarding.method2': 'A wrong key holds you on the same letter. If your accuracy drops below {acc}, speed is hidden until you type cleanly again.',
+  'onboarding.method3Title': 'Drills aimed at your weak spots',
+  'onboarding.method3':
+    'Every keystroke is measured. Each drill leans on the keys and letter pairs that slow you down, and brings back keys you have not practised for a while.',
+  'onboarding.method4Title': 'Short rounds and breaks',
+  'onboarding.method4':
+    'A session opens with a warm-up and mixes in short focus bursts and real sentences. When your typing gets worse, you get a nudge to take a break.',
+  'onboarding.methodTip': 'Keep your eyes on the screen. The keyboard under the text shows which finger to use for each key.',
+  'onboarding.start': 'Start practising',
 
   // --- Keystroke log ---
   'log.back': '← Back to practice',

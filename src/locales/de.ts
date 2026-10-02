@@ -56,6 +56,7 @@ export const de: Messages = {
   'settings.wordFilterTitle': 'Lässt anstößige Wörter weg, echte wie erfundene',
   'settings.data': 'Daten',
   'settings.openLog': 'Tastenprotokoll und Export',
+  'settings.rerunSetup': 'Tastaturcheck und Einstufungstest',
   'settings.resetLessons': 'Lektionen neu starten',
   'settings.resetConfirm': 'Die Lektionen mit den ersten sechs Buchstaben neu beginnen? Dein Tastenprotokoll bleibt erhalten.',
 
@@ -270,6 +271,66 @@ export const de: Messages = {
   'progress.confusions': 'Oft stattdessen getippt: {list}',
   'progress.emptyKeys': 'Tipp noch etwas mehr, dann siehst du deine schwächsten Tasten.',
   'progress.emptyPairs': 'Tipp noch etwas mehr, dann siehst du deine schwächsten Buchstabenpaare.',
+
+  // --- First-run setup (src/onboarding.ts) ---
+  'onboarding.aria': 'Einrichtung',
+  'onboarding.stepKeyboard': 'Tastatur',
+  'onboarding.stepStart': 'Einstieg',
+  'onboarding.stepMethod': 'Methode',
+  'onboarding.methodTitle': 'So funktioniert es',
+  'onboarding.stepOf': 'Schritt {n} von {total}',
+  'onboarding.skip': 'Einrichtung überspringen',
+  'onboarding.next': 'Weiter',
+  'onboarding.back': 'Zurück',
+  'onboarding.keyboardTitle': 'Willkommen! Zuerst deine Tastatur',
+  'onboarding.keyboardIntro':
+    'Die Übungen passen sich an die Sprache an, die du übst, und an deine Tastatur, damit die Fingerhilfe deine Tasten zeigt.',
+  'onboarding.sourceGuessed': 'Geschätzt anhand deiner Browsersprache. Prüf es unten.',
+  'onboarding.checkLabel': 'Zum Prüfen tippst du die obere Buchstabenreihe deiner Tastatur von links nach rechts:',
+  'onboarding.checkPlaceholder': 'Hier tippen',
+  'onboarding.checkMatch': '✓ Deine Tasten passen zu {name}.',
+  'onboarding.checkFits': '✓ Das passt zu {name}.',
+  'onboarding.checkSwitched': 'Deine Tasten sehen nach {name} aus, deshalb wurde das Layout umgestellt.',
+  'onboarding.checkNone': 'Tippe nur Buchstaben, ohne Umschalttaste.',
+  'onboarding.startTitle': 'Wo möchtest du anfangen?',
+  'onboarding.startIntro': 'Zehnfingersystem heißt: tippen, ohne auf die Hände zu schauen. So oder so passen sich die Übungen beim Üben an dich an.',
+  'onboarding.newTitle': 'Ich bin neu im Zehnfingersystem',
+  'onboarding.newText': 'Fang mit sechs häufigen Buchstaben an und nimm eine Taste nach der anderen dazu.',
+  'onboarding.testTitle': 'Ich kann schon blind tippen',
+  'onboarding.testText': 'Mach einen einminütigen Test und überspring die Tasten, die du schon kannst.',
+  'onboarding.keepTitle': 'Meine bisherigen Lektionen behalten',
+  'onboarding.keepText': 'Mach da weiter, wo du aufgehört hast.',
+  'onboarding.replaceNote':
+    'Du hast schon Lektionen für {lang} auf {layout}. Neu anfangen oder der Test ersetzt sie; dein Tastenprotokoll bleibt erhalten.',
+  'onboarding.testTitleRun': 'Einstufungstest',
+  'onboarding.testIntro':
+    'Tippe den Text in deinem normalen Tempo, ohne auf die Hände zu schauen. Fehler sind in Ordnung: Bei einer falschen Taste bleibst du auf demselben Buchstaben.',
+  'onboarding.testHint': 'Klick auf den Text und fang an zu tippen.',
+  'onboarding.testProgress': '{done} von {total} Wörtern',
+  'onboarding.retry': 'Test wiederholen',
+  'onboarding.resultTitle': 'Dein Startpunkt',
+  'onboarding.accuracy': 'Genauigkeit',
+  'onboarding.placedAhead': 'Du startest auf Stufe {tier} ({wpm} WpM) mit {letters} von {total} Buchstaben freigeschaltet.',
+  'onboarding.placedStop': 'Als Nächstes kommt {key}; danach wird eine neue Taste nach der anderen freigeschaltet.',
+  'onboarding.placedAll': 'Als Nächstes kommen Großbuchstaben, Satzzeichen und Ziffern.',
+  'onboarding.placedSlow':
+    'Du fängst von vorn an: sechs Buchstaben, dann eine neue Taste nach der anderen. Sich das Nicht-Hinschauen anzugewöhnen, zahlt sich am schnellsten aus.',
+  'onboarding.placedSloppy':
+    'Du fängst von vorn an, mit Genauigkeit zuerst. Langsam und sauber zu tippen bringt dich schneller zu Tempo als Hetzen.',
+  'onboarding.method1Title': 'Eine neue Taste nach der anderen',
+  'onboarding.method1':
+    'Die häufigsten Buchstaben kommen zuerst, so lesen sich die Übungen früh wie echte Wörter. Eine neue Taste kommt, sobald alle deine Tasten genau und flott sitzen.',
+  'onboarding.method2Title': 'Genauigkeit vor Tempo',
+  'onboarding.method2':
+    'Bei einer falschen Taste bleibst du auf demselben Buchstaben. Fällt deine Genauigkeit unter {acc}, wird das Tempo verborgen, bis du wieder sauber tippst.',
+  'onboarding.method3Title': 'Übungen für deine Schwachstellen',
+  'onboarding.method3':
+    'Jeder Anschlag wird gemessen. Jede Übung setzt auf die Tasten und Buchstabenpaare, die dich bremsen, und holt Tasten zurück, die du länger nicht geübt hast.',
+  'onboarding.method4Title': 'Kurze Runden und Pausen',
+  'onboarding.method4':
+    'Eine Sitzung beginnt mit Aufwärmen und mischt kurze Fokus-Sprints und echte Sätze dazu. Wird dein Tippen schlechter, bekommst du einen Hinweis auf eine Pause.',
+  'onboarding.methodTip': 'Lass die Augen auf dem Bildschirm. Die Tastatur unter dem Text zeigt, welcher Finger welche Taste tippt.',
+  'onboarding.start': 'Jetzt üben',
 
   // --- Keystroke log ---
   'log.back': '← Zurück zum Üben',

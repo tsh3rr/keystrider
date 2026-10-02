@@ -214,3 +214,22 @@ export function saveUiLanguageSetting(language: string, storage: Storage | undef
     // ignore, see saveLayoutSetting
   }
 }
+
+const ONBOARDED_KEY = 'typing-trainer.onboarded';
+
+/** Whether the first-run setup (keyboard check, placement, how it works) was finished or skipped. */
+export function loadOnboardedSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(ONBOARDED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveOnboardedSetting(storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(ONBOARDED_KEY, '1');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
