@@ -17,7 +17,7 @@ Static app (TypeScript + Vite). No backend: all data stays in the browser.
 
 - **Practice**: the drill text in one centred column with the finger guide below it. A slim coach bar above the text has four chips: **Path** (unlock stage and next letter), **Round** (where this drill sits in the round, and its focus keys), **Now** (live speed and accuracy) and the **break check**. Each chip opens a bubble with only its own details (`src/coachView.ts`).
 - **Progress**: speed and accuracy per session, an error heatmap and the weakest keys and letter pairs.
-- **Settings** (top right): theme (system, light or dark), finger-guide and break-reminder switches, the offensive-word filter, the keystroke log and restarting lessons.
+- **Settings** (top right): app language (automatic, English or Deutsch), theme (system, light or dark), finger-guide and break-reminder switches, the offensive-word filter, the keystroke log and restarting lessons.
 
 ## Keystroke log
 
@@ -75,6 +75,10 @@ Each item carries a shrunk error rate, typical latency, review half-life, the fo
 Practice text comes from a per-language `Corpus` (`src/corpus.ts`): English and German (Deutsch) so far. Pick one with the **language** menu in the top bar; a first visit starts in the browser language if there is a corpus for it. Each language keeps its own lessons and its own stats, so switching back and forth loses nothing. Letters the keyboard layout can't type are left out of the lessons (German on US QWERTY practises words without ä, ö, ü and ß). German word drills are lowercase, nouns included, until capitals unlock; sentence drills have the real capitals. Adding a language means adding a file under `src/corpora/` and registering it.
 
 Inspect it under **Settings → Keystroke log and export** (export JSON or CSV, or clear), in DevTools under Application → IndexedDB, or from the console with `await typingLog.all()`.
+
+## App language
+
+The app's own text (menus, coach, results, Progress) is in English or German, separate from the practice language: you can practise English drills with German menus. It follows the browser language until you pick one under **Settings → App language** (saved in localStorage). All text lives in `src/locales/`: `en.ts` defines the keys and `de.ts` must have every one of them, or the type check fails. Code asks for text with `t('key', { placeholders })` from `src/i18n.ts`, and static markup in `index.html` uses `data-i18n` attributes. Another app language means a new file next to `de.ts` and an entry in `src/i18n.ts` and the Settings switch.
 
 ## Warm-ups and sentence drills
 

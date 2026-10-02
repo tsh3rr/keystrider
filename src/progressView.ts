@@ -1,3 +1,4 @@
+import { decimal, percent, t, uiLanguage } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
   dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, weakest,
@@ -31,15 +32,15 @@ function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string,
   return e;
 }
 
-const pct = (x: number, digits = 1) => `${(x * 100).toFixed(digits)}%`;
+const pct = (x: number, digits = 1) => percent(x, digits);
 const showChars = (s: string) => s.replace(/ /g, '␣');
-const fmtDate = (t: number) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-const fmtDateTime = (t: number) =>
-  new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(uiLanguage(), { day: 'numeric', month: 'short' });
+const fmtDateTime = (ms: number) =>
+  new Date(ms).toLocaleString(uiLanguage(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 function fmtDuration(ms: number): string {
   const min = Math.round(ms / 60_000);
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`;
+  return min < 60 ? t('progress.minutes', { n: min }) : t('progress.hours', { h: Math.floor(min / 60), m: min % 60 });
 }
 
 // --- Tooltip (one shared element) ---
@@ -79,20 +80,20 @@ function tile(label: string, value: string, delta?: string, good?: boolean): HTM
   return t;
 }
 
-function renderTiles(cur: PeriodTotals, prev: PeriodTotals | null, rangeText: string): void {
+function renderTiles(cur: PeriodTotals, prev: PeriodTotals | null, vsText: string): void {
   const vs = prev && prev.sessions > 0;
   const change = (a: number | null, b: number | null, fmt: (d: number) => string) => {
     if (!vs || a === null || b === null) return {};
     const d = a - b;
-    return { delta: `${d >= 0 ? '▲' : '▼'} ${fmt(Math.abs(d))} vs ${rangeText.replace('last', 'previous')}`, good: d >= 0 };
+    return { delta: `${d >= 0 ? '▲' : '▼'} ${fmt(Math.abs(d))} ${vsText}`, good: d >= 0 };
   };
-  const wpm = change(cur.wpm, prev?.wpm ?? null, (d) => `${d.toFixed(1)} WPM`);
-  const acc = change(cur.accuracy, prev?.accuracy ?? null, (d) => `${(d * 100).toFixed(1)} pts`);
+  const wpm = change(cur.wpm, prev?.wpm ?? null, (d) => `${decimal(d, 1)} WPM`);
+  const acc = change(cur.accuracy, prev?.accuracy ?? null, (d) => t('progress.pts', { n: decimal(d * 100, 1) }));
   $('progress-tiles').replaceChildren(
-    tile('Speed', cur.wpm === null ? '–' : `${cur.wpm.toFixed(0)} WPM`, wpm.delta, wpm.good),
-    tile('First-try accuracy', cur.accuracy === null ? '–' : pct(cur.accuracy), acc.delta, acc.good),
-    tile('Practice time', fmtDuration(cur.activeMs)),
-    tile('Sessions', String(cur.sessions)),
+    tile(t('progress.tile.speed'), cur.wpm === null ? '–' : `${cur.wpm.toFixed(0)} WPM`, wpm.delta, wpm.good),
+    tile(t('progress.tile.accuracy'), cur.accuracy === null ? '–' : pct(cur.accuracy), acc.delta, acc.good),
+    tile(t('progress.tile.time'), fmtDuration(cur.activeMs)),
+    tile(t('progress.tile.sessions'), String(cur.sessions)),
   );
 }
 
@@ -167,7 +168,10 @@ function niceMax(v: number, step: number): number {
 function renderCharts(sessions: readonly SessionSummary[]): void {
   const tip = (i: number) => {
     const s = sessions[i];
-    return [fmtDateTime(s.start), `${s.wpm.toFixed(1)} WPM`, `${pct(s.accuracy)} first-try accuracy`, `${s.chars} characters`];
+    return [
+      fmtDateTime(s.start), t('progress.tip.wpm', { n: decimal(s.wpm, 1) }),
+      t('progress.tip.accuracy', { pct: pct(s.accuracy) }), t('progress.tip.chars', { n: s.chars }),
+    ];
   };
   const wpmMax = niceMax(Math.max(...sessions.map((s) => s.wpm)) * 1.1, 10);
   const wpmStep = wpmMax <= 40 ? 10 : wpmMax <= 100 ? 20 : 40;
@@ -187,13 +191,13 @@ function renderCharts(sessions: readonly SessionSummary[]): void {
     yMin: accMin,
     yMax: 1,
     ticks: accTicks,
-    format: (v) => `${Math.round(v * 100)}%`,
+    format: (v) => percent(v),
     tip,
   });
 
   const rows = [...sessions].reverse().map((s) => {
     const tr = el('tr');
-    for (const c of [fmtDateTime(s.start), s.wpm.toFixed(1), pct(s.accuracy), String(s.chars)]) tr.append(el('td', undefined, c));
+    for (const c of [fmtDateTime(s.start), decimal(s.wpm, 1), pct(s.accuracy), String(s.chars)]) tr.append(el('td', undefined, c));
     return tr;
   });
   $('sessions-rows').replaceChildren(...rows);
@@ -217,8 +221,11 @@ function renderKeyboard(model: WeaknessModel): void {
     k.tabIndex = 0;
     const lines = () =>
       h
-        ? [`${label} key`, `${pct(h.errorRate)} first-try errors`, `${h.attempts} tries (${h.chars.map(showChars).join(' ')})`]
-        : [`${label} key`, 'Not typed yet'];
+        ? [
+          t('progress.tip.key', { key: label }), t('progress.tip.errors', { pct: pct(h.errorRate) }),
+          t('progress.tip.tries', { n: h.attempts, chars: h.chars.map(showChars).join(' ') }),
+        ]
+        : [t('progress.tip.key', { key: label }), t('progress.tip.untyped')];
     k.setAttribute('aria-label', lines().join(', '));
     tipOnHover(k, lines);
     return k;
@@ -234,7 +241,7 @@ function renderKeyboard(model: WeaknessModel): void {
     kb.append(rowEl);
   });
   const space = el('div', 'kb-row kb-row-space');
-  space.append(keyEl('Space', 'Space', 'kb-space'));
+  space.append(keyEl('Space', t('guide.space'), 'kb-space'));
   kb.append(space);
   $('keyboard-heat').replaceChildren(kb);
 }
@@ -258,10 +265,10 @@ function sparkline(values: (number | null)[]): SVGSVGElement {
 
 function trendText(values: (number | null)[]): string {
   const known = values.filter((v): v is number => v !== null);
-  if (known.length < 2) return 'New';
+  if (known.length < 2) return t('progress.trend.new');
   const d = known[known.length - 1] - known[0];
-  if (Math.abs(d) < 0.005) return 'Steady';
-  return d < 0 ? `▼ ${(Math.abs(d) * 100).toFixed(1)} pts better` : `▲ ${(d * 100).toFixed(1)} pts worse`;
+  if (Math.abs(d) < 0.005) return t('progress.trend.steady');
+  return t(d < 0 ? 'progress.trend.better' : 'progress.trend.worse', { n: decimal(Math.abs(d) * 100, 1) });
 }
 
 /** Fewer tries than this and the model's rate is mostly its prior, so it is left out of rankings and trends. */
@@ -284,16 +291,16 @@ function renderWeakTable(
   tbody.replaceChildren(
     ...items.map((it) => {
       const tr = el('tr');
-      const name = it.kind === 'key' ? it.label : showChars(it.item);
+      const name = it.kind === 'bigram' ? showChars(it.item) : it.item === ' ' ? t('guide.space') : it.label;
       const nameTd = el('td', 'item', name);
       if (it.kind === 'key' && it.confusions.length > 0) {
-        nameTd.title = `Often typed instead: ${it.confusions.slice(0, 3).map((c) => showChars(c.typed)).join(', ')}`;
+        nameTd.title = t('progress.confusions', { chars: it.confusions.slice(0, 3).map((c) => showChars(c.typed)).join(', ') });
       }
       const trend = errorRateTrend(models, it.kind, it.item, minTries[it.kind]);
       const trendTd = el('td', 'trend');
       const text = trendText(trend);
       trendTd.append(sparkline(trend), el('span', text.startsWith('▼') ? 'good' : text.startsWith('▲') ? 'bad' : 'muted', text));
-      trendTd.title = `First-try error rate over the last ${TREND_DAYS} days, from when it had ${minTries[it.kind]} tries`;
+      trendTd.title = t('progress.trend.title', { days: TREND_DAYS, tries: minTries[it.kind] });
       tr.append(nameTd, el('td', 'num', pct(it.errorRate)), el('td', 'num', `${Math.round(it.latencyMs)} ms`), trendTd, el('td', 'num', String(it.attempts)));
       return tr;
     }),
@@ -321,7 +328,7 @@ export async function renderProgress(
   if (empty) return;
 
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
-  renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 'all time' : `last ${range} days`);
+  renderTiles(periodTotals(sessions, from, Infinity), prev, range === 7 ? t('progress.vsPrev7') : t('progress.vsPrev30'));
   $('progress-charts').hidden = sessions.length === 0;
   $('progress-no-sessions').hidden = sessions.length > 0;
   if (sessions.length > 0) renderCharts(sessions);
@@ -329,6 +336,6 @@ export async function renderProgress(
   const models = dailyModels(events, context, { days: TREND_DAYS, now });
   const model = models[models.length - 1];
   renderKeyboard(model);
-  renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, 'Type a bit more to see your weakest keys.');
-  renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, 'Type a bit more to see your weakest letter pairs.');
+  renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, t('progress.noWeakKeys'));
+  renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, t('progress.noWeakPairs'));
 }

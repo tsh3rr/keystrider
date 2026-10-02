@@ -25,6 +25,8 @@ export interface ResultData {
   next: string | null;
 }
 
+import { decimal, t } from './i18n';
+
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -36,9 +38,9 @@ const ICONS: Record<Tone, string> = { win: '★', good: '✓', warn: '!', info: 
 
 /** How the drill went in one word or two, from first-try accuracy. */
 export function verdict(accuracy: number): { tone: Tone; text: string } {
-  if (accuracy >= 0.96) return { tone: 'good', text: 'Clean drill' };
-  if (accuracy >= 0.92) return { tone: 'info', text: 'Solid' };
-  return { tone: 'warn', text: 'Slow down a little' };
+  if (accuracy >= 0.96) return { tone: 'good', text: t('result.clean') };
+  if (accuracy >= 0.92) return { tone: 'info', text: t('result.solid') };
+  return { tone: 'warn', text: t('result.slowDown') };
 }
 
 export function renderResult(root: HTMLElement, d: ResultData, onNext: () => void): void {
@@ -46,7 +48,7 @@ export function renderResult(root: HTMLElement, d: ResultData, onNext: () => voi
 
   const head = el('div', 'rc-head');
   const title = el('div', 'rc-title');
-  title.append(el('span', 'rc-check', '✓'), el('h2', '', `${d.drillName} done`));
+  title.append(el('span', 'rc-check', '✓'), el('h2', '', t('result.done', { name: d.drillName })));
   const v = verdict(d.accuracy);
   head.append(title, el('span', `rc-pill ${v.tone}`, v.text));
   card.append(head);
@@ -61,13 +63,13 @@ export function renderResult(root: HTMLElement, d: ResultData, onNext: () => voi
   };
   const wpm = Math.round(d.wpm);
   const pace = Math.round(d.paceWpm);
-  const speedSub = d.recovery ? 'speed does not count right now'
-    : wpm >= pace ? `▲ ${wpm - pace} over your target of ${pace}` : `▼ ${pace - wpm} under your target of ${pace}`;
+  const speedSub = d.recovery ? t('result.noSpeed')
+    : wpm >= pace ? t('result.over', { d: wpm - pace, pace }) : t('result.under', { d: pace - wpm, pace });
   const speedTone: Tone | undefined = d.recovery ? undefined : wpm >= pace ? 'good' : 'info';
   nums.append(
-    tile(String(wpm), 'WPM', speedSub, speedTone),
-    tile(`${(d.accuracy * 100).toFixed(1)}`, '%', 'right on the first try', v.tone === 'warn' ? 'warn' : undefined),
-    tile(String(d.errors), d.errors === 1 ? 'slip' : 'slips', d.errors === 0 ? 'not a single wrong key' : 'wrong keys you corrected'),
+    tile(String(wpm), t('result.wpm'), speedSub, speedTone),
+    tile(decimal(d.accuracy * 100, 1), '%', t('result.firstTry'), v.tone === 'warn' ? 'warn' : undefined),
+    tile(String(d.errors), t(d.errors === 1 ? 'result.slip' : 'result.slips'), t(d.errors === 0 ? 'result.noSlips' : 'result.corrected')),
   );
   card.append(nums);
 
@@ -95,16 +97,16 @@ export function renderResult(root: HTMLElement, d: ResultData, onNext: () => voi
     return c;
   };
   cols.append(
-    col('Got better', d.improved, 'up', 'Nothing clearly better this time.'),
-    col('Needs more work', d.slipped, 'down', 'Nothing got worse.'),
+    col(t('result.better'), d.improved, 'up', t('result.noBetter')),
+    col(t('result.worse'), d.slipped, 'down', t('result.noWorse')),
   );
   card.append(cols);
 
   const foot = el('div', 'rc-foot');
-  foot.append(el('span', 'rc-next', d.next ? `Next: ${d.next}` : 'Next drill'));
+  foot.append(el('span', 'rc-next', d.next ? t('drill.next', { name: d.next }) : t('result.nextDrill')));
   const go = el('button', 'rc-go');
   go.type = 'button';
-  go.append('Continue', el('kbd', 'rc-enter', '⏎ Enter'));
+  go.append(t('result.continue'), el('kbd', 'rc-enter', '⏎ Enter'));
   go.addEventListener('click', onNext);
   foot.append(go);
   card.append(foot);

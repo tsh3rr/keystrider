@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { howToType } from './layouts';
 
 /**
@@ -51,8 +52,7 @@ export const fingerId = (f: Finger) => `${f.hand}-${f.name}`;
 
 /** "left index finger", "right pinky", "thumb". */
 export function describeFinger(f: Finger): string {
-  if (f.name === 'thumb') return 'thumb';
-  return `${f.hand} ${f.name}${f.name === 'pinky' ? '' : ' finger'}`;
+  return f.name === 'thumb' ? t('finger.thumb') : t(`finger.${f.hand}-${f.name}`);
 }
 
 export interface KeyGuide {

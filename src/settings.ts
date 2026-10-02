@@ -195,3 +195,24 @@ export function saveThemeSetting(theme: Theme, storage: Storage | undefined = sa
     // ignore, see saveLayoutSetting
   }
 }
+
+export type UiLanguageSetting = 'auto' | 'en' | 'de';
+const UI_LANGUAGE_KEY = 'typing-trainer.ui-language';
+
+/** The language of the app's own text; "auto" (the default) follows the browser. */
+export function loadUiLanguageSetting(storage: Storage | undefined = safeStorage()): UiLanguageSetting {
+  try {
+    const v = storage?.getItem(UI_LANGUAGE_KEY);
+    return v === 'en' || v === 'de' ? v : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
+export function saveUiLanguageSetting(setting: UiLanguageSetting, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(UI_LANGUAGE_KEY, setting);
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}

@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import { HOME_KEYS, HOME_ROW, describeFinger, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
 
@@ -59,10 +60,19 @@ export class FingerGuide {
     space.append(this.key('Space', 'Space', 'kb-space'));
     this.keysEl.replaceChildren(...rows, space);
 
+    this.renderText();
+  }
+
+  /** Writes the text that depends on the app language; called again when it changes. */
+  renderText(): void {
+    const label = (code: string) => keyLabel(this.layout, code);
     const [left, right] = [HOME_ROW.slice(0, 4), HOME_ROW.slice(4)].map((codes) => codes.map(label).join(' '));
-    this.homeEl.textContent =
-      `Home row: rest your fingers on ${left} and ${right}, thumbs on Space. ` +
-      `Feel for the bumps on ${label('KeyF')} and ${label('KeyJ')}, and return there after each key.`;
+    this.homeEl.textContent = t('guide.home', { left, right, f: label('KeyF'), j: label('KeyJ') });
+    for (const [code, k] of this.keyEls) {
+      if (code === 'Space') k.textContent = t('guide.space');
+      else if (code.startsWith('Shift')) k.textContent = t('guide.shift');
+    }
+    if (this.current !== undefined) this.show(this.current, !this.root.classList.contains('fg-faded'));
   }
 
   /**
@@ -81,12 +91,12 @@ export class FingerGuide {
       return;
     }
     if (!revealed) {
-      this.captionEl.textContent = 'Type from memory. The guide lights up if you pause or slip.';
+      this.captionEl.textContent = t('guide.fromMemory');
       return;
     }
     const g = guideFor(this.layout, ch);
     if (!g) {
-      this.captionEl.textContent = `No finger hint for ${ch} yet.`;
+      this.captionEl.textContent = t('guide.noHint', { ch });
       return;
     }
     const light = (code: string | null, cls: string) => {
@@ -106,12 +116,12 @@ export class FingerGuide {
     }
     if (g.shift) this.lightFinger(g.shift === 'ShiftLeft' ? 'left-pinky' : 'right-pinky', 'fg-hold');
 
-    const name = ch === ' ' ? 'Space' : keyLabel(this.layout, g.code);
+    const name = ch === ' ' ? t('guide.space') : keyLabel(this.layout, g.code);
     // A shifted symbol is named by its key too: "Shift + ß for ?" on German QWERTZ.
-    const keys = g.shift ? `Shift + ${name}${ch.toUpperCase() === name ? '' : ` for ${ch}`}` : name;
+    const keys = !g.shift ? name : ch.toUpperCase() === name ? t('guide.shiftKey', { key: name }) : t('guide.shiftFor', { key: name, ch });
     let text = `${keys}: ${describeFinger(g.finger)}`;
-    if (g.home) text += `, reaching from ${keyLabel(this.layout, g.home)}`;
-    if (g.shift) text += `. Hold Shift with your ${g.shift === 'ShiftLeft' ? 'left' : 'right'} pinky`;
+    if (g.home) text += t('guide.reach', { key: keyLabel(this.layout, g.home) });
+    if (g.shift) text += t(g.shift === 'ShiftLeft' ? 'guide.holdLeft' : 'guide.holdRight');
     this.captionEl.textContent = text + '.';
   }
 
