@@ -10,7 +10,8 @@
     }
   </style>
   <rect class="k" x="8" y="8" width="84" height="84" rx="18" stroke-width="8" stroke-linejoin="round"/>
-  <rect class="f" x="24" y="58" width="14" height="18" rx="3"/>
-  <rect class="f" x="43" y="45" width="14" height="31" rx="3"/>
-  <rect class="p" x="62" y="28" width="14" height="48" rx="3"/>
+  <rect class="f" x="22" y="64" width="13" height="14" rx="3"/>
+  <rect class="f" x="40" y="52" width="13" height="26" rx="3"/>
+  <rect class="f" x="58" y="40" width="13" height="38" rx="3"/>
+  <polygon class="p" points="69,12 72,22 82,25 72,28 69,38 66,28 56,25 66,22"/>
 </svg>
