@@ -14,7 +14,7 @@ import {
 import { FingerGuide } from './fingerGuide';
 import { DEFAULT_FATIGUE_PARAMS, FatigueTracker, type FatigueSignal } from './fatigue';
 import { learningPath, sessionPlan, type StageId } from './path';
-import { renderProgress, type Range } from './progressView';
+import { renderProgress, revealSection, type ProgressSection, type Range } from './progressView';
 import { weakest } from './progress';
 import { CoachBar, type CoachData } from './coachView';
 import { renderResult, type Tone } from './resultCard';
@@ -314,9 +314,11 @@ let roundStepName: string | null = null;
 const coach = new CoachBar(
   document.querySelector<HTMLElement>('.coach-bar')!,
   $('coach-pop'),
-  () => showView('progress'),
+  (section) => showView('progress', section),
   () => inputEl.focus(),
 );
+/** The last path summary the coach showed; the Progress page repeats it in its path card. */
+let coachPath: CoachData['path'] | null = null;
 
 function renderCoach(): void {
   if (!curriculum || !drill) return;
@@ -356,15 +358,16 @@ function renderCoach(): void {
   const sentenceNote = plan.some((step) => step.kind === 'sentence' && step.state === 'locked')
     ? ` Sentences open at ${path.sentenceLetters} letters (you have ${path.letters}).` : '';
 
+  coachPath = {
+    stage: STAGE_NAMES[current.id],
+    done: current.done,
+    total: current.total,
+    next: path.next === null ? null : keyCap(path.next),
+    stages: path.stages.map((st) => ({ name: STAGE_NAMES[st.id], done: st.done, total: st.total, state: st.state })),
+    about: nextTip,
+  };
   coach.update({
-    path: {
-      stage: STAGE_NAMES[current.id],
-      done: current.done,
-      total: current.total,
-      next: path.next === null ? null : keyCap(path.next),
-      stages: path.stages.map((st) => ({ name: STAGE_NAMES[st.id], done: st.done, total: st.total, state: st.state })),
-      about: nextTip,
-    },
+    path: coachPath,
     round: {
       steps,
       current: session.done ? `Next: ${currentStep.name}` : currentStep.name,
@@ -791,23 +794,40 @@ $('clear-log').addEventListener('click', async () => {
 
 // --- Progress ---
 
-const progressRange = $<HTMLSelectElement>('progress-range');
+const RANGE_KEY = 'typing-trainer.progressRange';
+let progressRange: Range = 30;
+try {
+  const saved = localStorage.getItem(RANGE_KEY);
+  if (saved === '7' || saved === '30') progressRange = Number(saved) as Range;
+  else if (saved === 'all') progressRange = 'all';
+} catch { /* storage blocked: keep the default */ }
 
-function showProgress(): void {
-  const v = progressRange.value;
-  const range: Range = v === 'all' ? 'all' : (Number(v) as Range);
-  renderProgress(store, context, range, layoutName(context.layout)).catch((err) =>
-    console.error('Failed to render progress', err),
-  );
+/** Renders the Progress page, then scrolls to the card a coach bubble asked for. */
+async function showProgress(section?: ProgressSection): Promise<void> {
+  try {
+    const lang = availableLanguages().find((c) => c.language === context.language)?.name ?? context.language;
+    await renderProgress(store, context, { range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}`, path: coachPath });
+    if (section) revealSection(section);
+  } catch (err) {
+    console.error('Failed to render progress', err);
+  }
 }
 
-progressRange.addEventListener('change', showProgress);
+document.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const v = b.dataset.range!;
+    progressRange = v === 'all' ? 'all' : (Number(v) as Range);
+    try { localStorage.setItem(RANGE_KEY, v); } catch { /* not remembered */ }
+    void showProgress();
+  }),
+);
+$('progress-start').addEventListener('click', () => showView('practice'));
 
 // --- Navigation, menus and settings ---
 
 type View = 'practice' | 'progress' | 'log';
 
-function showView(view: View): void {
+function showView(view: View, section?: ProgressSection): void {
   document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => {
     const on = b.dataset.view === view;
     b.classList.toggle('active', on);
@@ -819,7 +839,7 @@ function showView(view: View): void {
   $('log-view').hidden = view !== 'log';
   $('progress-view').hidden = view !== 'progress';
   if (view === 'log') renderLog();
-  else if (view === 'progress') showProgress();
+  else if (view === 'progress') void showProgress(section);
   else inputEl.focus();
 }
 

@@ -98,57 +98,79 @@
       </section>
 
       <section id="progress-view" hidden>
-        <div class="progress-bar">
-          <span id="progress-context"></span>
-          <label>Show <select id="progress-range">
-            <option value="7">Last 7 days</option>
-            <option value="30" selected>Last 30 days</option>
-            <option value="all">All time</option>
-          </select></label>
+        <div class="pg-head">
+          <div>
+            <h1>Progress</h1>
+            <span id="progress-context" class="pg-context"></span>
+          </div>
+          <div id="progress-range" class="segmented pg-range" role="radiogroup" aria-label="Period">
+            <button role="radio" data-range="7">7 days</button>
+            <button role="radio" data-range="30">30 days</button>
+            <button role="radio" data-range="all">All time</button>
+          </div>
         </div>
-        <p id="progress-empty" class="hint" hidden>No practice logged for this language and keyboard layout yet. Finish a text on the Practice tab and your progress shows up here.</p>
-        <div id="progress-body">
-          <div id="progress-tiles" class="tiles"></div>
-          <p id="progress-no-sessions" class="hint" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
-          <div id="progress-charts">
-            <h2>Speed per session</h2>
+        <div id="progress-empty" class="pg-card pg-empty" hidden>
+          <h2>Nothing here yet</h2>
+          <p>No practice logged for this language and keyboard layout yet. Finish a drill and your progress shows up here.</p>
+          <button id="progress-start" class="primary">Start practising</button>
+        </div>
+        <div id="progress-body" class="pg-body">
+          <div id="progress-tiles" class="pg-tiles"></div>
+          <p id="progress-no-sessions" class="pg-card pg-quiet" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
+          <section id="progress-path" class="pg-card" hidden>
+            <div class="pg-card-head"><h2>Your path</h2></div>
+            <ol id="path-stages" class="pg-stages"></ol>
+            <p id="path-about" class="pg-note"></p>
+          </section>
+          <section id="progress-speed" class="pg-card">
+            <div class="pg-card-head">
+              <h2>Speed and accuracy</h2>
+              <div class="segmented pg-metric" role="radiogroup" aria-label="Chart">
+                <button role="radio" data-metric="wpm" aria-checked="true">Speed</button>
+                <button role="radio" data-metric="acc" aria-checked="false">Accuracy</button>
+              </div>
+            </div>
+            <p id="chart-caption" class="pg-sub">Words per minute in each session.</p>
             <div id="chart-wpm" class="chart"></div>
-            <h2>First-try accuracy per session</h2>
-            <div id="chart-acc" class="chart"></div>
-            <details>
+            <div id="chart-acc" class="chart" hidden></div>
+            <details class="pg-details">
               <summary>Show sessions as a table</summary>
-              <table>
-                <thead><tr><th>When</th><th>WPM</th><th>Accuracy</th><th>Characters</th></tr></thead>
-                <tbody id="sessions-rows"></tbody>
-              </table>
+              <div class="pg-scroll">
+                <table>
+                  <thead><tr><th>When</th><th>WPM</th><th>Accuracy</th><th>Characters</th></tr></thead>
+                  <tbody id="sessions-rows"></tbody>
+                </table>
+              </div>
             </details>
-          </div>
-          <h2>Errors by key</h2>
-          <p class="hint">How often each key goes wrong on the first try, recent practice counting most.</p>
-          <div id="keyboard-heat"></div>
-          <div class="heat-legend" aria-hidden="true">
-            <span><i class="kb-key heat-0"></i>under 2%</span>
-            <span><i class="kb-key heat-1"></i>2–5%</span>
-            <span><i class="kb-key heat-2"></i>5–8%</span>
-            <span><i class="kb-key heat-3"></i>8–12%</span>
-            <span><i class="kb-key heat-4"></i>12% or more</span>
-            <span><i class="kb-key heat-none"></i>not typed yet</span>
-          </div>
-          <div class="weak-grid">
-            <div>
-              <h2>Weakest keys</h2>
+          </section>
+          <section id="progress-keys" class="pg-card">
+            <div class="pg-card-head"><h2>Errors by key</h2></div>
+            <p class="pg-sub">How often each key goes wrong on the first try, recent practice counting most.</p>
+            <div id="keyboard-heat" class="pg-kb"></div>
+            <div class="heat-legend" aria-hidden="true">
+              <span><i class="kb-key heat-0"></i>under 2%</span>
+              <span><i class="kb-key heat-1"></i>2–5%</span>
+              <span><i class="kb-key heat-2"></i>5–8%</span>
+              <span><i class="kb-key heat-3"></i>8–12%</span>
+              <span><i class="kb-key heat-4"></i>12% or more</span>
+              <span><i class="kb-key heat-none"></i>not typed yet</span>
+            </div>
+          </section>
+          <div id="progress-weak" class="pg-weak-grid">
+            <section class="pg-card">
+              <div class="pg-card-head"><h2>Weakest keys</h2></div>
               <table class="weak">
-                <thead><tr><th>Key</th><th>Errors</th><th>Typical time</th><th>Last 14 days</th><th>Tries</th></tr></thead>
+                <thead><tr><th>Key</th><th>Errors</th><th>Time</th><th>Last 14 days</th></tr></thead>
                 <tbody id="weak-keys"></tbody>
               </table>
-            </div>
-            <div>
-              <h2>Weakest letter pairs</h2>
+            </section>
+            <section class="pg-card">
+              <div class="pg-card-head"><h2>Weakest letter pairs</h2></div>
               <table class="weak">
-                <thead><tr><th>Pair</th><th>Errors</th><th>Typical time</th><th>Last 14 days</th><th>Tries</th></tr></thead>
+                <thead><tr><th>Pair</th><th>Errors</th><th>Time</th><th>Last 14 days</th></tr></thead>
                 <tbody id="weak-bigrams"></tbody>
               </table>
-            </div>
+            </section>
           </div>
         </div>
         <div id="progress-tip" class="tooltip" role="tooltip" hidden></div>
