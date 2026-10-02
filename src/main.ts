@@ -13,10 +13,11 @@ import {
 import { FingerGuide } from './fingerGuide';
 import { renderProgress, type Range } from './progressView';
 import {
-  backfillDone, loadFingerGuideSetting, loadLayoutSetting, markBackfillDone, saveFingerGuideSetting, saveLayoutSetting,
-  type LayoutSetting,
+  backfillDone, loadFingerGuideSetting, loadLayoutSetting, loadWordFilterSetting, markBackfillDone, saveFingerGuideSetting,
+  saveLayoutSetting, saveWordFilterSetting, type LayoutSetting,
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
+import { setWordFilterEnabled } from './wordfilter';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -48,6 +49,17 @@ fingerGuide.hidden = !fingerGuideToggle.checked;
 fingerGuideToggle.addEventListener('change', () => {
   fingerGuide.hidden = !fingerGuideToggle.checked;
   saveFingerGuideSetting(fingerGuideToggle.checked);
+  inputEl.focus();
+});
+
+// Offensive-word filter for drills; a new drill starts so the change shows at once.
+const wordFilterToggle = $<HTMLInputElement>('word-filter-toggle');
+wordFilterToggle.checked = loadWordFilterSetting();
+setWordFilterEnabled(wordFilterToggle.checked);
+wordFilterToggle.addEventListener('change', () => {
+  setWordFilterEnabled(wordFilterToggle.checked);
+  saveWordFilterSetting(wordFilterToggle.checked);
+  if (!finishing) startDrill('core').catch((err) => console.error('Failed to start drill', err));
   inputEl.focus();
 });
 
