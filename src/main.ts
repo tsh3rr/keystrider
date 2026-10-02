@@ -12,11 +12,12 @@ import {
   KeyObserver, LAYOUTS, browserLayoutMap, charLabel, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
 import { FingerGuide } from './fingerGuide';
+import { DEFAULT_FATIGUE_PARAMS, FatigueTracker, type FatigueSignal } from './fatigue';
 import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, type Range } from './progressView';
 import {
-  backfillDone, loadFingerGuideSetting, loadGuideFadeSetting, loadLayoutSetting, loadShowKeysSetting, loadWordFilterSetting,
-  markBackfillDone, saveFingerGuideSetting, saveGuideFadeSetting, saveLayoutSetting, saveShowKeysSetting, saveWordFilterSetting,
+  backfillDone, loadBreakRemindersSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLayoutSetting, loadShowKeysSetting, loadWordFilterSetting,
+  markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting, saveGuideFadeSetting, saveLayoutSetting, saveShowKeysSetting, saveWordFilterSetting,
   type LayoutSetting,
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -147,7 +148,7 @@ let lastCode: string | null = null;
 inputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    if (session.done && !finishing && drill) {
+    if (session.done && !finishing && drill && breakEndsAt === null) {
       startDrill().catch((err) => console.error('Failed to start drill', err));
     }
     return;
@@ -351,6 +352,8 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
   if (newSession) warmedUp = false;
   kind ??= nextKind(state, drill?.kind ?? null, { newSession, sentences: sentencesReady(state, corpus()) });
   if (kind === 'warmup') warmedUp = true;
+  slowOnPurpose = state.recovery;
+  hideBreakCard();
   model = await buildModel(state);
   knownKeys = new Set(model.keys.filter((k) => meetsBar(k, state)).map((k) => k.item));
   slipAt = -1;
@@ -405,6 +408,11 @@ async function finishDrill(): Promise<void> {
     if (curriculum.layout !== context.layout || curriculum.language !== context.language) return;
 
     const before = model;
+    if (before) {
+      fatigue.addDrill(drillEvents, before, drill.kind, slowOnPurpose);
+      const signal = fatigue.check();
+      if (signal && breakToggle.checked) showBreakCard(signal);
+    }
     const after = await buildModel(curriculum);
     const { state, changes } = afterDrill(after, curriculum, corpus(), drill, result);
     curriculum = state;
@@ -430,6 +438,106 @@ $('reset-lessons').addEventListener('click', () => {
   curriculum = initialCurriculum(corpus(), context);
   saveCurriculum(curriculum);
   startDrill('core').catch((err) => console.error('Failed to start drill', err));
+});
+
+// --- Break reminders ---
+//
+// fatigue.ts compares each drill with what the weakness model expects and
+// flags a drop against earlier in the same stretch, or a long stretch. The
+// suggestion shows under the drill summary; the learner can take the break
+// (a countdown) or keep going, which quiets it for a few drills.
+
+const breakToggle = $<HTMLInputElement>('break-toggle');
+const breakCard = $('break-card');
+const breakText = $('break-text');
+const breakTimer = $('break-timer');
+const breakStart = $('break-start');
+const breakBack = $('break-back');
+const breakSkip = $('break-skip');
+const fatigue = new FatigueTracker();
+/** Whether the current drill was typed in accuracy recovery, where slowing down is the point. */
+let slowOnPurpose = false;
+/** When the running break ends; null when not on a break. */
+let breakEndsAt: number | null = null;
+let breakTick: ReturnType<typeof setInterval> | undefined;
+
+breakToggle.checked = loadBreakRemindersSetting();
+breakToggle.addEventListener('change', () => {
+  saveBreakRemindersSetting(breakToggle.checked);
+  if (!breakToggle.checked && breakEndsAt === null) hideBreakCard();
+  inputEl.focus();
+});
+
+const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
+const BREAK_ADVICE = 'Stand up, shake out your hands and look at something far away.';
+
+function breakMessage(s: FatigueSignal): string {
+  switch (s.type) {
+    case 'accuracy':
+      return `Your accuracy has dropped from ${pct(s.accuracyBefore)} to ${pct(s.accuracyNow)} over the last two drills, ` +
+        'measured against how you usually type these keys. That is often tiredness, and practising tired trains in mistakes. ' +
+        'A short break now will help more than pushing on.';
+    case 'speed':
+      return `Your keystrokes are about ${pct(s.slowerBy)} slower over the last two drills than earlier in this session, ` +
+        'for the same keys. That is often tiredness. A short break now will help more than pushing on.';
+    case 'long':
+      return `You have been typing for ${s.minutes} minutes. Short stretches with breaks build skill faster than long ones, ` +
+        'so this is a good moment for a pause.';
+  }
+}
+
+function showBreakCard(signal: FatigueSignal): void {
+  breakText.textContent = breakMessage(signal);
+  breakTimer.hidden = true;
+  breakStart.hidden = false;
+  breakBack.hidden = true;
+  breakSkip.hidden = false;
+  breakCard.hidden = false;
+}
+
+function hideBreakCard(): void {
+  clearInterval(breakTick);
+  breakEndsAt = null;
+  breakCard.hidden = true;
+}
+
+function renderBreakTimer(): void {
+  if (breakEndsAt === null) return;
+  const left = Math.max(0, Math.ceil((breakEndsAt - Date.now()) / 1000));
+  if (left === 0) {
+    clearInterval(breakTick);
+    breakTimer.textContent = 'Break over. Press Enter or click below for the next drill.';
+    breakBack.textContent = 'Next drill';
+    breakEndsAt = null;
+    return;
+  }
+  breakTimer.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+}
+
+breakStart.addEventListener('click', () => {
+  breakEndsAt = Date.now() + DEFAULT_FATIGUE_PARAMS.breakMinutes * 60_000;
+  breakText.textContent = BREAK_ADVICE;
+  breakTimer.hidden = false;
+  breakStart.hidden = true;
+  breakSkip.hidden = true;
+  breakBack.hidden = false;
+  breakBack.textContent = "I'm back";
+  renderBreakTimer();
+  breakTick = setInterval(renderBreakTimer, 1000);
+});
+breakBack.addEventListener('click', () => {
+  // The break counts if it was long enough to rest; a quick return is the same as keeping going.
+  const rested = breakEndsAt === null ||
+    breakEndsAt - Date.now() <= (DEFAULT_FATIGUE_PARAMS.breakMinutes - DEFAULT_FATIGUE_PARAMS.restMinutes) * 60_000;
+  if (rested) fatigue.reset();
+  else fatigue.snooze();
+  hideBreakCard();
+  if (!finishing) startDrill().catch((err) => console.error('Failed to start drill', err));
+});
+breakSkip.addEventListener('click', () => {
+  fatigue.snooze();
+  hideBreakCard();
+  inputEl.focus();
 });
 
 // --- Keyboard layout ---

@@ -136,3 +136,22 @@ export function saveShowKeysSetting(on: boolean, storage: Storage | undefined = 
     // ignore, see saveLayoutSetting
   }
 }
+
+const BREAK_REMINDERS_KEY = 'typing-trainer.break-reminders';
+
+/** Whether the trainer suggests a break when typing gets worse or a stretch runs long; on unless turned off. */
+export function loadBreakRemindersSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(BREAK_REMINDERS_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveBreakRemindersSetting(on: boolean, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(BREAK_REMINDERS_KEY, on ? 'on' : 'off');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
