@@ -21,6 +21,11 @@ export interface Corpus {
    * Defaults to `DEFAULT_PUNCTUATION` in drill.ts.
    */
   punctuation?: readonly string[];
+  /**
+   * Real sentences for sentence drills, with their normal capitals and
+   * punctuation (see `practiceForm` in sentences.ts). Optional.
+   */
+  sentences?: readonly string[];
   /** Substrings generated pseudo-words must not contain, e.g. offensive words. */
   blockedSubstrings?: readonly string[];
 }

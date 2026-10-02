@@ -3,7 +3,8 @@ import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, getCorpus } from './corpus';
 import { clearCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
-  CAPITALS, afterDrill, drillFeedback, drillResult, initialCurriculum, modelOptions, needsShift, nextDrill, nextKind, tierWpm, unlockSteps,
+  CAPITALS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, modelOptions, needsShift, nextDrill,
+  nextKind, sentencesReady, tierWpm, unlockSteps,
   type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
 } from './drill';
 import { loadWeaknessModel, type WeaknessModel } from './weakness';
@@ -76,8 +77,8 @@ let lastCode: string | null = null;
 inputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    if (session.done && !finishing && drill && curriculum) {
-      startDrill(nextKind(curriculum, drill.kind)).catch((err) => console.error('Failed to start drill', err));
+    if (session.done && !finishing && drill) {
+      startDrill().catch((err) => console.error('Failed to start drill', err));
     }
     return;
   }
@@ -141,6 +142,8 @@ let drillEvents: KeystrokeEvent[] = [];
 let pendingWrites: Promise<unknown>[] = [];
 /** Set while a finished drill is being scored, so Enter and Skip wait for it. */
 let finishing = false;
+/** When the last drill was finished; null until one is, so the first drill of a visit opens a session. */
+let lastDrillAt: number | null = null;
 
 const corpus = () => getCorpus(context.language);
 
@@ -191,14 +194,19 @@ function renderDrillBar(): void {
     frag.append(span);
   }
   drillKeysEl.replaceChildren(frag);
-  const kind = drill?.kind === 'focus' ? 'Focus burst · ' : '';
+  const kind = { warmup: 'Warm-up · ', core: '', focus: 'Focus burst · ', sentence: 'Sentences · ' }[drill?.kind ?? 'core'];
   drillInfoEl.textContent =
     `${kind}Level ${curriculum.tier} (${tierWpm(curriculum.tier)} WPM) · target pace ${Math.round(curriculum.paceWpm)} WPM`;
   drillCueEl.hidden = !curriculum.recovery;
 }
 
-async function startDrill(kind: Drill['kind']): Promise<void> {
+/** Starts a drill of the given kind, or of the kind that comes next in the session. */
+async function startDrill(kind?: Drill['kind']): Promise<void> {
   const state = await currentCurriculum();
+  kind ??= nextKind(state, drill?.kind ?? null, {
+    newSession: isNewSession(lastDrillAt, Date.now()),
+    sentences: sentencesReady(state, corpus()),
+  });
   model = await buildModel(state);
   drill = nextDrill(model, state, corpus(), kind, Date.now() >>> 0);
   session = new TypingSession(drill.text, context);
@@ -242,6 +250,7 @@ async function finishDrill(): Promise<void> {
   finishing = true;
   try {
     await Promise.all(pendingWrites);
+    lastDrillAt = Date.now();
     const result = drillResult(drillEvents);
     const head = `Done: ${result.wpm.toFixed(0)} WPM, ${(result.accuracy * 100).toFixed(1)}% accuracy` +
       ` (target pace ${Math.round(drill.paceWpm)} WPM). Press Enter for the next drill.`;
@@ -484,7 +493,7 @@ KeystrokeStore.open().then((s) => {
   store = s;
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();
-  startDrill('core').catch((err) => console.error('Failed to start drill', err));
+  startDrill().catch((err) => console.error('Failed to start drill', err));
   detectFromBrowser()
     .then(backfillLegacyLog)
     .catch((err) => console.error('Layout detection failed', err));
