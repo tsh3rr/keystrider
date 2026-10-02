@@ -145,6 +145,11 @@ button.link { border: 0; padding: 0; color: var(--muted); text-decoration: under
 .drill-cue[hidden], .drill-feedback[hidden] { display: none; }
 .drill-feedback { font-size: 0.95rem; margin: 0 0 12px; }
 .drill-feedback p { margin: 4px 0; }
+.break-card { padding: 12px 14px; margin: 0 0 12px; border: 1px solid var(--accent); border-radius: 8px; font-size: 0.95rem; }
+.break-card[hidden], .break-card [hidden] { display: none; }
+.break-card p { margin: 0 0 8px; }
+.break-timer { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.break-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .drill-feedback .item { font-family: ui-monospace, Menlo, Consolas, monospace; }
 
 /* --- Finger guide --- */
