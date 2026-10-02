@@ -93,6 +93,21 @@ On macOS/Linux use `python3` and `scripts/build-sentences.py`. Another language 
 
 Drills never show offensive words, real or made up. `src/wordfilter.ts` blocks the terms from the [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (npm `naughty-words`, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) for the corpus' language, about 30 languages in all, plus any `blockedSubstrings` the corpus adds. Made-up words are rejected if they contain a term of three letters or more anywhere. Real words are dropped only if they are a term (plus endings like "-s" or "-ing" in English), so innocent words that merely contain one stay. A new language is covered automatically if the list has it. Users can turn the filter off with the **Hide offensive words** checkbox on the Practice tab (saved in localStorage, on by default).
 
+## Word lists
+
+Practice words come from one `Corpus` per language in `src/corpora/` (see `src/corpus.ts`). The English list (`src/corpora/en-words.ts`) holds the 10,000 most frequent English words, most frequent first, made from [wordfreq](https://github.com/rspeer/wordfreq) 3.1.1. Only words of plain letters a–z are kept for now.
+
+**License:** wordfreq's word list data may be redistributed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), so `src/corpora/*-words.ts` are under that license too, with the attribution in each file's header. The rest of the app is unaffected.
+
+The file is generated, not edited by hand. To regenerate it (Windows cmd or PowerShell, Python 3 installed):
+
+```sh
+py -m pip install "wordfreq==3.1.1"
+py scripts\build-corpus.py en 10000
+```
+
+On macOS/Linux use `python3` and `scripts/build-corpus.py`. Another language needs its alphabet added to `LETTERS` in the script, then a `src/corpora/<lang>.ts` corpus registered in `src/corpus.ts`.
+
 ## Deployment
 
 The app is static, so any static host can serve the `dist` folder.
