@@ -550,7 +550,8 @@ export function nextDrill(
   }
 
   const baseWords = spaceOut(picked.map((c) => c.word), wordTargets, p.spacing, rand);
-  const words = decorate(baseWords, { open: openChars(state), focus: focusChars(state), targets, prio, rand }, p);
+  const blocked = corpusFilter(corpus);
+  const words = decorate(baseWords, { open: openChars(state), focus: focusChars(state), targets, prio, rand, blocked }, p);
   return { text: words.join(' '), words, baseWords, targets, kind, paceWpm: state.paceWpm, seed };
 }
 
@@ -564,6 +565,8 @@ export interface DecorateContext {
   /** Priority of a key or bigram; weak marks and digits are picked more. */
   prio: (item: string) => number;
   rand: () => number;
+  /** The offensive-word filter: two words are only hyphenated when the pair isn't blocked. */
+  blocked?: (word: string) => boolean;
 }
 
 /**
@@ -626,7 +629,8 @@ export function decorate(words: readonly string[], ctx: DecorateContext, p: Dril
       const wrap = WRAPS.get(m);
       if (wrap) token = wrap[0] + token + wrap[1];
       else if (m === '-') {
-        if (!last) {
+        const next = words[i + 1];
+        if (!last && !ctx.blocked?.(token.toLowerCase() + next) && !ctx.blocked?.(token.toLowerCase() + '-' + next)) {
           token += '-' + words[++i];
           left--;
         }

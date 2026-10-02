@@ -372,6 +372,15 @@ describe('capitals, punctuation and digits', () => {
     expect(out).toEqual(words);
   });
 
+  it('only hyphenates pairs the word filter allows', () => {
+    const words = ['alpha', 'beta', 'gamma', 'delta', 'omega', 'theta'];
+    const p = { ...DEFAULT_DRILL_PARAMS, focusMarkRate: 1 };
+    const ctx = { open: new Set([...'abdeghlmopt', '-']), focus: new Set(['-']), targets: [], prio: () => 0 };
+    expect(decorate(words, { ...ctx, rand: seededRandom(1) }, p).join(' ')).toContain('-');
+    const out = decorate(words, { ...ctx, rand: seededRandom(1), blocked: (w) => w.length > 6 }, p);
+    expect(out).toEqual(words);
+  });
+
   it('keeps repeat penalties on the undecorated words', () => {
     const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.'] };
     const d = nextDrill(fakeModel(allLetters.map((c) => key(c))), s, en, 'core', 2);
