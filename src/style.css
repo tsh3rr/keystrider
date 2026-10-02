@@ -143,14 +143,25 @@ button.link { border: 0; padding: 0; color: var(--muted); text-decoration: under
 .fg-right-thumb { background: var(--fg-thumb); }
 .fg-hands { width: 300px; max-width: 100%; height: auto; margin-top: 12px; }
 .fg-palm { fill: var(--surface-2); stroke: var(--border); }
-.fg-finger { stroke: var(--border); }
-.fg-hands .fg-left-pinky, .fg-hands .fg-right-pinky { fill: var(--fg-pinky); }
-.fg-hands .fg-left-ring, .fg-hands .fg-right-ring { fill: var(--fg-ring); }
-.fg-hands .fg-left-middle, .fg-hands .fg-right-middle { fill: var(--fg-middle); }
-.fg-hands .fg-left-index, .fg-hands .fg-right-index { fill: var(--fg-index); }
-.fg-hands .fg-left-thumb, .fg-hands .fg-right-thumb { fill: var(--fg-thumb); }
-.fg-hands .fg-finger.fg-next { fill: var(--accent); stroke: var(--accent); }
+.fg-stop-palm { stop-color: var(--surface-2); }
+.fg-stop-pinky { stop-color: var(--fg-pinky); }
+.fg-stop-ring { stop-color: var(--fg-ring); }
+.fg-stop-middle { stop-color: var(--fg-middle); }
+.fg-stop-index { stop-color: var(--fg-index); }
+.fg-stop-thumb { stop-color: var(--fg-thumb); }
+.fg-stop-active { stop-color: var(--accent); }
+.fg-hands .fg-left-pinky, .fg-hands .fg-right-pinky { fill: url(#fg-grad-pinky); }
+.fg-hands .fg-left-ring, .fg-hands .fg-right-ring { fill: url(#fg-grad-ring); }
+.fg-hands .fg-left-middle, .fg-hands .fg-right-middle { fill: url(#fg-grad-middle); }
+.fg-hands .fg-left-index, .fg-hands .fg-right-index { fill: url(#fg-grad-index); }
+.fg-hands .fg-left-thumb, .fg-hands .fg-right-thumb { fill: url(#fg-grad-thumb); }
+.fg-hands .fg-finger.fg-next { fill: url(#fg-grad-active); }
 .fg-hands .fg-finger.fg-hold { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 4 3; }
+/* A short reach toward the key; no movement for people who turn animations off. */
+.fg-mover { transition: transform 140ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .fg-mover { transition: none; }
+}
 /* Dimmed while the learner types a known key from memory. */
 .finger-guide.fg-faded .fg-kb, .finger-guide.fg-faded .fg-hands { opacity: 0.35; }
 .finger-guide.fg-faded .fg-caption { color: var(--muted); }

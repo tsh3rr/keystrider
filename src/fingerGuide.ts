@@ -1,5 +1,5 @@
 import { ROWS, keyLabel } from './layouts';
-import { HOME_ROW, describeFinger, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
+import { HOME_KEYS, HOME_ROW, describeFinger, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
 
 const svgNS = 'http://www.w3.org/2000/svg';
 
@@ -21,6 +21,7 @@ export class FingerGuide {
   private lit: Element[] = [];
   private readonly fingerEls = new Map<string, SVGElement>();
   private current: string | undefined;
+  private moved: SVGElement[] = [];
 
   constructor(private readonly root: HTMLElement) {
     this.captionEl = el('p', 'fg-caption');
@@ -72,6 +73,8 @@ export class FingerGuide {
     this.current = ch;
     for (const k of this.lit) k.classList.remove('fg-next', 'fg-from', 'fg-hold');
     this.lit = [];
+    for (const m of this.moved) m.style.transform = '';
+    this.moved = [];
     this.root.classList.toggle('fg-faded', !revealed && ch !== undefined);
     if (ch === undefined) {
       this.captionEl.textContent = '';
@@ -99,6 +102,7 @@ export class FingerGuide {
       for (const id of ['left-thumb', 'right-thumb']) this.lightFinger(id, 'fg-next');
     } else {
       this.lightFinger(fingerId(g.finger), 'fg-next');
+      this.reach(fingerId(g.finger), g.code);
     }
     if (g.shift) this.lightFinger(g.shift === 'ShiftLeft' ? 'left-pinky' : 'right-pinky', 'fg-hold');
 
@@ -121,27 +125,56 @@ export class FingerGuide {
     this.lit.push(f);
   }
 
-  /** Two flat hand outlines, palms down, each finger tinted like its keys. */
+  /**
+   * Moves the active finger a few units toward its key, so the hand shows the
+   * direction of the reach (up for the top rows, sideways for T or Ü).
+   */
+  private reach(id: string, code: string): void {
+    const mover = this.fingerEls.get(id)?.parentNode as SVGGElement | null | undefined;
+    if (!mover) return;
+    const at = keyPosition(code);
+    const home = keyPosition(HOME_KEYS[id] ?? code);
+    if (!at || !home) return;
+    // Hand groups are drawn in left-hand coordinates; the right hand is mirrored.
+    const dx = clamp((at.x - home.x) * 5, -8, 8) * (id.startsWith('right') ? -1 : 1);
+    const dy = clamp((at.y - home.y) * 7, -14, 7);
+    mover.style.transform = `translate(${dx}px, ${dy}px)`;
+    this.moved.push(mover);
+  }
+
+  /** Two flat hand outlines, palms down; each finger fades from its key colour into the palm. */
   private hands(): SVGSVGElement {
-    const svg = svgEl('svg', { class: 'fg-hands', viewBox: '0 0 300 120', 'aria-hidden': 'true' });
+    const svg = svgEl('svg', { class: 'fg-hands', viewBox: '0 -16 300 136', 'aria-hidden': 'true' });
+    const defs = svgEl('defs', {});
+    for (const name of ['pinky', 'ring', 'middle', 'index', 'thumb', 'active']) {
+      const grad = svgEl('linearGradient', { id: `fg-grad-${name}`, x1: 0, y1: 0, x2: 0, y2: 1 });
+      grad.append(
+        svgEl('stop', { offset: '0', class: `fg-stop-${name}` }),
+        svgEl('stop', { offset: '0.45', class: `fg-stop-${name}` }),
+        svgEl('stop', { offset: '1', class: 'fg-stop-palm' }),
+      );
+      defs.append(grad);
+    }
+    svg.append(defs);
     // Left hand, outer edge first; the right hand is its mirror image.
     const fingers: [FingerName, number, number, number][] = [
-      ['pinky', 14, 34, 36], ['ring', 34, 16, 54], ['middle', 54, 8, 62], ['index', 74, 18, 52],
+      ['pinky', 14, 34, 40], ['ring', 34, 16, 58], ['middle', 54, 8, 66], ['index', 74, 18, 56],
     ];
     for (const hand of ['left', 'right'] as const) {
       const g = svgEl('g', { transform: hand === 'left' ? 'translate(10 0)' : 'translate(290 0) scale(-1 1)' });
-      // Thumb first, so the palm covers its base.
-      const thumb = svgEl('rect', {
-        class: `fg-finger fg-${hand}-thumb`, x: 86, y: 66, width: 18, height: 46, rx: 9, transform: 'rotate(38 95 112)',
-      });
-      this.fingerEls.set(`${hand}-thumb`, thumb);
-      g.append(thumb);
-      for (const [name, x, y, h] of fingers) {
-        const f = svgEl('rect', { class: `fg-finger fg-${hand}-${name}`, x, y, width: 18, height: h, rx: 9 });
+      const finger = (name: FingerName, attrs: Record<string, string | number>) => {
+        // The wrapper carries the reach movement, the rect its own shape and colour.
+        const mover = svgEl('g', { class: 'fg-mover' });
+        const f = svgEl('rect', { class: `fg-finger fg-${hand}-${name}`, width: 18, rx: 9, ...attrs });
+        mover.append(f);
         this.fingerEls.set(`${hand}-${name}`, f);
-        g.append(f);
-      }
+        g.append(mover);
+      };
+      // The thumb's base dips into the palm from below.
+      finger('thumb', { x: 86, y: 70, height: 46, transform: 'rotate(38 95 112)' });
       g.append(svgEl('rect', { class: 'fg-palm', x: 12, y: 62, width: 82, height: 54, rx: 16 }));
+      // Fingers overlap the palm's top edge, so their gradient ends in the palm colour.
+      for (const [name, x, y, h] of fingers) finger(name, { x, y, height: h });
       svg.append(g);
     }
     return svg;
@@ -163,6 +196,20 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   if (text !== undefined) e.textContent = text;
   return e;
 }
+
+// Horizontal start of each row in key widths, matching the .kb-row offsets.
+const ROW_STAGGER = [0, 0.62, 0.73, 0.52];
+
+/** Where a key sits on the keyboard, in key widths (x) and rows (y). */
+function keyPosition(code: string): { x: number; y: number } | null {
+  for (let r = 0; r < ROWS.length; r++) {
+    const c = ROWS[r].indexOf(code);
+    if (c >= 0) return { x: c + ROW_STAGGER[r], y: r };
+  }
+  return null;
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 function svgEl<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>): SVGElementTagNameMap[K] {
   const e = document.createElementNS(svgNS, tag);
