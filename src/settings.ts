@@ -12,6 +12,7 @@ export interface LayoutSetting {
   source: 'user' | 'detected' | 'guessed';
 }
 
+// All localStorage keys keep the pre-Keystrider 'typing-trainer.' prefix so saved settings survive the rename.
 const KEY = 'typing-trainer.layout';
 /** Set once keystrokes logged before layout detection existed have been retagged. */
 const BACKFILL_KEY = 'typing-trainer.layout-backfill-done';
