@@ -944,15 +944,23 @@ applyTheme();
 // Interface language: every string on screen is redrawn in place, so a drill in progress carries on.
 const uiLanguageEl = $('ui-language');
 
+/** "auto" follows the browser language; otherwise the language the learner picked. */
+let uiChoice: string = isUiLanguage(savedUiLanguage) ? savedUiLanguage : 'auto';
+
 function renderUiLanguagePicker(): void {
-  uiLanguageEl.replaceChildren(...UI_LANGUAGES.map((l) => {
+  const choices = [{ id: 'auto', name: t('settings.uiAuto') }, ...UI_LANGUAGES];
+  uiLanguageEl.replaceChildren(...choices.map((l) => {
     const b = Object.assign(document.createElement('button'), { type: 'button', textContent: l.name });
     b.setAttribute('role', 'radio');
-    b.setAttribute('lang', l.id);
-    b.setAttribute('aria-checked', String(l.id === uiLanguage()));
+    if (isUiLanguage(l.id)) b.setAttribute('lang', l.id);
+    else b.title = t('settings.uiAutoTitle');
+    b.setAttribute('aria-checked', String(l.id === uiChoice));
     b.addEventListener('click', () => {
+      uiChoice = l.id;
       saveUiLanguageSetting(l.id);
-      setUiLanguage(l.id);
+      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(locales));
+      // The language may not change (e.g. Automatic picks the one already shown); the choice did.
+      renderUiLanguagePicker();
     });
     return b;
   }));

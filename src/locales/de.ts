@@ -37,6 +37,8 @@ export const de: Messages = {
   'settings.title': 'Einstellungen',
   'settings.close': 'Einstellungen schließen',
   'settings.uiLanguage': 'Sprache der Oberfläche',
+  'settings.uiAuto': 'Automatisch',
+  'settings.uiAutoTitle': 'Folgt der Sprache deines Browsers',
   'settings.appearance': 'Darstellung',
   'settings.theme': 'Farbschema',
   'settings.themeSystem': 'System',

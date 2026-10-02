@@ -40,6 +40,8 @@ export const en = {
   'settings.title': 'Settings',
   'settings.close': 'Close settings',
   'settings.uiLanguage': 'Interface language',
+  'settings.uiAuto': 'Automatic',
+  'settings.uiAutoTitle': 'Follow the language of your browser',
   'settings.appearance': 'Appearance',
   'settings.theme': 'Theme',
   'settings.themeSystem': 'System',
