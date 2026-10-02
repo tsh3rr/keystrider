@@ -107,7 +107,9 @@ export class FingerGuide {
     if (g.shift) this.lightFinger(g.shift === 'ShiftLeft' ? 'left-pinky' : 'right-pinky', 'fg-hold');
 
     const name = ch === ' ' ? 'Space' : keyLabel(this.layout, g.code);
-    let text = `${g.shift ? `Shift + ${ch}` : name}: ${describeFinger(g.finger)}`;
+    // A shifted symbol is named by its key too: "Shift + ß for ?" on German QWERTZ.
+    const keys = g.shift ? `Shift + ${name}${ch.toUpperCase() === name ? '' : ` for ${ch}`}` : name;
+    let text = `${keys}: ${describeFinger(g.finger)}`;
     if (g.home) text += `, reaching from ${keyLabel(this.layout, g.home)}`;
     if (g.shift) text += `. Hold Shift with your ${g.shift === 'ShiftLeft' ? 'left' : 'right'} pinky`;
     this.captionEl.textContent = text + '.';

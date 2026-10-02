@@ -117,3 +117,22 @@ function safeStorage(): Storage | undefined {
     return undefined;
   }
 }
+
+const SHOW_KEYS_KEY = 'typing-trainer.show-keys';
+
+/** Whether the row of all keys (unlocked and locked) is shown above the drill; off unless the user turned it on. */
+export function loadShowKeysSetting(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    return storage?.getItem(SHOW_KEYS_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export function saveShowKeysSetting(on: boolean, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(SHOW_KEYS_KEY, on ? 'on' : 'off');
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}

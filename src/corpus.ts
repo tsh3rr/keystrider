@@ -16,6 +16,16 @@ export interface Corpus {
    * the corpus' own letter frequency (see `unlockOrder` in drill.ts).
    */
   unlockOrder?: readonly string[];
+  /**
+   * Punctuation unlocked after capitals, in order; "()" is the bracket pair.
+   * Defaults to `DEFAULT_PUNCTUATION` in drill.ts.
+   */
+  punctuation?: readonly string[];
+  /**
+   * Real sentences for sentence drills, with their normal capitals and
+   * punctuation (see `practiceForm` in sentences.ts). Optional.
+   */
+  sentences?: readonly string[];
   /** Substrings generated pseudo-words must not contain, e.g. offensive words. */
   blockedSubstrings?: readonly string[];
 }

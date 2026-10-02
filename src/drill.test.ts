@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { Corpus } from './corpus';
 import { en } from './corpora/en';
 import {
-  DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, eligibleWords, initialCurriculum, modelOptions,
-  nextDrill, nextKind, pseudoShare, seededRandom, spaceOut, tierTargetMs, unlockOrder, type CurriculumState,
+  CAPITALS, DEFAULT_DRILL_PARAMS, DEFAULT_PUNCTUATION, DIGIT_ORDER, afterDrill, decorate, drillFeedback, drillResult,
+  eligibleWords, initialCurriculum, isNewSession, modelOptions, needsShift, nextDrill, nextKind, openChars, pseudoShare,
+  reviewItems, seededRandom, sentencePool, sentencesReady, spaceOut, stepStats, tierTargetMs, unlockOrder, unlockSteps,
+  type CurriculumState,
 } from './drill';
 import { TrigramModel } from './pseudowords';
 import { TypingSession } from './session';
@@ -239,6 +241,145 @@ describe('afterDrill', () => {
     expect(nextKind({ ...base, coreDrills: 3 }, 'focus')).toBe('core');
     expect(nextKind({ ...base, coreDrills: 2 }, 'core')).toBe('core');
   });
+
+  it('opens a session with a warm-up once there is history, and follows a focus burst with sentences when open', () => {
+    expect(nextKind(base, null, { newSession: true })).toBe('core');
+    expect(nextKind({ ...base, coreDrills: 4 }, null, { newSession: true })).toBe('warmup');
+    expect(nextKind({ ...base, coreDrills: 4 }, 'warmup')).toBe('core');
+    expect(nextKind({ ...base, coreDrills: 3 }, 'focus', { sentences: true })).toBe('sentence');
+    expect(nextKind({ ...base, coreDrills: 3 }, 'sentence', { sentences: true })).toBe('core');
+  });
+
+  it('lets a warm-up move nothing but the recent words', () => {
+    const { state, changes } = afterDrill(ready, base, en, { ...drill, kind: 'warmup' }, { wpm: 5, accuracy: 0.5 });
+    expect(changes).toEqual([]);
+    expect({ ...state, recentWords: [] }).toEqual({ ...base, recentWords: [] });
+    expect(state.recentWords).toHaveLength(1);
+  });
+
+  it('counts sentence drills for pace but not for unlocks', () => {
+    const { state } = afterDrill(ready, base, en, { ...drill, kind: 'sentence' }, good);
+    expect(state.unlocked).toEqual(base.unlocked);
+    expect(state.coreDrills).toBe(0);
+    expect(state.paceWpm).toBeGreaterThan(base.paceWpm);
+  });
+});
+
+describe('sessions', () => {
+  it('starts a new session on the first drill and after a long pause', () => {
+    const gap = DEFAULT_DRILL_PARAMS.sessionGapMinutes * 60_000;
+    expect(isNewSession(null, NOW)).toBe(true);
+    expect(isNewSession(NOW - gap + 1, NOW)).toBe(false);
+    expect(isNewSession(NOW - gap, NOW)).toBe(true);
+  });
+});
+
+describe('warm-up drills', () => {
+  const all: CurriculumState = { ...initialCurriculum(en, CTX), unlocked: unlockOrder(en), coreDrills: 10, paceWpm: 30 };
+  // Practised two weeks ago (due for review) versus just now (not due).
+  const practice = en.words.slice(0, 120).join(' ');
+  const events = [...typeText(practice, '', '', NOW - 14 * DAY)];
+  const fresh = 'gh'.repeat(40);
+  events.push(...typeText(fresh, '', '', NOW - 60_000, 150));
+
+  it('ranks items by how overdue their review is', () => {
+    const m = buildWeaknessModel(events, CTX, { now: NOW, ...modelOptions(all, en) });
+    const ranked = reviewItems(m, all).filter((it) => it.priority > 0);
+    expect(ranked.length).toBeGreaterThan(0);
+    for (let i = 1; i < ranked.length; i++) expect(ranked[i - 1].priority).toBeGreaterThanOrEqual(ranked[i].priority);
+    expect(ranked[0].components.review).toBeGreaterThan(0);
+  });
+
+  it('uses real words only once enough exist, and runs shorter than a core drill', () => {
+    const m = buildWeaknessModel(events, CTX, { now: NOW, ...modelOptions(all, en) });
+    const d = nextDrill(m, all, en, 'warmup', 4);
+    const core = nextDrill(m, all, en, 'core', 4);
+    expect(d.kind).toBe('warmup');
+    const real = new Set(en.words.map((w) => w.toLowerCase()));
+    expect(d.words.every((w) => real.has(w))).toBe(true);
+    expect(d.text.length).toBeLessThan(core.text.length);
+    expect(d.targets.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the usual ranking when nothing is due', () => {
+    const state = initialCurriculum(en, CTX);
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(state, en) });
+    const d = nextDrill(m, { ...state, coreDrills: 1 }, en, 'warmup', 2);
+    expect(d.kind).toBe('warmup');
+    expect(d.words.length).toBeGreaterThan(0);
+    for (const c of letters(d.text)) expect(state.unlocked).toContain(c);
+  });
+});
+
+describe('sentence drills', () => {
+  const order = unlockOrder(en);
+  const at = (n: number): CurriculumState => ({ ...initialCurriculum(en, CTX), unlocked: order.slice(0, n), paceWpm: 30 });
+
+  it('open only with enough letters and sentences', () => {
+    expect(sentencesReady(at(DEFAULT_DRILL_PARAMS.sentenceMinLetters - 1), en)).toBe(false);
+    expect(sentencesReady(at(DEFAULT_DRILL_PARAMS.sentenceMinLetters), en)).toBe(true);
+    const noSentences: Corpus = { ...en, sentences: undefined };
+    expect(sentencesReady(at(26), noSentences)).toBe(false);
+  });
+
+  it('use whole sentences typeable with the unlocked letters, about a minute long', () => {
+    const s = at(DEFAULT_DRILL_PARAMS.sentenceMinLetters);
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+    const pool = sentencePool(s, en);
+    const d = nextDrill(m, s, en, 'sentence', 9);
+    expect(d.kind).toBe('sentence');
+    expect(d.words.join(' ')).toBe(d.text);
+    for (const c of letters(d.text)) expect(s.unlocked).toContain(c);
+    // Every part of the text is one of the pool's sentences, none twice.
+    let rest = d.text;
+    let used = 0;
+    while (rest.length > 0) {
+      const hit = pool.find((p) => rest === p || rest.startsWith(p + ' '));
+      expect(hit).toBeDefined();
+      rest = rest.slice(hit!.length + 1);
+      used++;
+    }
+    expect(used).toBeGreaterThan(1);
+    expect(d.text.length).toBeGreaterThanOrEqual((s.paceWpm * 5 * DEFAULT_DRILL_PARAMS.coreSeconds) / 60);
+    expect(nextDrill(m, s, en, 'sentence', 9)).toEqual(d);
+  });
+
+  it('avoid sentences from recent drills', () => {
+    const s = at(26);
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+    const first = nextDrill(m, s, en, 'sentence', 3);
+    const after = afterDrill(m, s, en, first, { wpm: 30, accuracy: 0.95 }).state;
+    const second = nextDrill(m, after, en, 'sentence', 3);
+    const overlap = second.words.filter((_, i) => first.text.includes(second.words.slice(i, i + 4).join(' '))).length;
+    expect(overlap / second.words.length).toBeLessThan(0.5);
+  });
+
+  it('keep capitals and punctuation once those are unlocked', () => {
+    const s: CurriculumState = { ...at(26), unlocked: [...order, CAPITALS, '.', ','] };
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+    const d = nextDrill(m, s, en, 'sentence', 2);
+    expect(d.kind).toBe('sentence');
+    expect(d.text).toMatch(/^\p{Lu}/u);
+    expect(d.text).toMatch(/[.]$/);
+    expect(d.baseWords.every((w) => w === w.toLowerCase() && /^\p{L}+$/u.test(w))).toBe(true);
+    for (const c of d.text) expect(c === ' ' || openChars(s).has(c)).toBe(true);
+  });
+
+  it('drop sentences with a word the offensive-word filter blocks', () => {
+    const s = at(26);
+    const all = sentencePool(s, en).length;
+    // A neutral stand-in term, added the way a corpus adds its own.
+    const filtered: Corpus = { ...en, blockedSubstrings: ['the'] };
+    const kept = sentencePool(s, filtered);
+    expect(kept.length).toBeLessThan(all);
+    expect(kept.every((x) => !x.split(' ').includes('the'))).toBe(true);
+  });
+
+  it('fall back to a core drill when too few sentences fit', () => {
+    const s = at(DEFAULT_DRILL_PARAMS.sentenceMinLetters - 1);
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+    expect(nextDrill(m, s, en, 'sentence', 1).kind).toBe('core');
+  });
 });
 
 describe('drillResult and drillFeedback', () => {
@@ -268,5 +409,122 @@ describe('helpers', () => {
 
   it('eligibleWords keeps only words made of allowed letters', () => {
     for (const w of eligibleWords(en, new Set('eniarl'))) for (const c of w) expect('eniarl').toContain(c);
+  });
+});
+
+describe('capitals, punctuation and digits', () => {
+  const allLetters = unlockOrder(en);
+  const lettersDone: CurriculumState = { ...initialCurriculum(en, CTX), unlocked: [...allLetters], paceWpm: 30 };
+  const drill = { kind: 'core' as const, words: ['line'] };
+  const good = { wpm: 20, accuracy: 0.98 };
+
+  it('unlocks capitals, then punctuation, then digits after the letters', () => {
+    const steps = unlockSteps(en, 'qwerty-us');
+    expect(steps.slice(0, 26)).toEqual(allLetters);
+    expect(steps[26]).toBe(CAPITALS);
+    expect(steps.slice(27, 27 + DEFAULT_PUNCTUATION.length)).toEqual(DEFAULT_PUNCTUATION);
+    expect(steps.slice(-DIGIT_ORDER.length)).toEqual(DIGIT_ORDER);
+    expect(new Set(steps).size).toBe(steps.length);
+  });
+
+  it('skips marks the layout cannot type without AltGr', () => {
+    const corpus: Corpus = { ...en, punctuation: ['.', '§'] };
+    expect(unlockSteps(corpus, 'qwerty-us')).not.toContain('§');
+    expect(unlockSteps(corpus, 'qwertz-de')).toContain('§');
+  });
+
+  it('knows which steps need Shift on which layout', () => {
+    expect(needsShift(CAPITALS, 'qwerty-us')).toBe(true);
+    expect(needsShift('?', 'qwerty-us')).toBe(true);
+    expect(needsShift('-', 'qwertz-de')).toBe(false);
+    expect(needsShift(';', 'qwerty-us')).toBe(false);
+    expect(needsShift(';', 'qwertz-de')).toBe(true);
+    expect(needsShift('1', 'qwerty-us')).toBe(false);
+    expect(needsShift('1', 'azerty-fr')).toBe(true);
+    expect(needsShift('()', 'qwerty-us')).toBe(true);
+  });
+
+  it('opens capitals only for unlocked letters, and brackets as a pair', () => {
+    const open = openChars({ unlocked: ['e', 'n', CAPITALS, '()', '7'] });
+    expect([...open].sort()).toEqual(['(', ')', '7', 'E', 'N', 'e', 'n'].sort());
+  });
+
+  it('unlocks capitals once every letter meets the bar, and judges them together', () => {
+    const ready = fakeModel(allLetters.map((c) => key(c)));
+    const { state, changes } = afterDrill(ready, lettersDone, en, drill, good);
+    expect(state.unlocked.at(-1)).toBe(CAPITALS);
+    expect(state.focusKey).toBe(CAPITALS);
+    expect(changes).toContainEqual({ type: 'unlock', key: CAPITALS });
+
+    // Ten practised capitals at 4 each: 40 together clears the evidence bar no single one does.
+    const caps = allLetters.slice(0, 10).map((c) => key(c.toUpperCase(), { weight: 4 }));
+    const m = fakeModel([...allLetters.map((c) => key(c)), ...caps]);
+    expect(stepStats(m, CAPITALS, state)?.weight).toBe(40);
+    const next = afterDrill(m, state, en, drill, good);
+    expect(next.changes).toContainEqual({ type: 'focus-met', key: CAPITALS });
+    expect(next.state.unlocked.at(-1)).toBe(DEFAULT_PUNCTUATION[0]);
+
+    const sloppy = fakeModel([...allLetters.map((c) => key(c)), ...caps.map((k) => ({ ...k, errorRate: 0.1 }))]);
+    expect(afterDrill(sloppy, state, en, drill, good).state.unlocked).toEqual(state.unlocked);
+  });
+
+  it('gives keys typed with Shift a looser speed bar', () => {
+    // Tier 7 (50 WPM) wants 240 ms per key; 280 ms passes only with the Shift allowance.
+    const s: CurriculumState = { ...lettersDone, tier: 7, unlocked: [...allLetters, CAPITALS, '.', '?'] };
+    const slow = (c: string) => key(c, { latencyMs: 280 });
+    const base = [...allLetters.map((c) => key(c, { latencyMs: 200 })), ...allLetters.map((c) => key(c.toUpperCase(), { latencyMs: 200 }))];
+    const qSlow = fakeModel([...base, key('.', { latencyMs: 200 }), slow('?')]);
+    expect(afterDrill(qSlow, s, en, drill, good).changes).toContainEqual({ type: 'unlock', key: ',' });
+    const dotSlow = fakeModel([...base, slow('.'), key('?', { latencyMs: 200 })]);
+    expect(afterDrill(dotSlow, s, en, drill, good).state.unlocked).toEqual(s.unlocked);
+  });
+
+  it('writes sentences with capitals and only unlocked marks', () => {
+    const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.', ','] };
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+    const open = openChars(s).add(' ');
+    for (const seed of [1, 2, 3]) {
+      const d = nextDrill(m, s, en, 'core', seed);
+      expect(d.words.join(' ')).toBe(d.text);
+      for (const c of d.text) expect(open.has(c)).toBe(true);
+      expect(d.text).toMatch(/^\p{Lu}/u);
+      expect(d.text.endsWith('.')).toBe(true);
+      // Every sentence after a full stop starts with a capital.
+      for (const m2 of d.text.matchAll(/\. (.)/gu)) expect(m2[1]).toMatch(/\p{Lu}/u);
+      expect(d.baseWords.join(' ')).toMatch(/^[a-z ]+$/);
+    }
+  });
+
+  it('leans on the focus step: brackets and digits show up often', () => {
+    for (const step of ['()', '7']) {
+      const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.', step], focusKey: step };
+      const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+      const d = nextDrill(m, s, en, 'core', 4);
+      const ch = step === '()' ? '(' : '7';
+      expect([...d.text].filter((c) => c === ch).length).toBeGreaterThanOrEqual(3);
+      if (step === '()') expect([...d.text].filter((c) => c === ')').length).toBe([...d.text].filter((c) => c === '(').length);
+    }
+  });
+
+  it('leaves words alone while only letters are unlocked', () => {
+    const words = ['alpha', 'beta', 'gamma'];
+    const out = decorate(words, { open: new Set('abglmpht'), focus: new Set(), targets: [], prio: () => 0, rand: seededRandom(1) });
+    expect(out).toEqual(words);
+  });
+
+  it('only hyphenates pairs the word filter allows', () => {
+    const words = ['alpha', 'beta', 'gamma', 'delta', 'omega', 'theta'];
+    const p = { ...DEFAULT_DRILL_PARAMS, focusMarkRate: 1 };
+    const ctx = { open: new Set([...'abdeghlmopt', '-']), focus: new Set(['-']), targets: [], prio: () => 0 };
+    expect(decorate(words, { ...ctx, rand: seededRandom(1) }, p).join(' ')).toContain('-');
+    const out = decorate(words, { ...ctx, rand: seededRandom(1), blocked: (w) => w.length > 6 }, p);
+    expect(out).toEqual(words);
+  });
+
+  it('keeps repeat penalties on the undecorated words', () => {
+    const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.'] };
+    const d = nextDrill(fakeModel(allLetters.map((c) => key(c))), s, en, 'core', 2);
+    const next = afterDrill(fakeModel([]), s, en, d, good).state;
+    expect(next.recentWords.at(-1)).toEqual(d.baseWords);
   });
 });

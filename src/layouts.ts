@@ -4,8 +4,9 @@
  * `KeyboardEvent.code` names physical keys after their US QWERTY position
  * ("KeyZ" is the key left of X), so on a German keyboard typing "y" reports
  * code "KeyZ". A layout maps those physical codes to the characters printed
- * on the user's keyboard. Only the base layer (no Shift, no AltGr) is
- * listed: it is enough to tell layouts apart and to name keys.
+ * on the user's keyboard. The base layer tells layouts apart and names
+ * keys; the Shift layer says how capitals, punctuation and digits are typed.
+ * AltGr layers are not listed.
  */
 export interface Layout {
   /** Stored in `KeystrokeEvent.layout`, e.g. "qwertz-de". */
@@ -16,6 +17,8 @@ export interface Layout {
   locales: readonly string[];
   /** Physical key code to the character it types without modifiers. */
   keys: ReadonlyMap<string, string>;
+  /** Physical key code to the character it types with Shift. */
+  shifted: ReadonlyMap<string, string>;
 }
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((d) => `Digit${d}`);
@@ -28,17 +31,22 @@ export const ROWS: readonly (readonly string[])[] = [
   ['IntlBackslash', ...letters('ZXCVBNM'), 'Comma', 'Period', 'Slash'],
 ];
 
-/** Builds a layout from one string per row; a space marks a key the layout lacks. */
-function layout(id: string, name: string, locales: string[], rows: [string, string, string, string]): Layout {
-  const keys = new Map<string, string>();
-  rows.forEach((row, r) => {
-    const chars = [...row];
-    if (chars.length !== ROWS[r].length) throw new Error(`Layout ${id}: row ${r} has ${chars.length} keys`);
-    chars.forEach((ch, i) => {
-      if (ch !== ' ') keys.set(ROWS[r][i], ch);
+type Rows = [string, string, string, string];
+
+/** Builds a layout from one string per row, base and Shift layer; a space marks a key the layout lacks. */
+function layout(id: string, name: string, locales: string[], rows: Rows, shiftRows: Rows): Layout {
+  const map = (rs: Rows) => {
+    const keys = new Map<string, string>();
+    rs.forEach((row, r) => {
+      const chars = [...row];
+      if (chars.length !== ROWS[r].length) throw new Error(`Layout ${id}: row ${r} has ${chars.length} keys`);
+      chars.forEach((ch, i) => {
+        if (ch !== ' ') keys.set(ROWS[r][i], ch);
+      });
     });
-  });
-  return { id, name, locales, keys };
+    return keys;
+  };
+  return { id, name, locales, keys: map(rows), shifted: map(shiftRows) };
 }
 
 // Dead keys (German ^ and ´, Spanish ´ and `, ...) are listed with the accent
@@ -46,30 +54,42 @@ function layout(id: string, name: string, locales: string[], rows: [string, stri
 // count as evidence for or against a layout.
 export const LAYOUTS: readonly Layout[] = [
   layout('qwerty-us', 'English (US) QWERTY', ['en-US', 'en'], [
-    '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'\\", ' zxcvbnm,./']),
+    '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'\\", ' zxcvbnm,./'], [
+    '~!@#$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:"|', ' ZXCVBNM<>?']),
   layout('qwerty-uk', 'English (UK) QWERTY', ['en-GB', 'en-IE'], [
-    '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'#", '\\zxcvbnm,./']),
+    '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'#", '\\zxcvbnm,./'], [
+    '¬!"£$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:@~', '|ZXCVBNM<>?']),
   layout('qwertz-de', 'German QWERTZ', ['de', 'de-DE', 'de-AT'], [
-    '^1234567890ß´', 'qwertzuiopü+', 'asdfghjklöä#', '<yxcvbnm,.-']),
+    '^1234567890ß´', 'qwertzuiopü+', 'asdfghjklöä#', '<yxcvbnm,.-'], [
+    '°!"§$%&/()=?`', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", '>YXCVBNM;:_']),
   layout('qwertz-ch', 'Swiss QWERTZ', ['de-CH', 'fr-CH', 'it-CH'], [
-    "§1234567890'^", 'qwertzuiopü¨', 'asdfghjklöä$', '<yxcvbnm,.-']),
+    "§1234567890'^", 'qwertzuiopü¨', 'asdfghjklöä$', '<yxcvbnm,.-'], [
+    '°+"*ç%&/()=?`', 'QWERTZUIOPè!', 'ASDFGHJKLéà£', '>YXCVBNM;:_']),
   layout('azerty-fr', 'French AZERTY', ['fr', 'fr-FR'], [
-    `²&é"'(-è_çà)=`, 'azertyuiop^$', 'qsdfghjklmù*', '<wxcvbn,;:!']),
+    `²&é"'(-è_çà)=`, 'azertyuiop^$', 'qsdfghjklmù*', '<wxcvbn,;:!'], [
+    ' 1234567890°+', 'AZERTYUIOP¨£', 'QSDFGHJKLM%µ', '>WXCVBN?./§']),
   layout('azerty-be', 'Belgian AZERTY', ['fr-BE', 'nl-BE'], [
-    `²&é"'(§è!çà)-`, 'azertyuiop^$', 'qsdfghjklmùµ', '<wxcvbn,;:=']),
+    `²&é"'(§è!çà)-`, 'azertyuiop^$', 'qsdfghjklmùµ', '<wxcvbn,;:='], [
+    '³1234567890°_', 'AZERTYUIOP¨*', 'QSDFGHJKLM%£', '>WXCVBN?./+']),
   layout('qwerty-es', 'Spanish QWERTY', ['es', 'es-ES'], [
-    "º1234567890'¡", 'qwertyuiop`+', 'asdfghjklñ´ç', '<zxcvbnm,.-']),
+    "º1234567890'¡", 'qwertyuiop`+', 'asdfghjklñ´ç', '<zxcvbnm,.-'], [
+    'ª!"·$%&/()=?¿', 'QWERTYUIOP^*', 'ASDFGHJKLÑ¨Ç', '>ZXCVBNM;:_']),
   layout('qwerty-it', 'Italian QWERTY', ['it', 'it-IT'], [
-    "\\1234567890'ì", 'qwertyuiopè+', 'asdfghjklòàù', '<zxcvbnm,.-']),
+    "\\1234567890'ì", 'qwertyuiopè+', 'asdfghjklòàù', '<zxcvbnm,.-'], [
+    '|!"£$%&/()=?^', 'QWERTYUIOPé*', 'ASDFGHJKLç°§', '>ZXCVBNM;:_']),
   layout('qwerty-se', 'Swedish / Finnish QWERTY', ['sv', 'fi'], [
-    '§1234567890+´', 'qwertyuiopå¨', "asdfghjklöä'", '<zxcvbnm,.-']),
+    '§1234567890+´', 'qwertyuiopå¨', "asdfghjklöä'", '<zxcvbnm,.-'], [
+    '½!"#¤%&/()=?`', 'QWERTYUIOPÅ^', 'ASDFGHJKLÖÄ*', '>ZXCVBNM;:_']),
   // Same base layer as US; Polish letters come from AltGr.
   layout('qwerty-pl', 'Polish (Programmers)', ['pl'], [
-    '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'\\", '\\zxcvbnm,./']),
+    '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'\\", '\\zxcvbnm,./'], [
+    '~!@#$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:"|', '|ZXCVBNM<>?']),
   layout('dvorak-us', 'Dvorak (US)', [], [
-    '`1234567890[]', "',.pyfgcrl/=", 'aoeuidhtns-\\', ' ;qjkxbmwvz']),
+    '`1234567890[]', "',.pyfgcrl/=", 'aoeuidhtns-\\', ' ;qjkxbmwvz'], [
+    '~!@#$%^&*(){}', '"<>PYFGCRL?+', 'AOEUIDHTNS_|', ' :QJKXBMWVZ']),
   layout('colemak', 'Colemak', [], [
-    '`1234567890-=', 'qwfpgjluy;[]', "arstdhneio'\\", ' zxcvbkm,./']),
+    '`1234567890-=', 'qwfpgjluy;[]', "arstdhneio'\\", ' zxcvbkm,./'], [
+    '~!@#$%^&*()_+', 'QWFPGJLUY:{}', 'ARSTDHNEIO"|', ' ZXCVBKM<>?']),
 ];
 
 export const DEFAULT_LAYOUT = 'qwerty-us';
@@ -78,6 +98,20 @@ const BY_ID = new Map(LAYOUTS.map((l) => [l.id, l]));
 
 export function getLayout(id: string): Layout | undefined {
   return BY_ID.get(id);
+}
+
+/**
+ * The physical key that types `ch` on the layout, and whether it needs
+ * Shift. Base layer first, so "1" on QWERTY is unshifted while on AZERTY it
+ * needs Shift. Null when neither layer has it (AltGr characters, unknown layout).
+ */
+export function howToType(layoutId: string, ch: string): { code: string; shift: boolean } | null {
+  if (ch === ' ') return { code: 'Space', shift: false };
+  const l = BY_ID.get(layoutId);
+  if (!l) return null;
+  for (const [code, c] of l.keys) if (c === ch) return { code, shift: false };
+  for (const [code, c] of l.shifted) if (c === ch) return { code, shift: true };
+  return null;
 }
 
 /**
@@ -90,6 +124,21 @@ export function keyLabel(layoutId: string, code: string): string {
   // "ß".toUpperCase() is "SS"; keep characters without a one-letter capital as they are.
   const upper = ch.toUpperCase();
   return [...upper].length === 1 ? upper : ch;
+}
+
+/**
+ * How to show a typed character as a key: letters as their key cap ("Z"),
+ * capitals with a Shift arrow ("⇧Z") so they differ from the lowercase key,
+ * and punctuation and digits as themselves.
+ */
+export function charLabel(layoutId: string, ch: string): string {
+  if (ch === ' ') return 'Space';
+  const lower = ch.toLowerCase();
+  const upper = ch.toUpperCase();
+  if (lower === upper) return ch;
+  const base = howToType(layoutId, lower);
+  const cap = base && !base.shift ? keyLabel(layoutId, base.code) : upper;
+  return ch === lower ? cap : '⇧' + cap;
 }
 
 /** Observed (physical key, character) pairs: the evidence detection works from. */
