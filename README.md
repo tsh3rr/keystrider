@@ -21,7 +21,9 @@ Static app (TypeScript + Vite). No backend: all data stays in the browser.
 
 ## Keystroke log
 
-Every typed character on the practice screen is stored in IndexedDB (database `typing-trainer`, store `keystrokes`) with:
+Every typed character on the practice screen is stored in IndexedDB (database `typing-trainer`, store `keystrokes`) with the following fields. The database and the `typing-trainer.*` localStorage keys keep the app's old name on purpose, so renaming the app to Keystrider didn't wipe anyone's history or settings.
+
+Fields:
 
 | field | meaning |
 | --- | --- |
