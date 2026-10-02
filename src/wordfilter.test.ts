@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Corpus } from './corpus';
+import { de } from './corpora/de';
 import { en } from './corpora/en';
 import { eligibleWords, seededRandom } from './drill';
 import { trigramModel } from './pseudowords';
@@ -55,6 +56,15 @@ describe('isBlockedWord', () => {
 
   it('only adds inflections for languages that define them', () => {
     expect(isBlockedWord('lanterns', blockList('xx', ['lantern']))).toBe(false);
+  });
+});
+
+describe('German', () => {
+  it('drops some real German words, inflected forms included, and keeps the rest', () => {
+    const all = new Set(de.words.join(''));
+    const kept = eligibleWords(de, all).length;
+    expect(kept).toBeLessThan(de.words.length);
+    expect(kept).toBeGreaterThan(de.words.length * 0.98);
   });
 });
 

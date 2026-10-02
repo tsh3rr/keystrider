@@ -37,6 +37,16 @@ export function clearCurriculum(ctx: PracticeContext, storage: Storage | undefin
   }
 }
 
+/** Whether any curriculum is saved, i.e. this browser has practised before. */
+export function hasAnyCurriculum(storage: Storage | undefined = safeStorage()): boolean {
+  try {
+    for (let i = 0; i < (storage?.length ?? 0); i++) if (storage?.key(i)?.startsWith('typing-trainer.curriculum.')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function safeStorage(): Storage | undefined {
   try {
     return globalThis.localStorage;

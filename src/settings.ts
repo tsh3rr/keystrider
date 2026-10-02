@@ -155,3 +155,22 @@ export function saveBreakRemindersSetting(on: boolean, storage: Storage | undefi
     // ignore, see saveLayoutSetting
   }
 }
+
+const LANGUAGE_KEY = 'typing-trainer.language';
+
+/** The practice language the user picked, or null if they never picked one. */
+export function loadLanguageSetting(storage: Storage | undefined = safeStorage()): string | null {
+  try {
+    return storage?.getItem(LANGUAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLanguageSetting(language: string, storage: Storage | undefined = safeStorage()): void {
+  try {
+    storage?.setItem(LANGUAGE_KEY, language);
+  } catch {
+    // ignore, see saveLayoutSetting
+  }
+}
