@@ -11,6 +11,7 @@
       <h1>Typing Trainer</h1>
       <nav>
         <button data-view="practice" class="active">Practice</button>
+        <button data-view="progress">Progress</button>
         <button data-view="log">Keystroke log</button>
       </nav>
     </header>
@@ -38,6 +39,63 @@
         <div id="stats" class="stats"></div>
         <div id="drill-feedback" class="drill-feedback" hidden></div>
         <button id="new-text">Skip drill</button>
+      </section>
+
+      <section id="progress-view" hidden>
+        <div class="progress-bar">
+          <span id="progress-context"></span>
+          <label>Show <select id="progress-range">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="all">All time</option>
+          </select></label>
+        </div>
+        <p id="progress-empty" class="hint" hidden>No practice logged for this language and keyboard layout yet. Finish a text on the Practice tab and your progress shows up here.</p>
+        <div id="progress-body">
+          <div id="progress-tiles" class="tiles"></div>
+          <p id="progress-no-sessions" class="hint" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
+          <div id="progress-charts">
+            <h2>Speed per session</h2>
+            <div id="chart-wpm" class="chart"></div>
+            <h2>First-try accuracy per session</h2>
+            <div id="chart-acc" class="chart"></div>
+            <details>
+              <summary>Show sessions as a table</summary>
+              <table>
+                <thead><tr><th>When</th><th>WPM</th><th>Accuracy</th><th>Characters</th></tr></thead>
+                <tbody id="sessions-rows"></tbody>
+              </table>
+            </details>
+          </div>
+          <h2>Errors by key</h2>
+          <p class="hint">How often each key goes wrong on the first try, recent practice counting most.</p>
+          <div id="keyboard-heat"></div>
+          <div class="heat-legend" aria-hidden="true">
+            <span><i class="kb-key heat-0"></i>under 2%</span>
+            <span><i class="kb-key heat-1"></i>2–5%</span>
+            <span><i class="kb-key heat-2"></i>5–8%</span>
+            <span><i class="kb-key heat-3"></i>8–12%</span>
+            <span><i class="kb-key heat-4"></i>12% or more</span>
+            <span><i class="kb-key heat-none"></i>not typed yet</span>
+          </div>
+          <div class="weak-grid">
+            <div>
+              <h2>Weakest keys</h2>
+              <table class="weak">
+                <thead><tr><th>Key</th><th>Errors</th><th>Typical time</th><th>Last 14 days</th><th>Tries</th></tr></thead>
+                <tbody id="weak-keys"></tbody>
+              </table>
+            </div>
+            <div>
+              <h2>Weakest letter pairs</h2>
+              <table class="weak">
+                <thead><tr><th>Pair</th><th>Errors</th><th>Typical time</th><th>Last 14 days</th><th>Tries</th></tr></thead>
+                <tbody id="weak-bigrams"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="progress-tip" class="tooltip" role="tooltip" hidden></div>
       </section>
 
       <section id="log-view" hidden>
