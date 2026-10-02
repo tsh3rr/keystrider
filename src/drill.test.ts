@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Corpus } from './corpus';
 import { en } from './corpora/en';
 import {
-  DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, eligibleWords, initialCurriculum, modelOptions,
-  nextDrill, nextKind, pseudoShare, seededRandom, spaceOut, tierTargetMs, unlockOrder, type CurriculumState,
+  CAPITALS, DEFAULT_DRILL_PARAMS, DEFAULT_PUNCTUATION, DIGIT_ORDER, afterDrill, decorate, drillFeedback, drillResult,
+  eligibleWords, initialCurriculum, modelOptions, needsShift, nextDrill, nextKind, openChars, pseudoShare, seededRandom,
+  spaceOut, stepStats, tierTargetMs, unlockOrder, unlockSteps, type CurriculumState,
 } from './drill';
 import { TrigramModel } from './pseudowords';
 import { TypingSession } from './session';
@@ -268,5 +269,113 @@ describe('helpers', () => {
 
   it('eligibleWords keeps only words made of allowed letters', () => {
     for (const w of eligibleWords(en, new Set('eniarl'))) for (const c of w) expect('eniarl').toContain(c);
+  });
+});
+
+describe('capitals, punctuation and digits', () => {
+  const allLetters = unlockOrder(en);
+  const lettersDone: CurriculumState = { ...initialCurriculum(en, CTX), unlocked: [...allLetters], paceWpm: 30 };
+  const drill = { kind: 'core' as const, words: ['line'] };
+  const good = { wpm: 20, accuracy: 0.98 };
+
+  it('unlocks capitals, then punctuation, then digits after the letters', () => {
+    const steps = unlockSteps(en, 'qwerty-us');
+    expect(steps.slice(0, 26)).toEqual(allLetters);
+    expect(steps[26]).toBe(CAPITALS);
+    expect(steps.slice(27, 27 + DEFAULT_PUNCTUATION.length)).toEqual(DEFAULT_PUNCTUATION);
+    expect(steps.slice(-DIGIT_ORDER.length)).toEqual(DIGIT_ORDER);
+    expect(new Set(steps).size).toBe(steps.length);
+  });
+
+  it('skips marks the layout cannot type without AltGr', () => {
+    const corpus: Corpus = { ...en, punctuation: ['.', '§'] };
+    expect(unlockSteps(corpus, 'qwerty-us')).not.toContain('§');
+    expect(unlockSteps(corpus, 'qwertz-de')).toContain('§');
+  });
+
+  it('knows which steps need Shift on which layout', () => {
+    expect(needsShift(CAPITALS, 'qwerty-us')).toBe(true);
+    expect(needsShift('?', 'qwerty-us')).toBe(true);
+    expect(needsShift('-', 'qwertz-de')).toBe(false);
+    expect(needsShift(';', 'qwerty-us')).toBe(false);
+    expect(needsShift(';', 'qwertz-de')).toBe(true);
+    expect(needsShift('1', 'qwerty-us')).toBe(false);
+    expect(needsShift('1', 'azerty-fr')).toBe(true);
+    expect(needsShift('()', 'qwerty-us')).toBe(true);
+  });
+
+  it('opens capitals only for unlocked letters, and brackets as a pair', () => {
+    const open = openChars({ unlocked: ['e', 'n', CAPITALS, '()', '7'] });
+    expect([...open].sort()).toEqual(['(', ')', '7', 'E', 'N', 'e', 'n'].sort());
+  });
+
+  it('unlocks capitals once every letter meets the bar, and judges them together', () => {
+    const ready = fakeModel(allLetters.map((c) => key(c)));
+    const { state, changes } = afterDrill(ready, lettersDone, en, drill, good);
+    expect(state.unlocked.at(-1)).toBe(CAPITALS);
+    expect(state.focusKey).toBe(CAPITALS);
+    expect(changes).toContainEqual({ type: 'unlock', key: CAPITALS });
+
+    // Ten practised capitals at 4 each: 40 together clears the evidence bar no single one does.
+    const caps = allLetters.slice(0, 10).map((c) => key(c.toUpperCase(), { weight: 4 }));
+    const m = fakeModel([...allLetters.map((c) => key(c)), ...caps]);
+    expect(stepStats(m, CAPITALS, state)?.weight).toBe(40);
+    const next = afterDrill(m, state, en, drill, good);
+    expect(next.changes).toContainEqual({ type: 'focus-met', key: CAPITALS });
+    expect(next.state.unlocked.at(-1)).toBe(DEFAULT_PUNCTUATION[0]);
+
+    const sloppy = fakeModel([...allLetters.map((c) => key(c)), ...caps.map((k) => ({ ...k, errorRate: 0.1 }))]);
+    expect(afterDrill(sloppy, state, en, drill, good).state.unlocked).toEqual(state.unlocked);
+  });
+
+  it('gives keys typed with Shift a looser speed bar', () => {
+    // Tier 7 (50 WPM) wants 240 ms per key; 280 ms passes only with the Shift allowance.
+    const s: CurriculumState = { ...lettersDone, tier: 7, unlocked: [...allLetters, CAPITALS, '.', '?'] };
+    const slow = (c: string) => key(c, { latencyMs: 280 });
+    const base = [...allLetters.map((c) => key(c, { latencyMs: 200 })), ...allLetters.map((c) => key(c.toUpperCase(), { latencyMs: 200 }))];
+    const qSlow = fakeModel([...base, key('.', { latencyMs: 200 }), slow('?')]);
+    expect(afterDrill(qSlow, s, en, drill, good).changes).toContainEqual({ type: 'unlock', key: ',' });
+    const dotSlow = fakeModel([...base, slow('.'), key('?', { latencyMs: 200 })]);
+    expect(afterDrill(dotSlow, s, en, drill, good).state.unlocked).toEqual(s.unlocked);
+  });
+
+  it('writes sentences with capitals and only unlocked marks', () => {
+    const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.', ','] };
+    const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+    const open = openChars(s).add(' ');
+    for (const seed of [1, 2, 3]) {
+      const d = nextDrill(m, s, en, 'core', seed);
+      expect(d.words.join(' ')).toBe(d.text);
+      for (const c of d.text) expect(open.has(c)).toBe(true);
+      expect(d.text).toMatch(/^\p{Lu}/u);
+      expect(d.text.endsWith('.')).toBe(true);
+      // Every sentence after a full stop starts with a capital.
+      for (const m2 of d.text.matchAll(/\. (.)/gu)) expect(m2[1]).toMatch(/\p{Lu}/u);
+      expect(d.baseWords.join(' ')).toMatch(/^[a-z ]+$/);
+    }
+  });
+
+  it('leans on the focus step: brackets and digits show up often', () => {
+    for (const step of ['()', '7']) {
+      const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.', step], focusKey: step };
+      const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
+      const d = nextDrill(m, s, en, 'core', 4);
+      const ch = step === '()' ? '(' : '7';
+      expect([...d.text].filter((c) => c === ch).length).toBeGreaterThanOrEqual(3);
+      if (step === '()') expect([...d.text].filter((c) => c === ')').length).toBe([...d.text].filter((c) => c === '(').length);
+    }
+  });
+
+  it('leaves words alone while only letters are unlocked', () => {
+    const words = ['alpha', 'beta', 'gamma'];
+    const out = decorate(words, { open: new Set('abglmpht'), focus: new Set(), targets: [], prio: () => 0, rand: seededRandom(1) });
+    expect(out).toEqual(words);
+  });
+
+  it('keeps repeat penalties on the undecorated words', () => {
+    const s: CurriculumState = { ...lettersDone, unlocked: [...allLetters, CAPITALS, '.'] };
+    const d = nextDrill(fakeModel(allLetters.map((c) => key(c))), s, en, 'core', 2);
+    const next = afterDrill(fakeModel([]), s, en, d, good).state;
+    expect(next.recentWords.at(-1)).toEqual(d.baseWords);
   });
 });

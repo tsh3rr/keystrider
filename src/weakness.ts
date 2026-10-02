@@ -1,5 +1,5 @@
 import { availableLanguages, type Corpus } from './corpus';
-import { getLayout, keyLabel } from './layouts';
+import { charLabel, howToType } from './layouts';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
 /**
@@ -372,7 +372,7 @@ export function buildWeaknessModel(
       kind: 'key',
       ...stats,
       code,
-      label: ch === ' ' ? 'Space' : code === null ? ch.toUpperCase() : keyLabel(context.layout, code),
+      label: charLabel(context.layout, ch),
       confusions: [...acc.confusions]
         .map(([typed, c]) => ({ typed, ...c }))
         .sort((a, b) => b.weight - a.weight),
@@ -418,14 +418,12 @@ function reviewHalfLife(acc: Acc, baseLog: number, p: WeaknessParams): number {
   return h;
 }
 
-/** Physical key that types `ch` on the layout's base layer (shifted letters map to their lowercase key). */
+/** Physical key that types `ch` on the layout's base or Shift layer (other capitals map to their lowercase key). */
 export function codeFor(layoutId: string, ch: string): string | null {
-  if (ch === ' ') return 'Space';
-  const keys = getLayout(layoutId)?.keys;
-  if (!keys) return null;
+  const how = howToType(layoutId, ch);
+  if (how) return how.code;
   const lower = ch.toLowerCase();
-  for (const [code, c] of keys) if (c === lower) return code;
-  return null;
+  return lower === ch ? null : howToType(layoutId, lower)?.code ?? null;
 }
 
 const corpusCache = new Map<string, ItemFrequencies | undefined>();
