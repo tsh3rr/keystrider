@@ -3,8 +3,8 @@ import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, getCorpus } from './corpus';
 import { clearCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
-  CAPITALS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, modelOptions, needsShift, nextDrill,
-  nextKind, sentencesReady, tierWpm, unlockSteps,
+  CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, modelOptions, needsShift, nextDrill,
+  nextKind, sentencesReady, tierTargetMs, tierWpm, unlockSteps,
   type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
 } from './drill';
 import { loadWeaknessModel, type WeaknessModel } from './weakness';
@@ -12,6 +12,7 @@ import {
   KeyObserver, LAYOUTS, browserLayoutMap, charLabel, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
 import { FingerGuide } from './fingerGuide';
+import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, type Range } from './progressView';
 import {
   backfillDone, loadFingerGuideSetting, loadLayoutSetting, markBackfillDone, saveFingerGuideSetting, saveLayoutSetting,
@@ -211,19 +212,83 @@ function renderDrillBar(): void {
     frag.append(span);
   }
   drillKeysEl.replaceChildren(frag);
-  const kind = { warmup: 'Warm-up · ', core: '', focus: 'Focus burst · ', sentence: 'Sentences · ' }[drill?.kind ?? 'core'];
   drillInfoEl.textContent =
-    `${kind}Level ${curriculum.tier} (${tierWpm(curriculum.tier)} WPM) · target pace ${Math.round(curriculum.paceWpm)} WPM`;
+    `Level ${curriculum.tier} (${tierWpm(curriculum.tier)} WPM) · target pace ${Math.round(curriculum.paceWpm)} WPM`;
   drillCueEl.hidden = !curriculum.recovery;
+  renderPath();
+}
+
+// --- Learning path ---
+//
+// Read-only view of the curriculum: which stage of unlocks you are in, what
+// the next unlock waits on, and where this drill sits in the round of drills.
+
+const STAGE_NAMES: Record<StageId, string> = {
+  letters: 'Letters', capitals: 'Capitals', punctuation: 'Punctuation', digits: 'Numbers',
+};
+const PLAN_NAMES = { warmup: 'Warm-up', core: 'Drill', focus: 'Focus burst', sentence: 'Sentences' } as const;
+/** Whether this session opened with a warm-up, so the round shows it. */
+let warmedUp = false;
+
+function li(text: string, cls: string, title = ''): HTMLLIElement {
+  return Object.assign(document.createElement('li'), { textContent: text, className: cls, title });
+}
+
+function renderPath(): void {
+  if (!curriculum || !drill) return;
+  const path = learningPath(curriculum, corpus(), model);
+
+  $('path-stages').replaceChildren(...path.stages.map((s) => {
+    const count = s.total > 1 ? ` ${s.done}/${s.total}` : '';
+    const title = { done: 'Done', current: 'You are here', locked: 'Comes later' }[s.state];
+    return li(STAGE_NAMES[s.id] + count, s.state, title);
+  }));
+
+  const next = $('path-next');
+  if (path.next === null) {
+    next.textContent = `Everything is unlocked. Level ${curriculum.tier + 1} comes once your drills average ${tierWpm(curriculum.tier)} WPM at 96% accuracy.`;
+  } else {
+    const what = path.next === CAPITALS ? 'Capitals unlock' : `Next up: ${keyCap(path.next)}. It unlocks`;
+    const bar = `under ${Math.round(DEFAULT_DRILL_PARAMS.unlockMaxErrorRate * 100)}% errors and ${Math.round(tierTargetMs(curriculum.tier))} ms per key or faster`;
+    next.textContent = `${what} once every key you have is ${bar}. Ready: ${path.ready} of ${path.unlocked}.`;
+    if (path.blocking.length > 0) {
+      const shown = path.blocking.slice(0, 6).map(keyCap).join(' ');
+      next.append(Object.assign(document.createElement('span'), {
+        className: 'muted',
+        textContent: ` Still practising: ${shown}${path.blocking.length > 6 ? ' …' : ''}`,
+      }));
+    }
+  }
+
+  // Once a drill is done, show the one Enter starts next.
+  const kind = session.done ? nextKind(curriculum, drill.kind, { sentences: path.sentencesOpen }) : drill.kind;
+  const plan = sessionPlan(curriculum, kind, { warmedUp, sentencesOpen: path.sentencesOpen });
+  let core = 0;
+  $('session-plan').replaceChildren(...plan.map((step) => {
+    const name = step.kind === 'core' ? `${PLAN_NAMES.core} ${++core}` : PLAN_NAMES[step.kind];
+    const title = step.state === 'locked'
+      ? `Sentence drills open at ${path.sentenceLetters} letters (you have ${path.letters})`
+      : { done: 'Done', current: 'This drill', upcoming: 'Coming up' }[step.state as 'done' | 'current' | 'upcoming'];
+    return li(name, step.state, title);
+  }));
+
+  const focus = curriculum.focusKey === null ? 'your newest key' : keyCap(curriculum.focusKey);
+  const sentencesLater = path.sentencesOpen ? '' : ` Sentence drills join the round at ${path.sentenceLetters} letters (you have ${path.letters}).`;
+  $('drill-about').textContent = (session.done ? 'Next: ' : '') + {
+    warmup: 'Warm-up: easy, common words with keys you have not practised for a while. It does not count toward unlocks or your level.',
+    core: `Main drill: built from your weakest keys and letter pairs. These count toward the next unlock and your level.${sentencesLater}`,
+    focus: `Focus burst: a short drill on ${focus} and the letter pairs around it.`,
+    sentence: 'Sentences: real text, so your practice carries over to everyday typing. It adjusts your pace, but not unlocks or level.',
+  }[kind];
 }
 
 /** Starts a drill of the given kind, or of the kind that comes next in the session. */
 async function startDrill(kind?: Drill['kind']): Promise<void> {
   const state = await currentCurriculum();
-  kind ??= nextKind(state, drill?.kind ?? null, {
-    newSession: isNewSession(lastDrillAt, Date.now()),
-    sentences: sentencesReady(state, corpus()),
-  });
+  const newSession = isNewSession(lastDrillAt, Date.now());
+  if (newSession) warmedUp = false;
+  kind ??= nextKind(state, drill?.kind ?? null, { newSession, sentences: sentencesReady(state, corpus()) });
+  if (kind === 'warmup') warmedUp = true;
   model = await buildModel(state);
   drill = nextDrill(model, state, corpus(), kind, Date.now() >>> 0);
   session = new TypingSession(drill.text, context);
@@ -280,6 +345,7 @@ async function finishDrill(): Promise<void> {
     const { state, changes } = afterDrill(after, curriculum, corpus(), drill, result);
     curriculum = state;
     saveCurriculum(state);
+    model = after;
 
     const lines: HTMLElement[] = changes.map((c) => Object.assign(document.createElement('p'), { textContent: describeChange(c) }));
     if (before) {
