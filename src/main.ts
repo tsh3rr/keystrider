@@ -1,3 +1,4 @@
+import '@fontsource-variable/jetbrains-mono';
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage } from './corpus';
