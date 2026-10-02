@@ -1,6 +1,7 @@
 import type { Corpus } from './corpus';
 import { getLayout, howToType } from './layouts';
 import { trigramModel } from './pseudowords';
+import { eligibleSentences } from './sentences';
 import { corpusFilter } from './wordfilter';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import {
@@ -89,6 +90,15 @@ export interface DrillParams {
   focusNumberRate: number;
   /** Chance per word of an extra capital when capitals are the focus or a capital is a target. */
   focusCapitalRate: number;
+  /** Warm-up: seconds of text, the stronger pull toward common words, and real words needed before pseudo-words are dropped. */
+  warmupSeconds: number;
+  warmupFrequencyPull: number;
+  warmupMinReal: number;
+  /** A pause this long between drills starts a new session, which opens with a warm-up. */
+  sessionGapMinutes: number;
+  /** Sentence drills need this many unlocked letters and this many sentences typeable with them. */
+  sentenceMinLetters: number;
+  sentenceMinCount: number;
 }
 
 export const DEFAULT_DRILL_PARAMS: Readonly<DrillParams> = Object.freeze({
@@ -131,6 +141,12 @@ export const DEFAULT_DRILL_PARAMS: Readonly<DrillParams> = Object.freeze({
   numberRate: 0.05,
   focusNumberRate: 0.25,
   focusCapitalRate: 0.3,
+  warmupSeconds: 45,
+  warmupFrequencyPull: 0.6,
+  warmupMinReal: 30,
+  sessionGapMinutes: 30,
+  sentenceMinLetters: 20,
+  sentenceMinCount: 10,
 });
 
 /** Speed tiers in WPM. Tier n (1-based) sets the per-key latency target T = 12,000 / WPM ms. */
@@ -171,7 +187,13 @@ export interface CurriculumState {
   recentWords: string[][];
 }
 
-export type DrillKind = 'core' | 'focus';
+/**
+ * - warmup: opens a session; items due for review, in easy common words. Moves nothing.
+ * - core: the adaptive drill; the only kind that unlocks keys and changes tier.
+ * - focus: a short burst on the focus key, after every few core drills.
+ * - sentence: real sentences, after a focus burst once enough letters are unlocked.
+ */
+export type DrillKind = 'warmup' | 'core' | 'focus' | 'sentence';
 
 export interface Drill {
   text: string;
@@ -460,8 +482,15 @@ export function nextDrill(
   seed: number,
   p: DrillParams = DEFAULT_DRILL_PARAMS,
 ): Drill {
+  if (kind === 'sentence') {
+    const drill = sentenceDrill(model, state, corpus, seed, p);
+    if (drill) return drill;
+    kind = 'core';
+  }
   const rand = seededRandom(seed);
-  const items = adjustedItems(model, state, p);
+  // A warm-up ranks by review; with nothing due yet it falls back to the usual ranking.
+  const review = kind === 'warmup' ? reviewItems(model, state) : [];
+  const items = review.some((it) => it.priority > 0 && it.item !== ' ') ? review : adjustedItems(model, state, p);
   const priority = new Map(items.map((it) => [it.item, it.priority]));
   const prio = (item: string) => priority.get(item) ?? 0;
   const allowed = letterSet(state);
@@ -471,8 +500,10 @@ export function nextDrill(
   const wordTargets = targets.filter((t) => [...t].every((c) => c === ' ' || allowed.has(c)));
 
   // Candidates: real words from the corpus, plus pseudo-words leaning into weak transitions.
+  // A warm-up keeps to real words as soon as there are enough of them.
   const real = eligibleWords(corpus, allowed);
-  const share = pseudoShare(real.length, corpus.words.length, p);
+  const share = kind === 'warmup' && real.length >= p.warmupMinReal ? 0 : pseudoShare(real.length, corpus.words.length, p);
+  const pull = kind === 'warmup' ? p.warmupFrequencyPull : p.frequencyPull;
   const rank = new Map(real.map((w) => [w, corpus.words.indexOf(w)]));
   const tri = trigramModel(corpus);
   const pseudo = new Set<string>();
@@ -482,19 +513,11 @@ export function nextDrill(
       if (w !== null && tri.acceptable(w)) pseudo.add(w);
     }
   }
-  const valueOf = (w: string) => {
-    const chars = [' ', ...w, ' '];
-    let sum = prio(' ');
-    for (let i = 1; i < chars.length; i++) {
-      if (i < chars.length - 1) sum += prio(chars[i]);
-      sum += prio(chars[i - 1] + chars[i]);
-    }
-    return sum / Math.pow(chars.length - 2, p.lengthExponent);
-  };
+  const valueOf = (w: string) => textValue(w, prio) / Math.pow([...w].length, p.lengthExponent);
   const rareLog = -Math.log(corpus.words.length + 1);
   const candidates: Candidate[] = [
-    ...real.map((word) => ({ word, pseudo: false, base: valueOf(word) - p.frequencyPull * Math.log((rank.get(word) ?? 0) + 1) })),
-    ...[...pseudo].map((word) => ({ word, pseudo: true, base: valueOf(word) + p.frequencyPull * rareLog })),
+    ...real.map((word) => ({ word, pseudo: false, base: valueOf(word) - pull * Math.log((rank.get(word) ?? 0) + 1) })),
+    ...[...pseudo].map((word) => ({ word, pseudo: true, base: valueOf(word) + pull * rareLog })),
   ];
   if (candidates.length === 0) throw new Error('No words can be made from the unlocked letters');
 
@@ -517,7 +540,7 @@ export function nextDrill(
 
   // Fill to about `coreSeconds` of typing at the learner's pace (or a fixed count for a focus burst).
   const picked: Candidate[] = [];
-  const budget = (state.paceWpm * 5 * p.coreSeconds) / 60;
+  const budget = (state.paceWpm * 5 * (kind === 'warmup' ? p.warmupSeconds : p.coreSeconds)) / 60;
   let length = 0;
   while (kind === 'focus' ? picked.length < p.focusWords : length < budget || picked.length < 5) {
     const c = drawAny();
@@ -641,6 +664,85 @@ export function decorate(words: readonly string[], ctx: DecorateContext, p: Dril
   return out;
 }
 
+/** Priority a text carries: its keys and bigrams, counting the spaces around it. */
+function textValue(text: string, prio: (item: string) => number): number {
+  const chars = [' ', ...text, ' '];
+  let sum = prio(' ');
+  for (let i = 1; i < chars.length; i++) {
+    if (i < chars.length - 1) sum += prio(chars[i]);
+    sum += prio(chars[i - 1] + chars[i]);
+  }
+  return sum;
+}
+
+/**
+ * Items for a warm-up, ranked by how overdue their review is rather than by
+ * overall need, so the warm-up revisits what is fading, not what is hardest.
+ * Locked items stay at 0; there is no focus boost.
+ */
+export function reviewItems(model: WeaknessModel, state: Pick<CurriculumState, 'unlocked'>): WeaknessItem[] {
+  const open = openChars(state).add(' ');
+  return model.ranked
+    .map((it) => ({
+      ...it,
+      priority: [...it.item].every((c) => open.has(c)) ? it.components.review * (0.5 + 0.5 * it.frequency) : 0,
+    }))
+    .sort((a, b) => b.priority - a.priority || (a.item < b.item ? -1 : 1));
+}
+
+/**
+ * Corpus sentences typeable with the unlocked characters, in practice form:
+ * with their capitals and punctuation once those are unlocked, simplified before.
+ */
+export function sentencePool(state: Pick<CurriculumState, 'unlocked'>, corpus: Corpus): string[] {
+  return eligibleSentences(corpus, openChars(state), corpusFilter(corpus));
+}
+
+/** Whether sentence drills are open: enough letters unlocked and enough sentences to draw from. */
+export function sentencesReady(state: Pick<CurriculumState, 'unlocked'>, corpus: Corpus, p: DrillParams = DEFAULT_DRILL_PARAMS): boolean {
+  return letterSet(state).size >= p.sentenceMinLetters && sentencePool(state, corpus).length >= p.sentenceMinCount;
+}
+
+/** A sentence's words as plain lowercase letters, like a drill's `baseWords`. */
+function sentenceBase(sentence: string): string[] {
+  return sentence.toLowerCase().split(' ').map((w) => w.replace(/[^\p{L}\p{M}]/gu, '')).filter((w) => w.length > 0);
+}
+
+/**
+ * A drill of whole sentences, about `coreSeconds` long, drawn by the same
+ * priority as core drills (per keystroke, so long sentences don't win on
+ * length) and avoiding sentences from recent drills. Null when too few
+ * sentences can be typed with the unlocked keys.
+ */
+function sentenceDrill(model: WeaknessModel, state: CurriculumState, corpus: Corpus, seed: number, p: DrillParams): Drill | null {
+  if (letterSet(state).size < p.sentenceMinLetters) return null;
+  const pool = sentencePool(state, corpus);
+  if (pool.length < p.sentenceMinCount) return null;
+  const rand = seededRandom(seed);
+  const items = adjustedItems(model, state, p);
+  const priority = new Map(items.map((it) => [it.item, it.priority]));
+  const prio = (item: string) => priority.get(item) ?? 0;
+  const targets = chooseTargets(items, state, 'core', rand, p);
+
+  const recent = state.recentWords.map((words) => ' ' + words.join(' ') + ' ');
+  const score = (s: string) => {
+    const base = ' ' + sentenceBase(s).join(' ') + ' ';
+    return textValue(s, prio) / [...s].length - p.recentPenalty * recent.filter((t) => t.includes(base)).length;
+  };
+  const budget = (state.paceWpm * 5 * p.coreSeconds) / 60;
+  const rest = [...pool];
+  const picked: string[] = [];
+  let length = 0;
+  while (rest.length > 0 && (picked.length === 0 || length < budget)) {
+    const s = softmaxPick(rest, score, p.temperature, rand);
+    rest.splice(rest.indexOf(s), 1);
+    picked.push(s);
+    length += [...s].length + 1;
+  }
+  const text = picked.join(' ');
+  return { text, words: text.split(' '), baseWords: picked.flatMap(sentenceBase), targets, kind: 'sentence', paceWpm: state.paceWpm, seed };
+}
+
 function release(used: Map<string, number>, word: string): void {
   used.set(word, (used.get(word) ?? 1) - 1);
 }
@@ -663,6 +765,8 @@ function chooseTargets(
 ): string[] {
   // The space key is in every word gap, so as a target it says nothing; its bigrams still count.
   const pool = items.filter((it) => it.priority > 0 && it.item !== ' ');
+  // A warm-up takes the most overdue items as they come; no focus key, no sampling.
+  if (kind === 'warmup') return pool.slice(0, p.targets).map((it) => it.item);
   // The focus step's weakest keys (one for a letter, up to two for capitals or brackets).
   const fc = focusChars(state);
   const focusKeys = state.focusKey === null ? [] : [
@@ -755,6 +859,8 @@ export function afterDrill(
   const s: CurriculumState = structuredClone(state);
   const changes: CurriculumChange[] = [];
   s.recentWords = [...s.recentWords, drill.baseWords ?? drill.words].slice(-p.recentDrills);
+  // A warm-up is typed cold, so it moves neither pace nor recovery.
+  if (drill.kind === 'warmup') return { state: s, changes };
 
   // Pace: up 5% after a clean drill, down after a sloppy one.
   if (result.accuracy >= p.paceUpAccuracy) s.paceWpm *= 1 + p.paceStep;
@@ -822,9 +928,33 @@ export function afterDrill(
   return { state: s, changes };
 }
 
-/** What kind of drill comes next: a focus burst after every `focusEvery` core drills. */
-export function nextKind(state: CurriculumState, last: DrillKind | null, p: DrillParams = DEFAULT_DRILL_PARAMS): DrillKind {
+export interface KindOptions {
+  /** This drill opens a practice session (see `isNewSession`). */
+  newSession?: boolean;
+  /** Sentence drills are open (see `sentencesReady`). */
+  sentences?: boolean;
+}
+
+/**
+ * What kind of drill comes next: a warm-up to open a session (once there is
+ * history to review), a focus burst after every `focusEvery` core drills, and
+ * a sentence drill after each focus burst once sentences are open. That makes
+ * about one full-length drill in four a sentence drill, as the design asks.
+ */
+export function nextKind(
+  state: CurriculumState,
+  last: DrillKind | null,
+  opts: KindOptions = {},
+  p: DrillParams = DEFAULT_DRILL_PARAMS,
+): DrillKind {
+  if (opts.newSession && state.coreDrills > 0) return 'warmup';
+  if (last === 'focus' && opts.sentences) return 'sentence';
   return last === 'core' && state.coreDrills > 0 && state.coreDrills % p.focusEvery === 0 ? 'focus' : 'core';
+}
+
+/** Whether a drill starting at `now` opens a new session: the first drill, or the first after a long pause. */
+export function isNewSession(lastDrillAt: number | null, now: number, p: DrillParams = DEFAULT_DRILL_PARAMS): boolean {
+  return lastDrillAt === null || now - lastDrillAt >= p.sessionGapMinutes * 60_000;
 }
 
 export interface ItemChange {

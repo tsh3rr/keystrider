@@ -1,4 +1,5 @@
 import type { Corpus } from '../corpus';
+import enSentences from './en-sentences';
 
 // Common English words. Placeholder until frequency-ranked corpora exist.
 export const en: Corpus = {
@@ -19,4 +20,5 @@ export const en: Corpus = {
   ).split(' '),
   // Frequency order adjusted so the first six sit on or near the home row (drill generator design).
   unlockOrder: [...'eniarltosudycghpmkbwfvzxqj'],
+  sentences: enSentences,
 };

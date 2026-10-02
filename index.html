@@ -22,12 +22,17 @@
           <label>Keyboard layout <select id="layout-select"></select></label>
           <span id="layout-status"></span>
           <label class="fg-toggle"><input type="checkbox" id="finger-guide-toggle" checked /> Finger guide</label>
+          <label class="setting-toggle" title="Show every key and which ones are unlocked"><input type="checkbox" id="keys-toggle" /> Show keys</label>
           <label class="setting-toggle" title="Leave out offensive words, real or made up"><input type="checkbox" id="word-filter-toggle" checked /> Hide offensive words</label>
         </div>
         <div id="layout-suggest" class="layout-suggest" hidden>
           <span id="layout-suggest-text"></span>
           <button id="layout-suggest-yes">Switch</button>
           <button id="layout-suggest-no">Keep mine</button>
+        </div>
+        <div class="path" aria-label="Where you are">
+          <div class="path-row"><span class="path-label">Your path</span><ol id="path-stages" class="path-stages"></ol></div>
+          <div class="path-row"><span class="path-label">This round</span><ol id="session-plan" class="session-plan" aria-label="Drills in this round"></ol></div>
         </div>
         <div class="drill-bar">
           <div id="drill-keys" class="drill-keys" aria-label="Keys unlocked so far"></div>

@@ -70,6 +70,25 @@ Practice text comes from a per-language `Corpus` (`src/corpus.ts`). Only English
 
 Inspect it on the **Keystroke log** tab (export JSON or CSV, or clear), in DevTools under Application → IndexedDB, or from the console with `await typingLog.all()`.
 
+## Warm-ups and sentence drills
+
+A practice session is the drills you type without a break of 30 minutes or more. Once you have typed a few core drills, each session opens with a short **warm-up**: items due for review (by the weakness model's review half-life) in easy, common words. It is typed cold, so it changes neither pace, level nor unlocks.
+
+Once 20 letters are unlocked, every focus burst is followed by a **sentence drill**: real sentences picked by the same weakness score as other drills. Until capitals and punctuation are unlocked, sentences are typed lowercase without punctuation; sentences that need a locked letter, a digit, or an apostrophe or hyphen inside a word wait until those keys are unlocked. Sentence drills move pace but not unlocks or level. Code: `src/sentences.ts` and `nextKind` / `nextDrill` in `src/drill.ts`.
+
+### Sentence lists
+
+A corpus lists its sentences in `src/corpora/<lang>-sentences.ts`. English ships with about 200 short sentences written for this project (same license as the code).
+
+`scripts/build-sentences.py` replaces that file with a larger set from [Tatoeba](https://tatoeba.org): short sentences whose words are all common (by wordfreq), without names, and checked against the offensive-word list when `naughty-words` is installed. **License:** Tatoeba sentences are [CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/), so a generated file is under that license, with the attribution in its header and each sentence's Tatoeba id next to it. To run it (Windows cmd or PowerShell, Python 3 installed):
+
+```sh
+py -m pip install "wordfreq==3.1.1"
+py scripts\build-sentences.py en 2000
+```
+
+On macOS/Linux use `python3` and `scripts/build-sentences.py`. Another language needs its alphabet in `LETTERS` and its Tatoeba code in `TATOEBA_CODES`.
+
 ## Offensive-word filter
 
 Drills never show offensive words, real or made up. `src/wordfilter.ts` blocks the terms from the [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (npm `naughty-words`, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) for the corpus' language, about 30 languages in all, plus any `blockedSubstrings` the corpus adds. Made-up words are rejected if they contain a term of three letters or more anywhere. Real words are dropped only if they are a term (plus endings like "-s" or "-ing" in English), so innocent words that merely contain one stay. A new language is covered automatically if the list has it. Users can turn the filter off with the **Hide offensive words** checkbox on the Practice tab (saved in localStorage, on by default).
