@@ -72,7 +72,7 @@ Inspect it on the **Keystroke log** tab (export JSON or CSV, or clear), in DevTo
 
 ## Offensive-word filter
 
-Drills never show offensive words, real or made up. `src/wordfilter.ts` blocks the terms from the [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (npm `naughty-words`, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) for the corpus' language, about 30 languages in all, plus any `blockedSubstrings` the corpus adds. Made-up words are rejected if they contain a term of three letters or more anywhere. Real words are dropped only if they are a term (plus endings like "-s" or "-ing" in English), so innocent words that merely contain one stay. A new language is covered automatically if the list has it.
+Drills never show offensive words, real or made up. `src/wordfilter.ts` blocks the terms from the [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (npm `naughty-words`, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) for the corpus' language, about 30 languages in all, plus any `blockedSubstrings` the corpus adds. Made-up words are rejected if they contain a term of three letters or more anywhere. Real words are dropped only if they are a term (plus endings like "-s" or "-ing" in English), so innocent words that merely contain one stay. A new language is covered automatically if the list has it. Users can turn the filter off with the **Hide offensive words** checkbox on the Practice tab (saved in localStorage, on by default).
 
 ## Deployment
 

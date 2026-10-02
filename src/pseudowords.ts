@@ -1,5 +1,5 @@
 import type { Corpus } from './corpus';
-import { blockList } from './wordfilter';
+import { blockList, wordFilterEnabled } from './wordfilter';
 
 /**
  * Character trigram model trained on a corpus' word list, used to make
@@ -117,15 +117,19 @@ function pick<T>(options: readonly (readonly [T, number])[], rand: () => number)
   return options[options.length - 1][0];
 }
 
-const cache = new WeakMap<Corpus, TrigramModel>();
+/** Models with and without the offensive-word filter, by corpus. */
+const cache = { on: new WeakMap<Corpus, TrigramModel>(), off: new WeakMap<Corpus, TrigramModel>() };
 
 /**
  * The trigram model for a corpus, trained once and reused. It rejects the
- * language's offensive terms (see wordfilter.ts); terms under three letters
- * can't be pseudo-words, which are at least three long.
+ * language's offensive terms (see wordfilter.ts) unless the user turned the
+ * filter off; terms under three letters can't be pseudo-words, which are at
+ * least three long.
  */
 export function trigramModel(corpus: Corpus): TrigramModel {
-  let m = cache.get(corpus);
-  if (!m) cache.set(corpus, (m = new TrigramModel(corpus.words, blockList(corpus.language, corpus.blockedSubstrings).substrings)));
+  const on = wordFilterEnabled();
+  const models = on ? cache.on : cache.off;
+  let m = models.get(corpus);
+  if (!m) models.set(corpus, (m = new TrigramModel(corpus.words, on ? blockList(corpus.language, corpus.blockedSubstrings).substrings : [])));
   return m;
 }

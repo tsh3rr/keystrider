@@ -3,7 +3,8 @@ import type { Corpus } from './corpus';
 import { en } from './corpora/en';
 import { eligibleWords, seededRandom } from './drill';
 import { trigramModel } from './pseudowords';
-import { blockList, corpusFilter, isBlocked, isBlockedWord } from './wordfilter';
+import { loadWordFilterSetting, saveWordFilterSetting } from './settings';
+import { blockList, corpusFilter, isBlocked, isBlockedWord, setWordFilterEnabled } from './wordfilter';
 
 // Assertions here count matches instead of comparing word lists, so a failure never prints a blocked term.
 
@@ -68,6 +69,20 @@ describe('the drill generator', () => {
     expect(corpusFilter(corpus)('lane')).toBe(true);
   });
 
+  it('lets blocked words through while the filter is off', () => {
+    setWordFilterEnabled(false);
+    try {
+      expect(eligibleWords(corpus, ALL_LETTERS).includes('lane')).toBe(true);
+      expect(corpusFilter(corpus)('lane')).toBe(false);
+      const unfiltered = trigramModel(corpus);
+      setWordFilterEnabled(true);
+      expect(trigramModel(corpus)).not.toBe(unfiltered);
+    } finally {
+      setWordFilterEnabled(true);
+    }
+    expect(eligibleWords(corpus, ALL_LETTERS).includes('lane')).toBe(false);
+  });
+
   it('never makes up a pseudo-word with a blocked term', () => {
     const tri = trigramModel(corpus);
     const rand = seededRandom(5);
@@ -96,5 +111,28 @@ describe('the drill generator', () => {
     }
     expect(made).toBeGreaterThan(1000);
     expect(blocked).toBe(0);
+  });
+});
+
+describe('word filter setting', () => {
+  function memoryStorage(): Storage {
+    const m = new Map<string, string>();
+    return {
+      get length() { return m.size; },
+      clear: () => m.clear(),
+      getItem: (k) => m.get(k) ?? null,
+      key: (i) => [...m.keys()][i] ?? null,
+      removeItem: (k) => void m.delete(k),
+      setItem: (k, v) => void m.set(k, v),
+    };
+  }
+
+  it('is on by default and remembers being turned off', () => {
+    const storage = memoryStorage();
+    expect(loadWordFilterSetting(storage)).toBe(true);
+    saveWordFilterSetting(false, storage);
+    expect(loadWordFilterSetting(storage)).toBe(false);
+    saveWordFilterSetting(true, storage);
+    expect(loadWordFilterSetting(storage)).toBe(true);
   });
 });

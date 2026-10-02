@@ -33,6 +33,17 @@ export interface BlockList {
 }
 
 const cache = new Map<string, BlockList>();
+let enabled = true;
+
+/** Turns the filter on or off for drills (a user setting, on by default). */
+export function setWordFilterEnabled(on: boolean): void {
+  enabled = on;
+}
+
+export function wordFilterEnabled(): boolean {
+  return enabled;
+}
+
 const corpusCache = new WeakMap<Corpus, (word: string) => boolean>();
 
 /** Lowercase letters only, so phrases and hyphenated entries match how they'd be typed as one word. */
@@ -76,7 +87,7 @@ export function isBlockedWord(word: string, list: BlockList): boolean {
   return list.terms.has(w) || list.inflections.some((e) => w.endsWith(e) && list.terms.has(w.slice(0, -e.length)));
 }
 
-/** A memoized `isBlockedWord` for a corpus' language plus its own `blockedSubstrings`. */
+/** A memoized `isBlockedWord` for a corpus' language plus its own `blockedSubstrings`; never blocks while the filter is off. */
 export function corpusFilter(corpus: Corpus): (word: string) => boolean {
   let f = corpusCache.get(corpus);
   if (!f) {
@@ -89,5 +100,6 @@ export function corpusFilter(corpus: Corpus): (word: string) => boolean {
     };
     corpusCache.set(corpus, f);
   }
-  return f;
+  const memo = f;
+  return (word) => enabled && memo(word);
 }
