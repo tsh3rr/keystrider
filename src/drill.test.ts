@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Corpus } from './corpus';
+import { de } from './corpora/de';
 import { en } from './corpora/en';
 import {
   CAPITALS, DEFAULT_DRILL_PARAMS, DEFAULT_PUNCTUATION, DIGIT_ORDER, afterDrill, decorate, drillFeedback, drillResult,
@@ -58,6 +59,37 @@ describe('unlockOrder', () => {
   it('falls back to letter frequency for a corpus without one', () => {
     const corpus: Corpus = { language: 'xx', name: 'Test', words: ['ab', 'ab', 'ac', 'a'] };
     expect(unlockOrder(corpus)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('German', () => {
+  const DE_CTX: PracticeContext = { language: 'de', layout: 'qwertz-de' };
+
+  it('unlocks umlauts and ß on German QWERTZ, and capitals include Ä Ö Ü', () => {
+    const steps = unlockSteps(de, 'qwertz-de');
+    for (const c of 'äöüß') expect(steps).toContain(c);
+    const letters = steps.filter((s) => /^\p{L}$/u.test(s));
+    const open = openChars({ unlocked: [...letters, CAPITALS] });
+    for (const c of 'ÄÖÜ') expect(open.has(c)).toBe(true);
+    expect(open.has('ß')).toBe(true);
+  });
+
+  it('leaves out letters a layout cannot type, so US QWERTY drills words without them', () => {
+    const steps = unlockSteps(de, 'qwerty-us');
+    for (const c of 'äöüß') expect(steps).not.toContain(c);
+    const letters = steps.filter((s) => /^\p{L}$/u.test(s));
+    const words = eligibleWords(de, new Set(letters));
+    expect(words.length).toBeGreaterThan(1000);
+    expect(words.every((w) => !/[äöüß]/.test(w))).toBe(true);
+  });
+
+  it('builds drills from the first six German letters', () => {
+    const state = initialCurriculum(de, DE_CTX);
+    expect(state.unlocked).toEqual([...'enirsa']);
+    const drill = nextDrill(fakeModel([]), state, de, 'core', 7);
+    const allowed = new Set([...state.unlocked, ' ']);
+    expect([...drill.text].every((c) => allowed.has(c))).toBe(true);
+    expect(drill.text.length).toBeGreaterThan(50);
   });
 });
 

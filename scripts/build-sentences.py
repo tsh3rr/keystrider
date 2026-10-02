@@ -40,7 +40,15 @@ TATOEBA_CODES = {
 # Letters a language's sentences may use (lowercase; capitals are allowed too).
 LETTERS = {
     "en": "abcdefghijklmnopqrstuvwxyz",
+    "de": "abcdefghijklmnopqrstuvwxyzäöüß",
 }
+
+# Languages that capitalise nouns, so a capital mid-sentence is not a name.
+# Their sentences are kept unless they use a name from NAMES.
+NOUN_CAPITALS = {"de"}
+
+# Names Tatoeba's sentences use over and over.
+NAMES = {"Tom", "Maria", "Mary", "John", "Ken", "Jim", "Bill", "Jack", "Mike", "Linda"}
 
 # Words that are capitalised mid-sentence without being names.
 ALWAYS_CAPITAL = {
@@ -92,7 +100,9 @@ def keep(text: str, lang: str, allowed: re.Pattern, blocked: set[str]) -> bool:
         return False
     # Names make poor practice text, and some sources repeat the same few endlessly.
     for i, w in enumerate(words):
-        if i > 0 and w[0].isupper() and w not in ALWAYS_CAPITAL.get(lang, set()):
+        if w in NAMES:
+            return False
+        if lang not in NOUN_CAPITALS and i > 0 and w[0].isupper() and w not in ALWAYS_CAPITAL.get(lang, set()):
             return False
     lowered = [w.lower() for w in words]
     if any(wordfreq.zipf_frequency(w, lang) < MIN_ZIPF for w in lowered):
