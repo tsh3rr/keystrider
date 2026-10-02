@@ -166,6 +166,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .menu-note { display: block; font-size: 0.8rem; color: var(--muted); padding: 6px 8px 2px; border-top: 1px solid var(--border); margin-top: 4px; }
 .settings-btn { border: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding: 6px 8px; }
 .settings-btn:hover, .settings-btn[aria-expanded="true"] { color: var(--fg); background: var(--surface-2); }
+@media (max-width: 420px) {
+  .menu-sep, .menu-layout { display: none; }
+}
 @media (max-width: 620px) {
   .topbar { padding: 10px 16px; }
   .tabs { order: 5; width: 100%; }
@@ -209,27 +212,43 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 
 /* --- Practice: one centred column --- */
-#practice-view { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#practice-view { position: relative; display: flex; flex-direction: column; align-items: center; gap: 22px; }
 #practice-view > * { width: 100%; max-width: var(--column); }
 #practice-view > .finger-guide, #practice-view > .coach { max-width: none; }
 
 .coach { position: relative; }
-.coach-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.chip {
-  font-size: 0.85rem; color: var(--muted); background: var(--panel); border: 1px solid var(--border);
-  border-radius: 999px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums;
+/* The status bar: one pill, split into segments that each open their own bubble. */
+.coach { display: flex; justify-content: center; }
+.coach-bar {
+  display: inline-flex; max-width: 100%; overflow-x: auto; white-space: nowrap;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-pill);
 }
+.chip {
+  font-size: 13px; color: var(--muted); background: transparent; border: 0; border-radius: 0;
+  padding: 7px 14px; display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; flex: none;
+  transition: background 0.12s ease-out;
+}
+.chip + .chip { border-left: 1px solid var(--border); }
+.chip:first-child { padding-left: 16px; }
+.chip:last-child { padding-right: 16px; }
 .chip > span { display: inline-flex; align-items: center; gap: 6px; }
 .chip:hover { color: var(--fg); }
-.chip.on { border-color: var(--accent); color: var(--fg); }
-.chip b { color: var(--fg); font-weight: 500; }
-.chip-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; }
-.meter { width: 44px; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
-.meter i { display: block; height: 100%; background: var(--accent); }
+.chip.on { background: var(--surface-2); color: var(--fg); }
+.chip b, .chip .seg-name { color: var(--fg); font-weight: 500; }
+.chip kbd {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; padding: 0 6px; border-radius: var(--r-xs);
+  background: var(--focus-soft); color: var(--focus); box-shadow: none;
+}
+.seg-num { font-family: var(--mono); font-size: 12px; }
+.seg-stair { width: 16px; height: 14px; flex: none; fill: var(--faint); }
+.seg-stair .on { fill: var(--focus); }
+#chip-now { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--fg); }
+#chip-now b { font-weight: 600; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .dots { display: inline-flex; gap: 3px; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
 .dots i.done { background: var(--accent); }
-.dots i.current { background: var(--panel); box-shadow: inset 0 0 0 2px var(--accent); }
+.dots i.current { background: var(--panel); box-shadow: inset 0 0 0 2px var(--focus); }
 .dots i.locked { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
 .keys { display: inline-flex; gap: 3px; }
 .keys kbd, .pop-focus kbd {
@@ -237,8 +256,8 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
   border-radius: 4px; padding: 0 6px;
 }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.dot.ok { background: var(--good); }
-.dot.due { background: var(--warn); }
+.dot.ok { background: var(--accent); }
+.dot.due { background: var(--focus); }
 .dot.off { background: var(--faint); }
 
 .coach-pop {
@@ -283,12 +302,25 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 .pop-fresh b { color: var(--fg); font-weight: 500; }
 
 /* The text: large, left-aligned inside the centred column so lines start on one edge. */
+.text-wrap { position: relative; }
 .text {
-  font-family: var(--mono); font-size: clamp(1.25rem, 3vw, 1.75rem); line-height: 1.75;
-  padding: 18px 4px; border-radius: 10px; cursor: text;
+  font-family: var(--mono); font-size: clamp(20px, 3vw, 28px); line-height: 1.8;
+  padding: 8px 4px; border-radius: 10px; cursor: text;
   white-space: pre-wrap; word-break: break-word; transition: opacity 0.15s;
 }
-.text:not(.focused) { opacity: 0.55; }
+.text:not(.focused) { opacity: 0.5; }
+.start-pill {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-pill); box-shadow: var(--shadow);
+  padding: 7px 14px; font-size: 14px; color: var(--fg);
+}
+.start-pill:hover { border-color: var(--faint); }
+.drill-focus { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+.focus-keys { display: inline-flex; gap: 4px; margin: 0 2px; }
+.drill-focus kbd {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; padding: 0 6px; border-radius: var(--r-xs);
+  background: var(--focus-soft); color: var(--focus); box-shadow: none;
+}
 /* Receives the actual typing (see main.ts); kept focusable but invisible. */
 .typing-input {
   position: absolute; top: 0; left: 0; width: 1px; height: 1px;
@@ -301,7 +333,14 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
   animation: blink 1.1s steps(1) infinite;
 }
 .text:not(.focused) .current::before { animation: none; opacity: 0.5; }
-.text .current.error { color: var(--error); background: var(--error-soft); border-radius: 3px; animation: shake 0.2s; }
+.text .focus { text-decoration: underline 2px var(--focus-soft); text-underline-offset: 6px; }
+/* Wrong key: colour, plus an underline so the state does not rely on colour alone. */
+.text .current.error {
+  color: var(--error); background: var(--error-soft); border-radius: 3px; animation: shake 0.2s;
+  text-decoration: underline 2px var(--error); text-underline-offset: 6px;
+}
+/* A wrong space shows as a dot. */
+.text .current.error.sp::after { content: "·"; position: absolute; left: 0; right: 0; text-align: center; }
 @keyframes blink { 50% { opacity: 0; } }
 @keyframes shake {
   25% { transform: translateX(-2px); }
@@ -310,10 +349,15 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 @media (prefers-reduced-motion: reduce) {
   .text .current::before, .text .current.error { animation: none; }
 }
-.type-hint { margin: -6px 0 0; text-align: center; color: var(--muted); font-size: 0.88rem; }
+.type-hint { margin: -14px 0 0; text-align: center; color: var(--muted); font-size: 13px; }
 .hint { color: var(--muted); font-size: 0.9rem; }
 .practice-foot { display: flex; justify-content: center; font-size: 0.88rem; }
 .practice-foot .link-btn { color: var(--muted); }
+.skip-btn { display: inline-flex; align-items: center; gap: 7px; }
+.skip-btn kbd {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: var(--r-xs);
+  border: 1px solid var(--border); background: var(--panel); color: var(--fg);
+}
 
 .layout-suggest {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
@@ -330,7 +374,7 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 .drill-keys .key.focus { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .drill-cue { margin: 0; padding: 8px 12px; border: 1px solid var(--error); border-radius: 10px; font-size: 0.9rem; text-align: center; }
 /* --- Drill results card: replaces the text and guide until Enter starts the next drill --- */
-.showing-result #text, .showing-result #type-hint, .showing-result .finger-guide, .showing-result .practice-foot { display: none; }
+.showing-result .text-wrap, .showing-result #drill-focus, .showing-result #type-hint, .showing-result .finger-guide, .showing-result .practice-foot { display: none; }
 .rc {
   background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
   padding: 20px 22px; display: grid; gap: 18px; animation: rc-pop 0.22s ease-out;
@@ -402,9 +446,23 @@ tr.wrong td { color: var(--error); }
 
 /* --- Finger guide --- */
 .finger-guide { margin: 4px 0 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.fg-caption { margin: 0 0 8px; font-size: 1rem; min-height: 1.5em; }
+.fg-caption { margin: 0 0 10px; font-size: 15px; min-height: 1.5em; }
+.fg-cap-key {
+  font-family: var(--mono); font-weight: 700; font-size: 14px; padding: 1px 7px; border-radius: var(--r-sm);
+  background: var(--accent); color: var(--accent-ink); box-shadow: none;
+}
+.fg-reach { color: var(--muted); }
+.fg-cap-key { margin-right: 2px; }
 .fg-home { margin: 8px 0 0; font-size: 0.85rem; color: var(--muted); }
-.fg-kb .kb-key { color: var(--fg); border-color: var(--border); }
+.finger-guide .fg-kb { font-size: clamp(11px, 1.6vw, 14px); gap: 5px; }
+.fg-kb .kb-row { gap: 5px; }
+.fg-kb .kb-key { width: 2.6em; height: 2.6em; border-radius: var(--r-sm); font-size: 1em; color: var(--fg); border-color: var(--border); }
+@media (max-width: 560px) {
+  .fg-kb, .fg-kb .kb-row { gap: 3px; }
+  .finger-guide .fg-kb { font-size: 2.1vw; }
+}
+.coach-bar { scrollbar-width: none; }
+.fg-kb .kb-key.fg-locked { background: transparent; border-style: dashed; color: var(--faint); box-shadow: none; font-weight: 400; text-decoration: none; }
 .fg-kb .kb-key:hover { outline: none; }
 .fg-left-pinky, .fg-right-pinky { background: var(--fg-pinky); }
 .fg-left-ring, .fg-right-ring { background: var(--fg-ring); }
@@ -433,20 +491,22 @@ tr.wrong td { color: var(--error); }
   .fg-mover { transition: none; }
 }
 /* Dimmed while the learner types a known key from memory. */
-.finger-guide.fg-faded .fg-kb, .finger-guide.fg-faded .fg-hands { opacity: 0.35; }
+.finger-guide.fg-faded .fg-kb, .finger-guide.fg-faded .fg-hands { opacity: 0.4; }
 .finger-guide.fg-faded .fg-caption { color: var(--muted); }
-.fg-kb .fg-shift { width: 3.6em; font-family: inherit; }
+.fg-kb .kb-key.fg-shift { width: 3.9em; font-family: inherit; }
 /* Rows shift right to make room for the left Shift key. */
-.fg-kb .kb-row-0 { padding-left: 2.4em; }
-.fg-kb .kb-row-1 { padding-left: 3.9em; }
-.fg-kb .kb-row-2 { padding-left: 4.15em; }
+.fg-kb .kb-row-0 { padding-left: 2.6em; }
+.fg-kb .kb-row-1 { padding-left: 4.2em; }
+.fg-kb .kb-row-2 { padding-left: 4.5em; }
 .fg-kb .kb-row-3 { padding-left: 0; }
-.fg-kb .kb-row-space { padding-left: 11.4em; }
+.fg-kb .kb-row-space { padding-left: 0; justify-content: center; }
+.fg-kb .kb-key.kb-space { width: 16em; background: var(--fg-thumb); font-family: var(--sans); font-size: 0.85em; }
 .fg-home-key { font-weight: 600; }
+.fg-kb .kb-key.fg-bump { font-weight: 700; }
 /* The tactile bumps on F and J. */
 .fg-bump { text-decoration: underline; text-underline-offset: 4px; }
 .fg-kb .kb-key.fg-from { outline: 2px dashed var(--accent); outline-offset: -3px; }
-.fg-kb .kb-key.fg-next { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.fg-kb .kb-key.fg-next { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); border-style: solid; box-shadow: none; font-weight: 700; }
 
 /* --- Progress: the same calm cards as the practice screen --- */
 #progress-view { display: grid; gap: 16px; }

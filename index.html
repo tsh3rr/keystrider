@@ -75,18 +75,22 @@
         </div>
         <div class="coach">
           <div class="coach-bar" aria-label="Where you are" data-i18n-aria-label="practice.coachAria">
-            <button class="chip" data-pop="path" aria-expanded="false" aria-controls="coach-pop" title="Your path" data-i18n-title="coach.pathTitle"><span class="chip-label" data-i18n="coach.path">Path</span><span id="chip-path"></span></button>
-            <button class="chip" data-pop="round" aria-expanded="false" aria-controls="coach-pop" title="This round" data-i18n-title="coach.roundTitle"><span class="chip-label" data-i18n="coach.round">Round</span><span id="chip-round"></span></button>
-            <button class="chip" data-pop="now" aria-expanded="false" aria-controls="coach-pop" title="Speed and accuracy" data-i18n-title="coach.nowTitle"><span class="chip-label" data-i18n="coach.now">Now</span><span id="chip-now"></span></button>
+            <button class="chip" data-pop="path" aria-expanded="false" aria-controls="coach-pop" title="Your path" data-i18n-title="coach.pathTitle"><span class="chip-label sr-only" data-i18n="coach.path">Path</span><span id="chip-path"></span></button>
+            <button class="chip" data-pop="round" aria-expanded="false" aria-controls="coach-pop" title="This round" data-i18n-title="coach.roundTitle"><span class="chip-label sr-only" data-i18n="coach.round">Round</span><span id="chip-round"></span></button>
+            <button class="chip" data-pop="now" aria-expanded="false" aria-controls="coach-pop" title="Speed and accuracy" data-i18n-title="coach.nowTitle"><span class="chip-label sr-only" data-i18n="coach.now">Now</span><span id="chip-now"></span></button>
             <button class="chip" data-pop="fresh" aria-expanded="false" aria-controls="coach-pop" title="Break check" data-i18n-title="coach.freshTitle"><span id="chip-fresh"></span></button>
           </div>
           <div id="coach-pop" class="coach-pop" role="dialog" aria-label="Details" data-i18n-aria-label="coach.popAria" hidden></div>
         </div>
+        <p id="drill-focus" class="drill-focus" hidden></p>
         <div id="drill-keys" class="drill-keys" aria-label="Keys unlocked so far" data-i18n-aria-label="practice.keysAria"></div>
         <p id="drill-cue" class="drill-cue" data-i18n="practice.cue" hidden>Accuracy first: slow down and type cleanly. Speed is hidden until you are back on track.</p>
-        <div id="text" class="text" aria-hidden="true"></div>
+        <div class="text-wrap">
+          <div id="text" class="text" aria-hidden="true"></div>
+          <button id="start-pill" class="start-pill" type="button" data-i18n="practice.start">Click here or press any key to start</button>
+        </div>
         <textarea id="input" class="typing-input" aria-label="Type the text shown above" data-i18n-aria-label="practice.inputAria" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-        <p id="type-hint" class="type-hint" data-i18n="practice.hint">Click the text and start typing. A wrong key holds you on the same letter.</p>
+        <p id="type-hint" class="type-hint" data-i18n="practice.hint">A wrong key holds you on the same letter.</p>
         <div id="result" class="result" role="status" hidden></div>
         <div id="break-card" class="break-card" role="status" hidden>
           <p id="break-text"></p>
@@ -98,7 +102,7 @@
           </div>
         </div>
         <div id="finger-guide" class="finger-guide"></div>
-        <div class="practice-foot"><button id="new-text" class="link-btn" data-i18n="practice.skip">Skip drill</button></div>
+        <div class="practice-foot"><button id="new-text" class="link-btn skip-btn"><kbd>Esc</kbd><span data-i18n="practice.skip">Skip drill</span></button></div>
       </section>
 
       <section id="progress-view" hidden>
