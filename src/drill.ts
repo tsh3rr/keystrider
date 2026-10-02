@@ -2,6 +2,7 @@ import type { Corpus } from './corpus';
 import { getLayout, howToType } from './layouts';
 import { trigramModel } from './pseudowords';
 import { eligibleSentences } from './sentences';
+import { corpusFilter } from './wordfilter';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import {
   corpusFrequencies, firstAttempts, pickFocusItems,
@@ -390,13 +391,14 @@ export function modelOptions(state: CurriculumState, corpus: Corpus): Pick<Weakn
   return { includeKeys: [' ', ...openChars(state)], includeBigrams: bigrams };
 }
 
-/** Corpus words, lowercased, that use only the given letters. */
+/** Corpus words, lowercased, that use only the given letters and aren't offensive. */
 export function eligibleWords(corpus: Corpus, allowed: ReadonlySet<string>): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
+  const blocked = corpusFilter(corpus);
   for (const raw of corpus.words) {
     const w = raw.normalize('NFC').toLowerCase();
-    if (!seen.has(w) && [...w].every((c) => allowed.has(c))) out.push(w);
+    if (!seen.has(w) && [...w].every((c) => allowed.has(c)) && !blocked(w)) out.push(w);
     seen.add(w);
   }
   return out;
@@ -571,7 +573,8 @@ export function nextDrill(
   }
 
   const baseWords = spaceOut(picked.map((c) => c.word), wordTargets, p.spacing, rand);
-  const words = decorate(baseWords, { open: openChars(state), focus: focusChars(state), targets, prio, rand }, p);
+  const blocked = corpusFilter(corpus);
+  const words = decorate(baseWords, { open: openChars(state), focus: focusChars(state), targets, prio, rand, blocked }, p);
   return { text: words.join(' '), words, baseWords, targets, kind, paceWpm: state.paceWpm, seed };
 }
 
@@ -585,6 +588,8 @@ export interface DecorateContext {
   /** Priority of a key or bigram; weak marks and digits are picked more. */
   prio: (item: string) => number;
   rand: () => number;
+  /** The offensive-word filter: two words are only hyphenated when the pair isn't blocked. */
+  blocked?: (word: string) => boolean;
 }
 
 /**
@@ -647,7 +652,8 @@ export function decorate(words: readonly string[], ctx: DecorateContext, p: Dril
       const wrap = WRAPS.get(m);
       if (wrap) token = wrap[0] + token + wrap[1];
       else if (m === '-') {
-        if (!last) {
+        const next = words[i + 1];
+        if (!last && !ctx.blocked?.(token.toLowerCase() + next) && !ctx.blocked?.(token.toLowerCase() + '-' + next)) {
           token += '-' + words[++i];
           left--;
         }
@@ -684,18 +690,12 @@ export function reviewItems(model: WeaknessModel, state: Pick<CurriculumState, '
     .sort((a, b) => b.priority - a.priority || (a.item < b.item ? -1 : 1));
 }
 
-/** Whether a sentence word is blocked by the corpus. */
-function blockedWord(corpus: Corpus): (word: string) => boolean {
-  const blocked = (corpus.blockedSubstrings ?? []).map((b) => b.normalize('NFC').toLowerCase());
-  return (w) => blocked.some((b) => w.includes(b));
-}
-
 /**
  * Corpus sentences typeable with the unlocked characters, in practice form:
  * with their capitals and punctuation once those are unlocked, simplified before.
  */
 export function sentencePool(state: Pick<CurriculumState, 'unlocked'>, corpus: Corpus): string[] {
-  return eligibleSentences(corpus, openChars(state), blockedWord(corpus));
+  return eligibleSentences(corpus, openChars(state), corpusFilter(corpus));
 }
 
 /** Whether sentence drills are open: enough letters unlocked and enough sentences to draw from. */

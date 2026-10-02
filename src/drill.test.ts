@@ -365,6 +365,16 @@ describe('sentence drills', () => {
     for (const c of d.text) expect(c === ' ' || openChars(s).has(c)).toBe(true);
   });
 
+  it('drop sentences with a word the offensive-word filter blocks', () => {
+    const s = at(26);
+    const all = sentencePool(s, en).length;
+    // A neutral stand-in term, added the way a corpus adds its own.
+    const filtered: Corpus = { ...en, blockedSubstrings: ['the'] };
+    const kept = sentencePool(s, filtered);
+    expect(kept.length).toBeLessThan(all);
+    expect(kept.every((x) => !x.split(' ').includes('the'))).toBe(true);
+  });
+
   it('fall back to a core drill when too few sentences fit', () => {
     const s = at(DEFAULT_DRILL_PARAMS.sentenceMinLetters - 1);
     const m = buildWeaknessModel([], CTX, { now: NOW, ...modelOptions(s, en) });
@@ -499,6 +509,15 @@ describe('capitals, punctuation and digits', () => {
   it('leaves words alone while only letters are unlocked', () => {
     const words = ['alpha', 'beta', 'gamma'];
     const out = decorate(words, { open: new Set('abglmpht'), focus: new Set(), targets: [], prio: () => 0, rand: seededRandom(1) });
+    expect(out).toEqual(words);
+  });
+
+  it('only hyphenates pairs the word filter allows', () => {
+    const words = ['alpha', 'beta', 'gamma', 'delta', 'omega', 'theta'];
+    const p = { ...DEFAULT_DRILL_PARAMS, focusMarkRate: 1 };
+    const ctx = { open: new Set([...'abdeghlmopt', '-']), focus: new Set(['-']), targets: [], prio: () => 0 };
+    expect(decorate(words, { ...ctx, rand: seededRandom(1) }, p).join(' ')).toContain('-');
+    const out = decorate(words, { ...ctx, rand: seededRandom(1), blocked: (w) => w.length > 6 }, p);
     expect(out).toEqual(words);
   });
 
