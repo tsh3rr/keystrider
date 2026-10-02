@@ -1,5 +1,6 @@
 import type { KeystrokeEvent } from './types';
 
+// Keeps the pre-Keystrider name: renaming it would hide every user's saved history.
 const DB_NAME = 'typing-trainer';
 const DB_VERSION = 2;
 const STORE = 'keystrokes';
