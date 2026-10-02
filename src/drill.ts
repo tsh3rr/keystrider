@@ -262,12 +262,14 @@ export function unlockOrder(corpus: Corpus): string[] {
 /**
  * Every unlock step for the language on the layout: the letters, then
  * capitals, then the corpus' punctuation, then digits. Steps whose
- * characters the layout cannot type (without AltGr) are left out.
+ * characters the layout cannot type (without AltGr) are left out, letters
+ * included: German on US QWERTY drills words without ä, ö, ü and ß.
  */
 export function unlockSteps(corpus: Corpus, layoutId: string): string[] {
-  const letters = unlockOrder(corpus);
   const known = getLayout(layoutId) !== undefined;
-  const typeable = (step: string) => !known || stepChars(step, letters).every((c) => howToType(layoutId, c) !== null);
+  const canType = (c: string) => !known || howToType(layoutId, c) !== null;
+  const letters = unlockOrder(corpus).filter(canType);
+  const typeable = (step: string) => stepChars(step, letters).every(canType);
   const capitals = letters.some((c) => capitalOf(c) !== null) ? [CAPITALS] : [];
   const extra = [...capitals, ...(corpus.punctuation ?? DEFAULT_PUNCTUATION), ...DIGIT_ORDER];
   return [...letters, ...extra.filter(typeable)];

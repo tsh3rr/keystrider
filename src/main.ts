@@ -1,7 +1,7 @@
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
-import { DEFAULT_LANGUAGE, getCorpus } from './corpus';
-import { clearCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
+import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage } from './corpus';
+import { clearCurriculum, hasAnyCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
   CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, meetsBar, modelOptions, needsShift,
   nextDrill, nextKind, sentencesReady, tierTargetMs, tierWpm, unlockSteps,
@@ -15,8 +15,9 @@ import { FingerGuide } from './fingerGuide';
 import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, type Range } from './progressView';
 import {
-  backfillDone, loadFingerGuideSetting, loadGuideFadeSetting, loadLayoutSetting, loadShowKeysSetting, loadWordFilterSetting,
-  markBackfillDone, saveFingerGuideSetting, saveGuideFadeSetting, saveLayoutSetting, saveShowKeysSetting, saveWordFilterSetting,
+  backfillDone, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting, loadShowKeysSetting,
+  loadWordFilterSetting, markBackfillDone, saveFingerGuideSetting, saveGuideFadeSetting, saveLanguageSetting, saveLayoutSetting,
+  saveShowKeysSetting, saveWordFilterSetting,
   type LayoutSetting,
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -36,8 +37,13 @@ const locales = navigator.languages?.length ? navigator.languages : [navigator.l
 // Until a key is pressed or the browser reports the layout, guess from the browser language.
 let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLocale(locales), source: 'guessed' };
 
-// No language picker yet; English is the only corpus so far.
-const context: PracticeContext = { language: DEFAULT_LANGUAGE, layout: layoutSetting.layout };
+// The picked language; on a first visit the browser language, but a browser
+// that already practised before the picker existed keeps English.
+const savedLanguage = loadLanguageSetting();
+const startLanguage = savedLanguage && availableLanguages().some((c) => c.language === savedLanguage)
+  ? savedLanguage
+  : hasAnyCurriculum() ? DEFAULT_LANGUAGE : guessLanguage(locales);
+const context: PracticeContext = { language: startLanguage, layout: layoutSetting.layout };
 
 // Replaced by the first drill once the keystroke log is open.
 let session = new TypingSession('', context);
@@ -430,6 +436,27 @@ $('reset-lessons').addEventListener('click', () => {
   curriculum = initialCurriculum(corpus(), context);
   saveCurriculum(curriculum);
   startDrill('core').catch((err) => console.error('Failed to start drill', err));
+});
+
+// --- Practice language ---
+//
+// Each language has its own curriculum and its own slice of the keystroke
+// log (both keyed by language and layout), so switching back and forth
+// keeps progress in each.
+
+const languageSelect = $<HTMLSelectElement>('language-select');
+for (const c of availableLanguages()) languageSelect.append(new Option(c.name, c.language));
+languageSelect.value = context.language;
+languageSelect.addEventListener('change', () => {
+  // A finished drill is still being scored under the old language: keep it.
+  if (finishing) {
+    languageSelect.value = context.language;
+    return;
+  }
+  context.language = languageSelect.value;
+  saveLanguageSetting(context.language);
+  drill = null;
+  startDrill().catch((err) => console.error('Failed to start drill', err));
 });
 
 // --- Keyboard layout ---

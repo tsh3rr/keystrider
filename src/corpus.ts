@@ -1,3 +1,4 @@
+import { de } from './corpora/de';
 import { en } from './corpora/en';
 
 /**
@@ -30,7 +31,7 @@ export interface Corpus {
   blockedSubstrings?: readonly string[];
 }
 
-const CORPORA = new Map<string, Corpus>([[en.language, en]]);
+const CORPORA = new Map<string, Corpus>([en, de].map((c) => [c.language, c]));
 
 export const DEFAULT_LANGUAGE = en.language;
 
@@ -42,6 +43,18 @@ export function getCorpus(language: string): Corpus {
 
 export function availableLanguages(): Corpus[] {
   return [...CORPORA.values()];
+}
+
+/**
+ * The practice language for a first visit: the first browser language with a
+ * corpus ("de-AT" counts as "de"), else `DEFAULT_LANGUAGE`.
+ */
+export function guessLanguage(locales: readonly string[]): string {
+  for (const tag of locales) {
+    const primary = tag.toLowerCase().split('-')[0];
+    if (CORPORA.has(primary)) return primary;
+  }
+  return DEFAULT_LANGUAGE;
 }
 
 export function randomText(corpus: Corpus, wordCount = 30, rand: () => number = Math.random): string {

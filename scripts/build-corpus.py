@@ -2,14 +2,23 @@
 """Regenerate a frequency-ranked word list for one language.
 
 Usage (from the repo root):
-    python -m pip install "wordfreq==3.1.1"
+    python -m pip install "wordfreq==3.1.1" "pyspellchecker==0.9.0"
     python scripts/build-corpus.py en 10000
+    python scripts/build-corpus.py de 10000
 
 Writes src/corpora/<lang>-words.ts. The word data comes from wordfreq
 (https://github.com/rspeer/wordfreq), whose word lists are licensed under
 CC BY-SA 4.0, so the generated file is too (see its header).
+
+wordfreq folds German "ß" to "ss" and keeps stray English words and names, so
+for German each word is checked against pyspellchecker's German frequency list
+(https://github.com/barrust/pyspellchecker, from OpenSubtitles via
+https://github.com/hermitdave/FrequencyWords): the spelling it uses most
+("straße", but "dass") is kept, and words it doesn't know are dropped.
+pyspellchecker is only needed for German.
 """
 
+import itertools
 import re
 import sys
 from importlib.metadata import version
@@ -21,25 +30,58 @@ import wordfreq
 # hyphens or other letters are left out until those keys are drilled.
 LETTERS = {
     "en": "abcdefghijklmnopqrstuvwxyz",
+    "de": "abcdefghijklmnopqrstuvwxyzäöüß",
 }
+
+# Languages whose words are checked against pyspellchecker (see the docstring).
+SPELLCHECK = {"de"}
 
 # One-letter tokens that are real words; others ("s", "t", "m") come from
 # split contractions and abbreviations.
 SINGLE_LETTER_WORDS = {
     "en": {"a", "i"},
+    "de": set(),
 }
 
 LINE_WIDTH = 100
+
+SPELLCHECK_NOTE = """
+// "ss"/"ß" spelling and the choice of words checked against pyspellchecker's word
+// frequencies (https://github.com/barrust/pyspellchecker), built from OpenSubtitles 2018
+// by Hermit Dave (https://github.com/hermitdave/FrequencyWords, CC BY-SA 4.0)."""
+
+
+def spelling_fixer(lang: str):
+    """Maps a wordfreq word to its usual spelling, or None to drop it; identity if not needed."""
+    if lang not in SPELLCHECK:
+        return lambda w: w
+    from spellchecker import SpellChecker
+
+    freq = SpellChecker(language=lang).word_frequency
+
+    def fix(w: str) -> str | None:
+        # Every way of writing each "ss" as "ss" or "ß"; keep the most used one.
+        parts = w.split("ss")
+        variants = [
+            "".join(p + s for p, s in zip(parts, [*joins, ""]))
+            for joins in itertools.product(["ss", "ß"], repeat=len(parts) - 1)
+        ]
+        best = max(variants, key=lambda v: freq[v])
+        return best if freq[best] > 0 else None
+
+    return fix
 
 
 def build(lang: str, count: int) -> list[str]:
     allowed = re.compile(f"^[{LETTERS[lang]}]+$")
     singles = SINGLE_LETTER_WORDS.get(lang, set())
+    fix = spelling_fixer(lang)
     words: list[str] = []
     seen: set[str] = set()
     # Ask for extra so filtering still leaves `count` words.
-    for w in wordfreq.top_n_list(lang, count * 3, wordlist="best"):
-        if not allowed.match(w) or (len(w) == 1 and w not in singles) or w in seen:
+    for raw in wordfreq.top_n_list(lang, count * 3, wordlist="best"):
+        w = fix(raw) if allowed.match(raw) else None
+        if w is None or (len(w) == 1 and w not in singles) or w in seen:
             continue
         seen.add(w)
         words.append(w)
@@ -63,7 +105,7 @@ def render(lang: str, words: list[str]) -> str:
 // Regenerate: python scripts/build-corpus.py {lang} {len(words)}
 //
 // The {len(words)} most frequent {lang} words, most frequent first, from wordfreq {version('wordfreq')}
-// (https://github.com/rspeer/wordfreq, "best" list), keeping only plain lowercase letters.
+// (https://github.com/rspeer/wordfreq, "best" list), keeping only plain lowercase letters.{SPELLCHECK_NOTE if lang in SPELLCHECK else ""}
 //
 // License: wordfreq's word list data is redistributable under CC BY-SA 4.0
 // (https://creativecommons.org/licenses/by-sa/4.0/); this file is a derived work
