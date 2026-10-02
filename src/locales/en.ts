@@ -334,6 +334,10 @@ export const en = {
   'onboarding.methodTip': 'Keep your eyes on the screen. The keyboard under the text shows which finger to use for each key.',
   'onboarding.start': 'Start practising',
 
+  // --- Footer ---
+  'foot.imprint': 'Legal notice',
+  'foot.privacy': 'Privacy',
+
   // --- Keystroke log ---
   'log.back': '← Back to practice',
   'log.title': 'Keystroke log',

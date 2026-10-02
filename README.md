@@ -125,3 +125,7 @@ The app is static, so any static host can serve the `dist` folder.
 
 Production deploys from `main`; each pull request gets its own preview deploy for testing.
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests and build on every pull request.
+
+## Impressum and privacy policy
+
+`/impressum` and `/datenschutz` (`impressum.html`, `datenschutz.html`, texts in `src/legal/content.ts`) are written for a private, non-commercial site run from Austria, in German (binding) and English. Fill in your name, town and e-mail in `src/legal/owner.ts` before going public. The privacy policy says the site sets no cookies, has no analytics and only stores practice data in the browser; if that changes (accounts, Cloudflare Web Analytics, ads), update the texts first. A cookie banner is not needed while all browser storage is strictly necessary for the trainer (§ 165 Abs. 3 TKG 2021).

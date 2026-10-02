@@ -332,6 +332,10 @@ export const de: Messages = {
   'onboarding.methodTip': 'Lass die Augen auf dem Bildschirm. Die Tastatur unter dem Text zeigt, welcher Finger welche Taste tippt.',
   'onboarding.start': 'Jetzt üben',
 
+  // --- Footer ---
+  'foot.imprint': 'Impressum',
+  'foot.privacy': 'Datenschutz',
+
   // --- Keystroke log ---
   'log.back': '← Zurück zum Üben',
   'log.title': 'Tastenprotokoll',

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Datenschutzerklärung · Keystrider</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body data-legal="privacy">
+    <header class="topbar">
+      <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true"><rect class="brand-cap" x="8" y="8" width="84" height="84" rx="18"/><rect x="22" y="64" width="13" height="14" rx="3"/><rect x="40" y="52" width="13" height="26" rx="3"/><rect x="58" y="40" width="13" height="38" rx="3"/><polygon class="brand-step" points="69,14 71.5,22.5 80,25 71.5,27.5 69,36 66.5,27.5 58,25 66.5,22.5"/></svg>Keystrider</a>
+      <span class="spacer"></span>
+      <div id="legal-language" class="segmented" role="radiogroup" aria-label="Sprache">
+        <button role="radio" data-lang="de" lang="de">Deutsch</button>
+        <button role="radio" data-lang="en" lang="en">English</button>
+      </div>
+    </header>
+    <main class="legal">
+      <a id="legal-back" class="legal-back" href="/">← Zurück zum Training</a>
+      <h1 id="legal-title">Datenschutzerklärung</h1>
+      <p id="legal-note" class="legal-note" hidden></p>
+      <div id="legal-body"><noscript>Bitte aktiviere JavaScript, um diese Seite zu lesen. / Please turn on JavaScript to read this page.</noscript></div>
+      <p id="legal-updated" class="legal-updated"></p>
+    </main>
+    <footer class="site-foot">
+      <a href="/impressum" data-legal-link="imprint">Impressum</a>
+      <a href="/datenschutz" data-legal-link="privacy">Datenschutzerklärung</a>
+    </footer>
+    <script type="module" src="/src/legal/page.ts"></script>
+  </body>
+</html>
