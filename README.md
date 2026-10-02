@@ -49,6 +49,21 @@ When the layout changes, keystrokes already logged under the wrong one are retag
 
 Layouts tied on their base layer (US vs. Polish Programmers, or German vs. Swiss when only letters were typed) are told apart by browser language, and the picker fixes any wrong pick.
 
+## Weakness model
+
+`src/weakness.ts` turns the keystroke log into per-key and per-bigram stats and a ranked list of what to practise next, following the "Weakness Model Design" doc.
+
+```ts
+const model = await loadWeaknessModel(store, { language: 'en', layout: 'qwertz-de' });
+model.baseline;   // overall error rate, typical latency, WPM
+model.keys;       // KeyStats[], highest priority first (char, code, layout label, confusions)
+model.bigrams;    // BigramStats[], highest priority first
+model.ranked;     // both together
+pickFocusItems(model, { count: 5 });   // softmax-sampled focus items for the next drill
+```
+
+Each item carries a shrunk error rate, typical latency, review half-life, the four need components (errors, slowness, review, exploration), `need` and `priority`. Only the first press at each position counts; latency skips pauses over 2 s, the first key of a drill and keys typed right after a correction. Pass `now` to rebuild the model as it was at an earlier time, and `includeKeys` / `includeBigrams` to score items not typed yet. Parameters live in `DEFAULT_WEAKNESS_PARAMS`.
+
 ## Languages
 
 Practice text comes from a per-language `Corpus` (`src/corpus.ts`). Only English exists so far; adding a language means adding a file under `src/corpora/` and registering it.
