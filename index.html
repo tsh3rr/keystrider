@@ -21,6 +21,7 @@
         <div class="layout-bar">
           <label>Keyboard layout <select id="layout-select"></select></label>
           <span id="layout-status"></span>
+          <label class="fg-toggle"><input type="checkbox" id="finger-guide-toggle" checked /> Finger guide</label>
         </div>
         <div id="layout-suggest" class="layout-suggest" hidden>
           <span id="layout-suggest-text"></span>
@@ -36,6 +37,7 @@
         <div id="text" class="text" aria-hidden="true"></div>
         <textarea id="input" class="typing-input" aria-label="Type the text shown above" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
         <p class="hint">Click the text and start typing. Wrong keys are logged and you stay on the same character until you hit the right one. Each drill targets your weakest keys and letter pairs; new letters unlock once the ones you have are accurate and fast enough.</p>
+        <div id="finger-guide" class="finger-guide"></div>
         <div id="stats" class="stats"></div>
         <div id="drill-feedback" class="drill-feedback" hidden></div>
         <button id="new-text">Skip drill</button>
