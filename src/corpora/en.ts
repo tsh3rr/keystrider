@@ -1,4 +1,5 @@
 import type { Corpus } from '../corpus';
+import enSentences from './en-sentences';
 import words from './en-words';
 
 // The 10,000 most common English words, most frequent first (rank matters: the
@@ -9,4 +10,5 @@ export const en: Corpus = {
   words: words.trim().split(/\s+/),
   // Frequency order adjusted so the first six sit on or near the home row (drill generator design).
   unlockOrder: [...'eniarltosudycghpmkbwfvzxqj'],
+  sentences: enSentences,
 };

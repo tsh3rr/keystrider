@@ -1,4 +1,4 @@
-import { codeFor } from './weakness';
+import { howToType } from './layouts';
 
 /**
  * Which finger presses which key, in standard touch typing.
@@ -61,24 +61,25 @@ export interface KeyGuide {
   finger: Finger;
   /** Home key the finger reaches from, or null when the key is itself on the home row (or Space). */
   home: string | null;
-  /** Shift key to hold with the other hand, for capitals. */
+  /** Shift key to hold with the other hand, for capitals and shifted symbols. */
   shift: 'ShiftLeft' | 'ShiftRight' | null;
 }
 
 /**
- * How to type `ch` on the layout, or null when it is not on the base layer
- * (symbols that need Shift or AltGr are not mapped yet).
+ * How to type `ch` on the layout, or null when neither the base nor the
+ * Shift layer has it (AltGr symbols are not mapped yet).
  */
 export function guideFor(layoutId: string, ch: string): KeyGuide | null {
-  const code = codeFor(layoutId, ch);
-  if (code === null) return null;
+  // Capitals the Shift layer lacks (e.g. É on Swiss) still come from their lowercase key.
+  const how = howToType(layoutId, ch) ?? (ch !== ch.toLowerCase() ? howToType(layoutId, ch.toLowerCase()) : null);
+  if (how === null) return null;
+  const { code } = how;
   const finger = fingerFor(code);
   if (!finger) return null;
   const homeKey = HOME_KEYS[fingerId(finger)];
   const home = homeKey && homeKey !== code ? homeKey : null;
-  // codeFor found the key through the lowercase letter, so this is a capital.
-  const isCapital = ch !== ch.toLowerCase();
-  // Shift is held by the pinky of the hand that is not typing the letter.
-  const shift = isCapital ? (finger.hand === 'left' ? 'ShiftRight' : 'ShiftLeft') : null;
+  const needsShift = how.shift || ch !== ch.toLowerCase();
+  // Shift is held by the pinky of the hand that is not typing the key.
+  const shift = needsShift ? (finger.hand === 'left' ? 'ShiftRight' : 'ShiftLeft') : null;
   return { code, finger, home, shift };
 }
