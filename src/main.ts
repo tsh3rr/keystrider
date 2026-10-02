@@ -17,6 +17,7 @@ import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, type Range } from './progressView';
 import { weakest } from './progress';
 import { CoachBar, type CoachData } from './coachView';
+import { renderResult, type Tone } from './resultCard';
 import {
   backfillDone, loadBreakRemindersSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
   loadShowKeysSetting, loadThemeSetting, loadWordFilterSetting, markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting,
@@ -30,7 +31,6 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 const textEl = $('text');
 const inputEl = $<HTMLTextAreaElement>('input');
-const statsEl = $('stats');
 const logRows = $('log-rows');
 const logSummary = $('log-summary');
 
@@ -229,7 +229,8 @@ $('new-text').addEventListener('click', () => {
 
 const drillKeysEl = $('drill-keys');
 const drillCueEl = $('drill-cue');
-const feedbackEl = $('drill-feedback');
+const resultEl = $('result');
+const practiceView = $('practice-view');
 
 let curriculum: CurriculumState | null = null;
 let model: WeaknessModel | null = null;
@@ -306,6 +307,8 @@ const STAGE_NAMES: Record<StageId, string> = {
 const PLAN_NAMES = { warmup: 'Warm-up', core: 'Drill', focus: 'Focus burst', sentence: 'Sentences' } as const;
 /** Whether this session opened with a warm-up, so the round shows it. */
 let warmedUp = false;
+/** Name of the drill in the round that is being typed, or that Enter starts once it is done. */
+let roundStepName: string | null = null;
 
 const coach = new CoachBar(
   document.querySelector<HTMLElement>('.coach-bar')!,
@@ -348,6 +351,7 @@ function renderCoach(): void {
     state: step.state,
   }));
   const currentStep = steps[plan.findIndex((step) => step.state === 'current')] ?? steps[0];
+  roundStepName = currentStep.name;
   const sentenceNote = plan.some((step) => step.kind === 'sentence' && step.state === 'locked')
     ? ` Sentences open at ${path.sentenceLetters} letters (you have ${path.letters}).` : '';
 
@@ -394,8 +398,8 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
   session = new TypingSession(drill.text, context);
   drillEvents = [];
   pendingWrites = [];
-  feedbackEl.hidden = true;
-  statsEl.hidden = true;
+  resultEl.hidden = true;
+  practiceView.classList.remove('showing-result');
   renderDrillBar();
   renderText();
   renderStats();
@@ -414,19 +418,16 @@ function describeChange(c: CurriculumChange): string {
   }
 }
 
-function itemList(label: string, items: ItemChange[]): HTMLElement | null {
-  if (items.length === 0) return null;
-  const p = document.createElement('p');
-  p.append(`${label}: `);
-  items.forEach((it, i) => {
-    if (i) p.append(', ');
-    const span = document.createElement('span');
-    span.className = 'item';
-    span.textContent = it.kind === 'key' ? keyCap(it.item) : showItem(it.item);
-    p.append(span);
-  });
-  return p;
+function changeTone(c: CurriculumChange): Tone {
+  switch (c.type) {
+    case 'unlock': case 'tier': return 'win';
+    case 'focus-met': return 'good';
+    case 'stuck': return 'info';
+    case 'recovery': return c.on ? 'warn' : 'good';
+  }
 }
+
+const itemLabel = (it: ItemChange) => (it.kind === 'key' ? keyCap(it.item) : showItem(it.item));
 
 async function finishDrill(): Promise<void> {
   if (!drill || !curriculum) return;
@@ -435,33 +436,43 @@ async function finishDrill(): Promise<void> {
     await Promise.all(pendingWrites);
     lastDrillAt = Date.now();
     const result = drillResult(drillEvents);
-    const head = `Done: ${result.wpm.toFixed(0)} WPM, ${(result.accuracy * 100).toFixed(1)}% accuracy` +
-      ` (target pace ${Math.round(drill.paceWpm)} WPM). Press Enter for the next drill.`;
-    statsEl.textContent = head;
-    statsEl.hidden = false;
+    const finished = drill;
+    const drillName = roundStepName ?? PLAN_NAMES[finished.kind];
+    const show = (news: { tone: Tone; text: string }[], improved: string[], slipped: string[], next: string | null) => {
+      renderResult(resultEl, {
+        drillName, wpm: result.wpm, accuracy: result.accuracy, errors: session.errors, paceWpm: finished.paceWpm,
+        recovery: curriculum?.recovery ?? false, news, improved, slipped, next,
+      }, () => {
+        if (!finishing && breakEndsAt === null) startDrill().catch((err) => console.error('Failed to start drill', err));
+      });
+      practiceView.classList.add('showing-result');
+    };
     // A layout switch mid-drill moved these keystrokes to another curriculum; just start fresh.
-    if (curriculum.layout !== context.layout || curriculum.language !== context.language) return;
+    if (curriculum.layout !== context.layout || curriculum.language !== context.language) {
+      show([], [], [], null);
+      return;
+    }
 
     const before = model;
     if (before) {
-      fatigue.addDrill(drillEvents, before, drill.kind, slowOnPurpose);
+      fatigue.addDrill(drillEvents, before, finished.kind, slowOnPurpose);
       const signal = fatigue.check();
       if (signal && breakToggle.checked) showBreakCard(signal);
     }
     const after = await buildModel(curriculum);
-    const { state, changes } = afterDrill(after, curriculum, corpus(), drill, result);
+    const { state, changes } = afterDrill(after, curriculum, corpus(), finished, result);
     curriculum = state;
     saveCurriculum(state);
     model = after;
 
-    const lines: HTMLElement[] = changes.map((c) => Object.assign(document.createElement('p'), { textContent: describeChange(c) }));
-    if (before) {
-      const { improved, slipped } = drillFeedback(before, after, drill);
-      for (const el of [itemList('Improved', improved), itemList('Slipped', slipped)]) if (el) lines.push(el);
-    }
-    feedbackEl.replaceChildren(...lines);
-    feedbackEl.hidden = lines.length === 0;
+    const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
     renderDrillBar();
+    show(
+      changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
+      improved.map(itemLabel),
+      slipped.map(itemLabel),
+      roundStepName,
+    );
   } finally {
     finishing = false;
   }
