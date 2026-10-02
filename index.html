@@ -7,58 +7,93 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <header>
-      <h1>Typing Trainer</h1>
-      <nav>
-        <button data-view="practice" class="active">Practice</button>
-        <button data-view="progress">Progress</button>
-        <button data-view="log">Keystroke log</button>
+    <header class="topbar">
+      <span class="brand">Typing Trainer</span>
+      <nav class="tabs" aria-label="Main">
+        <button data-view="practice" class="active" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Practice</button>
+        <button data-view="progress" title="Your speed, accuracy and weak keys over time"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/></svg>Progress</button>
       </nav>
+      <span class="spacer"></span>
+      <div class="menu-wrap">
+        <button id="language-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu" title="Practice language"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg><span id="language-name"></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
+        <div id="language-menu" class="menu" role="menu" aria-label="Practice language" hidden>
+          <span class="menu-title">Practice language</span>
+          <div id="language-options"></div>
+        </div>
+      </div>
+      <div class="menu-wrap">
+        <button id="layout-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="layout-menu" title="Keyboard layout"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg><span id="layout-name"></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
+        <div id="layout-menu" class="menu" role="menu" aria-label="Keyboard layout" hidden>
+          <span class="menu-title">Keyboard layout</span>
+          <div id="layout-options"></div>
+          <span id="layout-status" class="menu-note"></span>
+        </div>
+      </div>
+      <button id="settings-btn" class="settings-btn" aria-expanded="false" aria-controls="settings-drawer"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3h3.4l.5 2.6 1.9 1.1 2.5-.9 1.7 2.9-2 1.8v2.2l2 1.8-1.7 2.9-2.5-.9-1.9 1.1-.5 2.6h-3.4l-.5-2.6-1.9-1.1-2.5.9-1.7-2.9 2-1.8v-2.2l-2-1.8 1.7-2.9 2.5.9 1.9-1.1z"/><circle cx="12" cy="12" r="2.6"/></svg><span>Settings</span></button>
     </header>
+
+    <aside id="settings-drawer" class="drawer" aria-label="Settings" hidden>
+      <div class="drawer-head">
+        <h2>Settings</h2>
+        <button id="settings-close" class="icon-btn" aria-label="Close settings">✕</button>
+      </div>
+      <section class="drawer-group">
+        <h3>Appearance</h3>
+        <div class="segmented" role="radiogroup" aria-label="Theme">
+          <button role="radio" data-theme-choice="system">System</button>
+          <button role="radio" data-theme-choice="light">Light</button>
+          <button role="radio" data-theme-choice="dark">Dark</button>
+        </div>
+      </section>
+      <section class="drawer-group">
+        <h3>Help while typing</h3>
+        <label class="switch-row" for="finger-guide-toggle">Show the finger guide <input type="checkbox" id="finger-guide-toggle" checked /></label>
+        <label class="switch-row" for="guide-fade-toggle" title="Dim the guide for keys you already type well; it lights up when you pause or slip">Fade it for keys I know <input type="checkbox" id="guide-fade-toggle" checked /></label>
+        <label class="switch-row" for="keys-toggle" title="Show every key and which ones are unlocked">Show all keys and which are unlocked <input type="checkbox" id="keys-toggle" /></label>
+        <label class="switch-row" for="break-toggle" title="Suggest a short break when your typing gets worse or you have practised for a long time">Break reminders <input type="checkbox" id="break-toggle" checked /></label>
+        <label class="switch-row" for="word-filter-toggle" title="Leave out offensive words, real or made up">Hide offensive words <input type="checkbox" id="word-filter-toggle" checked /></label>
+      </section>
+      <section class="drawer-group">
+        <h3>Data</h3>
+        <button id="open-log" class="link-btn">Keystroke log and export</button>
+        <button id="reset-lessons" class="link-btn">Restart lessons</button>
+      </section>
+    </aside>
 
     <main>
       <section id="practice-view">
-        <div class="layout-bar">
-          <label>Language <select id="language-select"></select></label>
-          <label>Keyboard layout <select id="layout-select"></select></label>
-          <span id="layout-status"></span>
-          <label class="fg-toggle"><input type="checkbox" id="finger-guide-toggle" checked /> Finger guide</label>
-          <label class="setting-toggle" title="Dim the guide for keys you already type well; it lights up when you pause or slip"><input type="checkbox" id="guide-fade-toggle" checked /> Fade for known keys</label>
-          <label class="setting-toggle" title="Show every key and which ones are unlocked"><input type="checkbox" id="keys-toggle" /> Show keys</label>
-          <label class="setting-toggle" title="Leave out offensive words, real or made up"><input type="checkbox" id="word-filter-toggle" checked /> Hide offensive words</label>
-          <label class="setting-toggle" title="Suggest a short break when your typing gets worse or you have practised for a long time"><input type="checkbox" id="break-toggle" checked /> Break reminders</label>
-        </div>
         <div id="layout-suggest" class="layout-suggest" hidden>
           <span id="layout-suggest-text"></span>
           <button id="layout-suggest-yes">Switch</button>
           <button id="layout-suggest-no">Keep mine</button>
         </div>
-        <div class="path" aria-label="Where you are">
-          <div class="path-row"><span class="path-label">Your path</span><ol id="path-stages" class="path-stages"></ol></div>
-          <div class="path-row"><span class="path-label">This round</span><ol id="session-plan" class="session-plan" aria-label="Drills in this round"></ol></div>
+        <div class="coach">
+          <div class="coach-bar" aria-label="Where you are">
+            <button class="chip" data-pop="path" aria-expanded="false" aria-controls="coach-pop" title="Your path"><span class="chip-label">Path</span><span id="chip-path"></span></button>
+            <button class="chip" data-pop="round" aria-expanded="false" aria-controls="coach-pop" title="This round"><span class="chip-label">Round</span><span id="chip-round"></span></button>
+            <button class="chip" data-pop="now" aria-expanded="false" aria-controls="coach-pop" title="Speed and accuracy"><span class="chip-label">Now</span><span id="chip-now"></span></button>
+            <button class="chip" data-pop="fresh" aria-expanded="false" aria-controls="coach-pop" title="Break check"><span id="chip-fresh"></span></button>
+          </div>
+          <div id="coach-pop" class="coach-pop" role="dialog" aria-label="Details" hidden></div>
         </div>
-        <div class="drill-bar">
-          <div id="drill-keys" class="drill-keys" aria-label="Keys unlocked so far"></div>
-          <span id="drill-info"></span>
-          <button id="reset-lessons" class="link">Restart lessons</button>
-        </div>
+        <div id="drill-keys" class="drill-keys" aria-label="Keys unlocked so far"></div>
         <p id="drill-cue" class="drill-cue" hidden>Accuracy first: slow down and type cleanly. Speed is hidden until you are back on track.</p>
         <div id="text" class="text" aria-hidden="true"></div>
         <textarea id="input" class="typing-input" aria-label="Type the text shown above" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-        <p class="hint">Click the text and start typing. Wrong keys are logged and you stay on the same character until you hit the right one. Each drill targets your weakest keys and letter pairs; new letters unlock once the ones you have are accurate and fast enough.</p>
-        <div id="finger-guide" class="finger-guide"></div>
-        <div id="stats" class="stats"></div>
+        <p id="type-hint" class="type-hint">Click the text and start typing. A wrong key holds you on the same letter.</p>
+        <div id="stats" class="stats" hidden></div>
         <div id="drill-feedback" class="drill-feedback" hidden></div>
         <div id="break-card" class="break-card" role="status" hidden>
           <p id="break-text"></p>
           <p id="break-timer" class="break-timer" hidden></p>
           <div class="break-actions">
-            <button id="break-start">Take a 5-minute break</button>
+            <button id="break-start" class="primary">Take a 5-minute break</button>
             <button id="break-back" hidden>I'm back</button>
-            <button id="break-skip" class="link">Keep going</button>
+            <button id="break-skip" class="link-btn">Keep going</button>
           </div>
         </div>
-        <button id="new-text">Skip drill</button>
+        <div id="finger-guide" class="finger-guide"></div>
+        <div class="practice-foot"><button id="new-text" class="link-btn">Skip drill</button></div>
       </section>
 
       <section id="progress-view" hidden>
@@ -119,6 +154,10 @@
       </section>
 
       <section id="log-view" hidden>
+        <div class="log-head">
+          <button id="log-back" class="link-btn">← Back to practice</button>
+          <h2>Keystroke log</h2>
+        </div>
         <div class="log-actions">
           <span id="log-summary"></span>
           <button id="export-json">Export JSON</button>
