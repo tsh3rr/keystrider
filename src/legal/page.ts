@@ -1,3 +1,4 @@
+import '@fontsource-variable/jetbrains-mono';
 import { guessUiLanguage, isUiLanguage } from '../i18n';
 import { loadThemeSetting, loadUiLanguageSetting } from '../settings';
 import { LEGAL_UI, legalHtml, type LegalLanguage, type LegalPage } from './content';
