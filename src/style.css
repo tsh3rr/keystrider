@@ -113,6 +113,7 @@ tr.wrong td { color: var(--error); }
 
 .drill-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 0.9rem; }
 .drill-keys { display: flex; gap: 4px; flex-wrap: wrap; }
+.drill-keys[hidden] { display: none; }
 .drill-keys .key {
   font-family: ui-monospace, Menlo, Consolas, monospace; min-width: 1.6em; text-align: center;
   padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px;
@@ -126,14 +127,20 @@ button.link { border: 0; padding: 0; color: var(--muted); text-decoration: under
 .path-stages, .session-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
 .path-stages li, .session-plan li { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
 .path-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.path-row + p + .path-row { margin-top: 8px; }
+.path-row + .path-row { margin-top: 8px; }
+/* Explanations show on hover or keyboard focus. */
+[data-tip] { position: relative; cursor: help; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+  content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 6px); z-index: 10;
+  width: max-content; max-width: min(340px, 80vw); white-space: normal; padding: 8px 10px;
+  border-radius: 8px; background: var(--fg); color: var(--bg); font-weight: 400; font-size: 0.85rem; line-height: 1.35;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+}
 .path-label { color: var(--muted); min-width: 6.5em; }
 .path-stages li.done, .session-plan li.done { color: var(--good); border-color: var(--good); }
 .path-stages li.done::before, .session-plan li.done::before { content: '✓ '; }
 .path-stages li.current, .session-plan li.current { color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .path-stages li.locked, .session-plan li.locked { border-style: dashed; }
-.path-next, .drill-about { color: var(--fg); }
-.path-next .muted { color: var(--muted); }
 .drill-cue { padding: 8px 12px; border: 1px solid var(--error); border-radius: 8px; font-size: 0.9rem; }
 .drill-cue[hidden], .drill-feedback[hidden] { display: none; }
 .drill-feedback { font-size: 0.95rem; margin: 0 0 12px; }
