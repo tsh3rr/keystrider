@@ -27,6 +27,7 @@ describe('layout table', () => {
   it('labels physical keys as printed on the layout', () => {
     expect(keyLabel('qwertz-de', 'KeyZ')).toBe('Y');
     expect(keyLabel('qwertz-de', 'Semicolon')).toBe('Ö');
+    expect(keyLabel('qwertz-de', 'Minus')).toBe('ß');
     expect(keyLabel('qwerty-us', 'KeyZ')).toBe('Z');
     expect(keyLabel('azerty-fr', 'KeyQ')).toBe('A');
     expect(keyLabel('unknown', 'KeyZ')).toBe('KeyZ');
