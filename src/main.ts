@@ -661,7 +661,7 @@ const layoutShortName = (id: string) => {
 
 function renderLayout(): void {
   $('layout-name').textContent = layoutShortName(layoutSetting.layout);
-  $('layout-btn').title = t('menu.layoutTitle', { name: layoutName(layoutSetting.layout) });
+  $('context-btn').title = `${t('menu.practiceLanguage')} · ${t('menu.layoutTitle', { name: layoutName(layoutSetting.layout) })}`;
   $('layout-options').replaceChildren(...LAYOUTS.map((l) => menuItem(layoutName(l.id), '', l.id === layoutSetting.layout, () => {
     setLayout(l.id, 'user').catch((err) => console.error('Failed to update layout', err));
   })));
@@ -878,8 +878,7 @@ function menuItem(label: string, detail: string, checked: boolean, pick: () => v
 }
 
 const menus = [
-  { btn: $('language-btn'), menu: $('language-menu') },
-  { btn: $('layout-btn'), menu: $('layout-menu') },
+  { btn: $('context-btn'), menu: $('context-menu') },
 ];
 
 function closeMenus(): void {
