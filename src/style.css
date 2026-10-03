@@ -22,7 +22,7 @@
   --muted: oklch(0.50 0.025 264);
   --faint: oklch(0.80 0.015 264);
   --border: oklch(0.91 0.01 264);
-  --typed: oklch(0.66 0.02 264);
+  --typed: oklch(0.55 0.02 264);
 
   /* Interactive accent: cobalt */
   --accent: oklch(0.50 0.19 264);
@@ -50,7 +50,7 @@
   --heat-4: oklch(0.50 0.15 38);
   --heat-ink-1: var(--fg);
   --heat-ink-2: var(--fg);
-  --heat-ink-3: oklch(1 0 0);
+  --heat-ink-3: var(--fg);
   --heat-ink-4: oklch(1 0 0);
 
   /* Finger guide: equal lightness/chroma, hue per finger */
@@ -87,7 +87,7 @@
     color-scheme: dark;
     --bg: oklch(0.17 0.015 264); --panel: oklch(0.21 0.018 264); --surface-2: oklch(0.25 0.02 264);
     --fg: oklch(0.94 0.008 264); --muted: oklch(0.71 0.02 264); --faint: oklch(0.42 0.02 264);
-    --border: oklch(0.29 0.02 264); --typed: oklch(0.52 0.02 264);
+    --border: oklch(0.29 0.02 264); --typed: oklch(0.62 0.02 264);
     --accent: oklch(0.72 0.14 264); --accent-soft: oklch(0.30 0.07 264); --accent-ink: oklch(0.17 0.015 264);
     --focus: oklch(0.74 0.16 332); --focus-soft: oklch(0.30 0.08 332);
     --error: oklch(0.76 0.15 52); --error-soft: oklch(0.31 0.07 45);
@@ -103,7 +103,7 @@
   color-scheme: dark;
   --bg: oklch(0.17 0.015 264); --panel: oklch(0.21 0.018 264); --surface-2: oklch(0.25 0.02 264);
   --fg: oklch(0.94 0.008 264); --muted: oklch(0.71 0.02 264); --faint: oklch(0.42 0.02 264);
-  --border: oklch(0.29 0.02 264); --typed: oklch(0.52 0.02 264);
+  --border: oklch(0.29 0.02 264); --typed: oklch(0.62 0.02 264);
   --accent: oklch(0.72 0.14 264); --accent-soft: oklch(0.30 0.07 264); --accent-ink: oklch(0.17 0.015 264);
   --focus: oklch(0.74 0.16 332); --focus-soft: oklch(0.30 0.08 332);
   --error: oklch(0.76 0.15 52); --error-soft: oklch(0.31 0.07 45);
