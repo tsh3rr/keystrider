@@ -17,6 +17,10 @@ import type { Corpus } from './corpus';
 const INFLECTIONS: Record<string, readonly string[]> = {
   en: ['s', 'es', 'ed', 'er', 'ers', 'ing', 'y', 'ies'],
   de: ['e', 'em', 'en', 'er', 'ern', 'es', 'n', 's'],
+  fr: ['e', 'es', 's', 'x'],
+  es: ['a', 'as', 'es', 'o', 'os', 's'],
+  it: ['a', 'e', 'i', 'o'],
+  pl: ['a', 'ach', 'ami', 'em', 'i', 'ie', 'om', 'ów', 'u', 'y'],
 };
 
 /** Terms this short are only blocked as whole words; inside longer words they'd reject too much harmless text. */

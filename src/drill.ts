@@ -244,8 +244,11 @@ export const DIGIT_ORDER: readonly string[] = ['1', '2', '0', '3', '5', '4', '9'
 
 /** Sentence-ending marks; after one, the next word starts with a capital. */
 const ENDERS = new Set(['.', '?', '!']);
-/** Marks that wrap a word instead of following it. */
-const WRAPS = new Map([['"', ['"', '"']], ["'", ["'", "'"]], ['()', ['(', ')']]]);
+/** Marks that wrap a word instead of following it, and Spanish ¿…? and ¡…!, which wrap a sentence. */
+const WRAPS = new Map([['"', ['"', '"']], ["'", ["'", "'"]], ['()', ['(', ')']], ['¿?', ['¿', '?']], ['¡!', ['¡', '!']]]);
+/** Inverted marks that open a sentence ending in the given mark (Spanish). */
+const OPENERS = new Map([['?', '¿'], ['!', '¡']]);
+const OPENING = new Set(OPENERS.values());
 
 /** Letters of the language in the order beginners unlock them: the corpus' own order, else by frequency. */
 export function unlockOrder(corpus: Corpus): string[] {
@@ -269,22 +272,29 @@ export function unlockSteps(corpus: Corpus, layoutId: string): string[] {
   const known = getLayout(layoutId) !== undefined;
   const canType = (c: string) => !known || howToType(layoutId, c) !== null;
   const letters = unlockOrder(corpus).filter(canType);
-  const typeable = (step: string) => stepChars(step, letters).every(canType);
-  const capitals = letters.some((c) => capitalOf(c) !== null) ? [CAPITALS] : [];
+  const typeable = (step: string) => stepChars(step, letters, layoutId).every(canType);
+  // Capitals the layout lacks (À and Ç on AZERTY) are simply left out of the step; see `stepChars`.
+  const capitals = stepChars(CAPITALS, letters, layoutId).length > 0 ? [CAPITALS] : [];
   const extra = [...capitals, ...(corpus.punctuation ?? DEFAULT_PUNCTUATION), ...DIGIT_ORDER];
   return [...letters, ...extra.filter(typeable)];
 }
 
-/** The characters a step adds; capitals are the capitals of the given letters. */
-export function stepChars(step: string, letters: readonly string[]): string[] {
-  if (step === CAPITALS) return letters.map(capitalOf).filter((c): c is string => c !== null);
+/**
+ * The characters a step adds; capitals are the capitals of the given letters,
+ * those the layout can type if one is given.
+ */
+export function stepChars(step: string, letters: readonly string[], layoutId?: string): string[] {
+  if (step === CAPITALS) {
+    const caps = letters.map(capitalOf).filter((c): c is string => c !== null);
+    return layoutId !== undefined && getLayout(layoutId) ? caps.filter((c) => howToType(layoutId, c) !== null) : caps;
+  }
   return WRAPS.get(step) ?? [...step];
 }
 
 /** Every character drills may use: unlocked letters and, once unlocked, their capitals, punctuation and digits. */
-export function openChars(state: Pick<CurriculumState, 'unlocked'>): Set<string> {
+export function openChars(state: Pick<CurriculumState, 'unlocked'> & Partial<Pick<CurriculumState, 'layout'>>): Set<string> {
   const letters = state.unlocked.filter(isLetter);
-  return new Set(state.unlocked.flatMap((step) => stepChars(step, letters)));
+  return new Set(state.unlocked.flatMap((step) => stepChars(step, letters, state.layout)));
 }
 
 /** Unlocked letters only: what corpus and pseudo-words are spelled with. */
@@ -299,8 +309,10 @@ export type StepStats = Pick<KeyStats, 'item' | 'weight' | 'errorRate' | 'latenc
  * A step's stats: the key's own for one character, else pooled over its
  * characters (all capitals, both brackets), weighted by evidence.
  */
-export function stepStats(model: WeaknessModel, step: string, state: Pick<CurriculumState, 'unlocked'>): StepStats | undefined {
-  const chars = stepChars(step, state.unlocked.filter(isLetter));
+export function stepStats(
+  model: WeaknessModel, step: string, state: Pick<CurriculumState, 'unlocked'> & Partial<Pick<CurriculumState, 'layout'>>,
+): StepStats | undefined {
+  const chars = stepChars(step, state.unlocked.filter(isLetter), state.layout);
   const byItem = new Map(model.keys.map((k) => [k.item, k]));
   if (chars.length === 1 && chars[0] === step) return byItem.get(step);
   const keys = chars.map((c) => byItem.get(c)).filter((k): k is KeyStats => k !== undefined);
@@ -311,10 +323,13 @@ export function stepStats(model: WeaknessModel, step: string, state: Pick<Curric
   return { item: step, weight, errorRate: avg((k) => k.errorRate), latencyMs: Math.exp(avg((k) => Math.log(k.latencyMs))) };
 }
 
-/** Whether typing a step's characters on the layout needs Shift. */
+/** Whether typing a step's characters on the layout needs Shift, AltGr or a dead key: a second key that slows it down. */
 export function needsShift(step: string, layoutId: string): boolean {
   if (step === CAPITALS) return true;
-  return [...(WRAPS.get(step) ?? [step])].some((c) => howToType(layoutId, c)?.shift === true);
+  return [...(WRAPS.get(step) ?? [step])].some((c) => {
+    const how = howToType(layoutId, c);
+    return how !== null && (how.shift || how.altGr === true || how.dead !== undefined);
+  });
 }
 
 /** Whether a key (or a step's pooled stats) meets the unlock bar at the given tier. */
@@ -423,7 +438,7 @@ export function eligibleWords(corpus: Corpus, allowed: ReadonlySet<string>): str
 
 /** The characters of the focus step, if any. */
 function focusChars(state: CurriculumState): Set<string> {
-  return new Set(state.focusKey === null ? [] : stepChars(state.focusKey, state.unlocked.filter(isLetter)));
+  return new Set(state.focusKey === null ? [] : stepChars(state.focusKey, state.unlocked.filter(isLetter), state.layout));
 }
 
 /**
@@ -628,7 +643,7 @@ export function decorate(words: readonly string[], ctx: DecorateContext, p: Dril
 
   const chars = [...open];
   const digits = chars.filter(isDigit);
-  const marks = chars.filter((c) => !isLetter(c) && !isDigit(c) && c !== ' ' && c !== ')');
+  const marks = chars.filter((c) => !isLetter(c) && !isDigit(c) && c !== ' ' && c !== ')' && !OPENING.has(c));
   const enders = marks.filter((c) => ENDERS.has(c));
   // Brackets go in pairs: "(" stands for the pair.
   const others = marks.filter((c) => !ENDERS.has(c)).map((c) => (c === '(' ? (open.has(')') ? '()' : null) : c))
@@ -650,6 +665,10 @@ export function decorate(words: readonly string[], ctx: DecorateContext, p: Dril
     return out;
   };
 
+  // With ¿ or ¡ unlocked the ending is picked when a sentence starts, so the sentence can open with its inverted mark.
+  const opens = enders.some((c) => open.has(OPENERS.get(c) ?? ''));
+  let ender = '';
+
   const out: string[] = [];
   let left = sentences ? sentenceLength() : Infinity;
   let start = true;
@@ -657,11 +676,16 @@ export function decorate(words: readonly string[], ctx: DecorateContext, p: Dril
     if (digits.length > 0 && rand() < numberRate) out.push(number());
     let token = words[i];
     if (capitals && (start || rand() < capRate)) token = capital(token);
+    if (start && opens) {
+      ender = pick(enders);
+      const opener = OPENERS.get(ender);
+      if (opener && open.has(opener)) token = opener + token;
+    }
     start = false;
     left--;
     const last = i === words.length - 1;
     if (sentences && (left <= 0 || last)) {
-      if (enders.length > 0) token += pick(enders);
+      if (enders.length > 0) token += opens ? ender : pick(enders);
       start = true;
       left = sentenceLength();
     } else if (others.length > 0 && rand() < markRate) {

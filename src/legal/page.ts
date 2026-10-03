@@ -21,7 +21,9 @@ if (theme !== 'system') document.documentElement.dataset.theme = theme;
 
 const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
 const saved = loadUiLanguageSetting();
-let lang: LegalLanguage = isUiLanguage(saved) ? saved : guessUiLanguage(locales);
+const ui = isUiLanguage(saved) ? saved : guessUiLanguage(locales);
+// The legal texts exist in German (binding) and English; every other interface language gets English.
+let lang: LegalLanguage = ui === 'de' ? 'de' : 'en';
 
 function render(): void {
   const ui = LEGAL_UI[lang];

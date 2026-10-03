@@ -6,7 +6,8 @@
  * code "KeyZ". A layout maps those physical codes to the characters printed
  * on the user's keyboard. The base layer tells layouts apart and names
  * keys; the Shift layer says how capitals, punctuation and digits are typed.
- * AltGr layers are not listed.
+ * Accented letters typed with a dead key (´ then e for é) and letters on
+ * AltGr (Polish ą) are listed separately; other AltGr symbols are not.
  */
 export interface Layout {
   /** Stored in `KeystrokeEvent.layout`, e.g. "qwertz-de". */
@@ -19,6 +20,23 @@ export interface Layout {
   keys: ReadonlyMap<string, string>;
   /** Physical key code to the character it types with Shift. */
   shifted: ReadonlyMap<string, string>;
+  /** Accents on the base or Shift layer that are dead keys: pressed before a letter, they add the accent to it. */
+  dead: ReadonlySet<string>;
+  /** Letters typed with AltGr, to the base-layer letter of their key ("ą" → "a"). Capitals add Shift. */
+  altGr: ReadonlyMap<string, string>;
+}
+
+/** Combining mark each dead-key accent adds. */
+const ACCENTS = new Map([['´', '\u0301'], ['`', '\u0300'], ['^', '\u0302'], ['¨', '\u0308'], ['~', '\u0303']]);
+
+/** How to type a character: its key, whether Shift is held, and any AltGr or dead key needed first. */
+export interface KeyPress {
+  code: string;
+  shift: boolean;
+  /** Held with the key (Polish ą). */
+  altGr?: true;
+  /** Dead key pressed before the key (´ before e for é), and the accent printed on it. */
+  dead?: { code: string; shift: boolean; accent: string };
 }
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((d) => `Digit${d}`);
@@ -33,8 +51,15 @@ export const ROWS: readonly (readonly string[])[] = [
 
 type Rows = [string, string, string, string];
 
+interface Extras {
+  /** Characters of the rows that are dead keys. */
+  dead?: string;
+  /** AltGr letter to the base letter of its key, e.g. { ą: 'a' }. */
+  altGr?: Record<string, string>;
+}
+
 /** Builds a layout from one string per row, base and Shift layer; a space marks a key the layout lacks. */
-function layout(id: string, name: string, locales: string[], rows: Rows, shiftRows: Rows): Layout {
+function layout(id: string, name: string, locales: string[], rows: Rows, shiftRows: Rows, extras: Extras = {}): Layout {
   const map = (rs: Rows) => {
     const keys = new Map<string, string>();
     rs.forEach((row, r) => {
@@ -46,7 +71,10 @@ function layout(id: string, name: string, locales: string[], rows: Rows, shiftRo
     });
     return keys;
   };
-  return { id, name, locales, keys: map(rows), shifted: map(shiftRows) };
+  return {
+    id, name, locales, keys: map(rows), shifted: map(shiftRows),
+    dead: new Set(extras.dead ?? ''), altGr: new Map(Object.entries(extras.altGr ?? {})),
+  };
 }
 
 // Dead keys (German ^ and ´, Spanish ´ and `, ...) are listed with the accent
@@ -61,29 +89,31 @@ export const LAYOUTS: readonly Layout[] = [
     '¬!"£$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:@~', '|ZXCVBNM<>?']),
   layout('qwertz-de', 'German QWERTZ', ['de', 'de-DE', 'de-AT'], [
     '^1234567890ß´', 'qwertzuiopü+', 'asdfghjklöä#', '<yxcvbnm,.-'], [
-    '°!"§$%&/()=?`', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", '>YXCVBNM;:_']),
+    '°!"§$%&/()=?`', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", '>YXCVBNM;:_'], { dead: '^´`' }),
   layout('qwertz-ch', 'Swiss QWERTZ', ['de-CH', 'fr-CH', 'it-CH'], [
     "§1234567890'^", 'qwertzuiopü¨', 'asdfghjklöä$', '<yxcvbnm,.-'], [
-    '°+"*ç%&/()=?`', 'QWERTZUIOPè!', 'ASDFGHJKLéà£', '>YXCVBNM;:_']),
+    '°+"*ç%&/()=?`', 'QWERTZUIOPè!', 'ASDFGHJKLéà£', '>YXCVBNM;:_'], { dead: '^`¨' }),
   layout('azerty-fr', 'French AZERTY', ['fr', 'fr-FR'], [
     `²&é"'(-è_çà)=`, 'azertyuiop^$', 'qsdfghjklmù*', '<wxcvbn,;:!'], [
-    ' 1234567890°+', 'AZERTYUIOP¨£', 'QSDFGHJKLM%µ', '>WXCVBN?./§']),
+    ' 1234567890°+', 'AZERTYUIOP¨£', 'QSDFGHJKLM%µ', '>WXCVBN?./§'], { dead: '^¨' }),
   layout('azerty-be', 'Belgian AZERTY', ['fr-BE', 'nl-BE'], [
     `²&é"'(§è!çà)-`, 'azertyuiop^$', 'qsdfghjklmùµ', '<wxcvbn,;:='], [
-    '³1234567890°_', 'AZERTYUIOP¨*', 'QSDFGHJKLM%£', '>WXCVBN?./+']),
+    '³1234567890°_', 'AZERTYUIOP¨*', 'QSDFGHJKLM%£', '>WXCVBN?./+'], { dead: '^¨' }),
   layout('qwerty-es', 'Spanish QWERTY', ['es', 'es-ES'], [
     "º1234567890'¡", 'qwertyuiop`+', 'asdfghjklñ´ç', '<zxcvbnm,.-'], [
-    'ª!"·$%&/()=?¿', 'QWERTYUIOP^*', 'ASDFGHJKLÑ¨Ç', '>ZXCVBNM;:_']),
+    'ª!"·$%&/()=?¿', 'QWERTYUIOP^*', 'ASDFGHJKLÑ¨Ç', '>ZXCVBNM;:_'], { dead: '´`^¨' }),
   layout('qwerty-it', 'Italian QWERTY', ['it', 'it-IT'], [
     "\\1234567890'ì", 'qwertyuiopè+', 'asdfghjklòàù', '<zxcvbnm,.-'], [
     '|!"£$%&/()=?^', 'QWERTYUIOPé*', 'ASDFGHJKLç°§', '>ZXCVBNM;:_']),
   layout('qwerty-se', 'Swedish / Finnish QWERTY', ['sv', 'fi'], [
     '§1234567890+´', 'qwertyuiopå¨', "asdfghjklöä'", '<zxcvbnm,.-'], [
-    '½!"#¤%&/()=?`', 'QWERTYUIOPÅ^', 'ASDFGHJKLÖÄ*', '>ZXCVBNM;:_']),
+    '½!"#¤%&/()=?`', 'QWERTYUIOPÅ^', 'ASDFGHJKLÖÄ*', '>ZXCVBNM;:_'], { dead: '´`¨^' }),
   // Same base layer as US; Polish letters come from AltGr.
   layout('qwerty-pl', 'Polish (Programmers)', ['pl'], [
     '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'\\", '\\zxcvbnm,./'], [
-    '~!@#$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:"|', '|ZXCVBNM<>?']),
+    '~!@#$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:"|', '|ZXCVBNM<>?'], {
+    altGr: { ą: 'a', ć: 'c', ę: 'e', ł: 'l', ń: 'n', ó: 'o', ś: 's', ź: 'x', ż: 'z' },
+  }),
   layout('dvorak-us', 'Dvorak (US)', [], [
     '`1234567890[]', "',.pyfgcrl/=", 'aoeuidhtns-\\', ' ;qjkxbmwvz'], [
     '~!@#$%^&*(){}', '"<>PYFGCRL?+', 'AOEUIDHTNS_|', ' :QJKXBMWVZ']),
@@ -103,14 +133,40 @@ export function getLayout(id: string): Layout | undefined {
 /**
  * The physical key that types `ch` on the layout, and whether it needs
  * Shift. Base layer first, so "1" on QWERTY is unshifted while on AZERTY it
- * needs Shift. Null when neither layer has it (AltGr characters, unknown layout).
+ * needs Shift. Then AltGr letters and letters made with a dead key, which
+ * say so. Null when the layout cannot type it this way (AltGr symbols,
+ * unknown layout).
  */
-export function howToType(layoutId: string, ch: string): { code: string; shift: boolean } | null {
+export function howToType(layoutId: string, ch: string): KeyPress | null {
   if (ch === ' ') return { code: 'Space', shift: false };
   const l = BY_ID.get(layoutId);
   if (!l) return null;
+  return direct(l, ch) ?? viaAltGr(l, ch) ?? viaDeadKey(l, ch);
+}
+
+function direct(l: Layout, ch: string): KeyPress | null {
   for (const [code, c] of l.keys) if (c === ch) return { code, shift: false };
   for (const [code, c] of l.shifted) if (c === ch) return { code, shift: true };
+  return null;
+}
+
+function viaAltGr(l: Layout, ch: string): KeyPress | null {
+  const lower = ch.toLowerCase();
+  const base = l.altGr.get(lower);
+  if (base === undefined) return null;
+  const key = direct(l, base);
+  return key && !key.shift ? { code: key.code, shift: ch !== lower, altGr: true } : null;
+}
+
+function viaDeadKey(l: Layout, ch: string): KeyPress | null {
+  const [letter, mark, ...rest] = [...ch.normalize('NFD')];
+  if (mark === undefined || rest.length > 0) return null;
+  for (const accent of l.dead) {
+    if (ACCENTS.get(accent) !== mark) continue;
+    const dead = direct(l, accent);
+    const key = direct(l, letter);
+    if (dead && key) return { ...key, dead: { ...dead, accent } };
+  }
   return null;
 }
 
@@ -137,7 +193,8 @@ export function charLabel(layoutId: string, ch: string): string {
   const upper = ch.toUpperCase();
   if (lower === upper) return ch;
   const base = howToType(layoutId, lower);
-  const cap = base && !base.shift ? keyLabel(layoutId, base.code) : upper;
+  // Only a letter with its own key shows the key cap; ą (AltGr+A) or é (dead key) show themselves.
+  const cap = base && !base.shift && !base.altGr && !base.dead ? keyLabel(layoutId, base.code) : upper;
   return ch === lower ? cap : '⇧' + cap;
 }
 

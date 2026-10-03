@@ -61,6 +61,23 @@ describe('howToType', () => {
     }
   });
 
+  it('types accented letters with a dead key first', () => {
+    expect(howToType('qwerty-es', 'á')).toEqual({ code: 'KeyA', shift: false, dead: { code: 'Quote', shift: false, accent: '´' } });
+    expect(howToType('qwerty-es', 'Ú')).toEqual({ code: 'KeyU', shift: true, dead: { code: 'Quote', shift: false, accent: '´' } });
+    expect(howToType('qwerty-es', 'ü')).toEqual({ code: 'KeyU', shift: false, dead: { code: 'Quote', shift: true, accent: '¨' } });
+    expect(howToType('azerty-fr', 'ê')).toEqual({ code: 'KeyE', shift: false, dead: { code: 'BracketLeft', shift: false, accent: '^' } });
+    expect(howToType('azerty-fr', 'é')).toEqual({ code: 'Digit2', shift: false });
+    // US QWERTY's ´ and ^ are plain characters, not dead keys.
+    expect(howToType('qwerty-us', 'é')).toBeNull();
+    expect(howToType('azerty-fr', 'á')).toBeNull();
+  });
+
+  it('types Polish letters with AltGr', () => {
+    expect(howToType('qwerty-pl', 'ą')).toEqual({ code: 'KeyA', shift: false, altGr: true });
+    expect(howToType('qwerty-pl', 'Ź')).toEqual({ code: 'KeyX', shift: true, altGr: true });
+    expect(howToType('qwerty-us', 'ą')).toBeNull();
+  });
+
   it('labels capitals with a Shift arrow and marks as themselves', () => {
     expect(charLabel('qwerty-us', 'e')).toBe('E');
     expect(charLabel('qwerty-us', 'E')).toBe('⇧E');
@@ -68,6 +85,12 @@ describe('howToType', () => {
     expect(charLabel('qwerty-us', '?')).toBe('?');
     expect(charLabel('qwerty-us', '7')).toBe('7');
     expect(charLabel('qwerty-us', ' ')).toBe('Space');
+  });
+
+  it('labels AltGr and dead-key letters as themselves, not as their base key', () => {
+    expect(charLabel('qwerty-pl', 'ą')).toBe('Ą');
+    expect(charLabel('qwerty-es', 'é')).toBe('É');
+    expect(charLabel('qwerty-es', 'ñ')).toBe('Ñ');
   });
 });
 
