@@ -468,6 +468,8 @@ tr.wrong td { color: var(--error); }
 .fg-kb .kb-row { gap: 5px; }
 .fg-kb .kb-key { width: 2.6em; height: 2.6em; border-radius: var(--r-sm); font-size: 1em; color: var(--fg); border-color: var(--border); }
 @media (max-width: 560px) {
+  /* Three lines on phones, where Shift and AltGr hints wrap once more. */
+  .fg-caption { height: 4.5em; }
   .fg-kb, .fg-kb .kb-row { gap: 3px; }
   .finger-guide .fg-kb { font-size: 2.1vw; }
 }
@@ -511,6 +513,8 @@ tr.wrong td { color: var(--error); }
 .fg-kb .kb-row-3 { padding-left: 0; }
 .fg-kb .kb-row-space { padding-left: 0; justify-content: center; }
 .fg-kb .kb-key.kb-space { width: 16em; background: var(--fg-thumb); font-family: var(--sans); font-size: 0.85em; }
+.fg-kb .kb-key.fg-altgr { width: 3.9em; font-family: var(--sans); font-size: 0.85em; }
+.fg-kb .kb-key.fg-spacer { visibility: hidden; }
 .fg-home-key { font-weight: 600; }
 .fg-kb .kb-key.fg-bump { font-weight: 700; }
 /* The tactile bumps on F and J. */

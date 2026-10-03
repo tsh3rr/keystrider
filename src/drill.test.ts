@@ -462,7 +462,7 @@ describe('capitals, punctuation and digits', () => {
     expect(new Set(steps).size).toBe(steps.length);
   });
 
-  it('skips marks the layout cannot type without AltGr', () => {
+  it('skips marks the layout cannot type', () => {
     const corpus: Corpus = { ...en, punctuation: ['.', '§'] };
     expect(unlockSteps(corpus, 'qwerty-us')).not.toContain('§');
     expect(unlockSteps(corpus, 'qwertz-de')).toContain('§');
@@ -477,6 +477,7 @@ describe('capitals, punctuation and digits', () => {
     expect(needsShift('1', 'qwerty-us')).toBe(false);
     expect(needsShift('1', 'azerty-fr')).toBe(true);
     expect(needsShift('()', 'qwerty-us')).toBe(true);
+    expect(needsShift('@', 'qwertz-de')).toBe(true);
   });
 
   it('opens capitals only for unlocked letters, and brackets as a pair', () => {

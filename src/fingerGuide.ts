@@ -1,4 +1,4 @@
-import { ROWS, howToType, keyLabel } from './layouts';
+import { ROWS, getLayout, howToType, keyLabel } from './layouts';
 import { HOME_KEYS, HOME_ROW, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
 import { t, tNodes, type MessageKey } from './i18n';
 
@@ -61,6 +61,12 @@ export class FingerGuide {
     });
     const space = el('div', 'kb-row kb-row-space');
     space.append(this.key('Space', t('key.space'), 'kb-space'));
+    // Layouts with AltGr characters get the key right of Space; a blank twin on the left keeps Space centred.
+    const l = getLayout(layoutId);
+    if (l && (l.altGr.size > 0 || l.altGrSymbols.size > 0)) {
+      space.prepend(el('div', 'kb-key fg-altgr fg-spacer'));
+      space.append(this.key('AltRight', 'AltGr', 'fg-altgr'));
+    }
     this.keysEl.replaceChildren(...rows, space);
 
     const [left, right] = [HOME_ROW.slice(0, 4), HOME_ROW.slice(4)].map((codes) => codes.map(label).join(' '));
@@ -83,6 +89,7 @@ export class FingerGuide {
       if (!how) continue;
       open.add(how.code);
       if (how.shift) shift = true;
+      if (how.altGr) open.add('AltRight');
     }
     for (const [code, k] of this.keyEls) {
       const locked = chars !== null && !(code.startsWith('Shift') ? shift : open.has(code));
@@ -132,6 +139,7 @@ export class FingerGuide {
     light(g.code, 'fg-next');
     if (g.shift) light(g.shift, 'fg-next');
     if (g.dead) light(g.dead.code, 'fg-next');
+    if (g.altGr) light('AltRight', 'fg-next');
     light(g.home, 'fg-from');
     if (g.finger.name === 'thumb') {
       for (const id of ['left-thumb', 'right-thumb']) this.lightFinger(id, 'fg-next');
@@ -140,17 +148,22 @@ export class FingerGuide {
       this.reach(fingerId(g.finger), g.code);
     }
     if (g.shift) this.lightFinger(g.shift === 'ShiftLeft' ? 'left-pinky' : 'right-pinky', 'fg-hold');
+    if (g.altGr) this.lightFinger('right-thumb', 'fg-hold');
 
     const name = ch === ' ' ? t('key.space') : keyLabel(this.layout, g.code);
     // A shifted symbol is named by its key too: "Shift + ß for ?" on German QWERTZ.
     let keys = !g.shift ? name : ch.toUpperCase() === name ? t('guide.shift', { key: name }) : t('guide.shiftFor', { key: name, ch });
-    // Polish ą is AltGr + A; Spanish é is the ´ dead key, then E.
-    if (g.altGr) keys = t('guide.altGr', { keys });
+    // Polish ą is AltGr + A, German @ "AltGr + Q for @"; Spanish é is the ´ dead key, then E.
+    const symbol = ch.toLowerCase() === ch.toUpperCase();
+    if (g.altGr) keys = t(symbol && !g.shift ? 'guide.altGrFor' : 'guide.altGr', { keys, ch });
     if (g.dead) keys = t('guide.dead', { accent: g.dead.accent, keys });
     const finger = t((g.finger.name === 'thumb' ? 'finger.thumb' : `finger.${fingerId(g.finger)}`) as MessageKey);
     let rest = '';
     if (g.home) rest += t('guide.reach', { home: keyLabel(this.layout, g.home) });
-    if (g.shift) rest += t(g.shift === 'ShiftLeft' ? 'guide.holdShift.left' : 'guide.holdShift.right');
+    const left = g.shift === 'ShiftLeft';
+    if (g.shift && g.altGr) rest += t(left ? 'guide.holdShiftAltGr.left' : 'guide.holdShiftAltGr.right');
+    else if (g.shift) rest += t(left ? 'guide.holdShift.left' : 'guide.holdShift.right');
+    else if (g.altGr) rest += t('guide.holdAltGr');
     this.setCaption(...tNodes('guide.caption', { keys: el('kbd', 'fg-cap-key', keys), finger }), el('span', 'fg-reach', rest + '.'));
   }
 

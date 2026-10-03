@@ -60,7 +60,11 @@ describe('guideFor', () => {
     expect(guideFor('qwerty-us', '"')).toMatchObject({ code: 'Quote', shift: 'ShiftLeft' });
   });
 
-  it('gives no hint for AltGr symbols', () => {
-    expect(guideFor('qwertz-de', '@')).toBeNull();
+  it('guides AltGr symbols to their key, with AltGr held by the right thumb', () => {
+    expect(guideFor('qwertz-de', '@')).toMatchObject({ code: 'KeyQ', finger: { hand: 'left', name: 'pinky' }, altGr: true, shift: null });
+    expect(guideFor('qwertz-de', '}')).toMatchObject({ code: 'Digit0', finger: { hand: 'right', name: 'pinky' }, altGr: true });
+    expect(guideFor('qwerty-it', '}')).toMatchObject({ code: 'BracketRight', altGr: true, shift: 'ShiftLeft' });
+    expect(fingerFor('AltRight')).toEqual({ hand: 'right', name: 'thumb' });
+    expect(guideFor('qwerty-us', '€')).toBeNull();
   });
 });
