@@ -1,7 +1,7 @@
 import '@fontsource-variable/jetbrains-mono';
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
-import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage } from './corpus';
+import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage, loadCorpus } from './corpus';
 import { clearCurriculum, hasAnyCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
   CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, meetsBar, modelOptions, needsShift,
@@ -674,10 +674,43 @@ breakSkip.addEventListener('click', () => {
 // log (both keyed by language and layout), so switching back and forth
 // keeps progress in each.
 
-/** Switches the practice language and, unless `start` is false, starts a drill in it. */
-function setLanguage(language: string, start = true): void {
+// A thin bar along the top while a language's words are fetched; only on a
+// slow connection, so a quick load doesn't flash.
+const loadBar = $('load-bar');
+let loadsInFlight = 0;
+
+async function withLoadBar<T>(work: Promise<T>): Promise<T> {
+  loadsInFlight++;
+  const show = setTimeout(() => { loadBar.hidden = false; }, 150);
+  try {
+    return await work;
+  } finally {
+    clearTimeout(show);
+    if (--loadsInFlight === 0) loadBar.hidden = true;
+  }
+}
+
+/** The language most recently picked, while its corpus is still being fetched. */
+let pendingLanguage: string | null = null;
+
+/**
+ * Switches the practice language once its corpus is loaded (so everything
+ * working in `context.language` can read it synchronously) and, unless
+ * `start` is false, starts a drill in it.
+ */
+async function setLanguage(language: string, start = true): Promise<void> {
   // A finished drill is still being scored under the old language: keep it.
-  if (finishing || language === context.language) return;
+  if (finishing || language === (pendingLanguage ?? context.language)) return;
+  pendingLanguage = language;
+  try {
+    await withLoadBar(loadCorpus(language));
+  } catch (err) {
+    if (pendingLanguage === language) pendingLanguage = null;
+    throw err;
+  }
+  // A later pick wins; a drill that finished meanwhile is scored under the old language.
+  if (pendingLanguage !== language || finishing) return;
+  pendingLanguage = null;
   context.language = language;
   saveLanguageSetting(context.language);
   // The fatigue yardstick is a model of the old language's keys.
@@ -691,7 +724,9 @@ function renderLanguage(): void {
   const lang = availableLanguages().find((c) => c.language === context.language);
   $('language-name').textContent = lang?.name ?? context.language;
   $('language-options').replaceChildren(...availableLanguages().map((c) =>
-    menuItem(c.name, '', c.language === context.language, () => setLanguage(c.language))));
+    menuItem(c.name, '', c.language === context.language, () => {
+      setLanguage(c.language).catch((err) => console.error('Failed to switch language', err));
+    })));
 }
 
 // --- Keyboard layout ---
@@ -1107,7 +1142,7 @@ declare global {
   }
 }
 
-KeystrokeStore.open().then((s) => {
+Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).then(([s]) => {
   store = s;
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();

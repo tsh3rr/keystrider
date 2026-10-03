@@ -1,4 +1,4 @@
-import { availableLanguages, type Corpus } from './corpus';
+import { loadedCorpus, type Corpus } from './corpus';
 import { charLabel, howToType } from './layouts';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
@@ -429,8 +429,10 @@ export function codeFor(layoutId: string, ch: string): string | null {
 const corpusCache = new Map<string, ItemFrequencies | undefined>();
 function defaultFrequencies(language: string): ItemFrequencies | undefined {
   if (!corpusCache.has(language)) {
-    const corpus = availableLanguages().find((c) => c.language === language);
-    corpusCache.set(language, corpus && corpusFrequencies(corpus));
+    // Not cached while unloaded, so the frequencies arrive with the corpus.
+    const corpus = loadedCorpus(language);
+    if (!corpus) return undefined;
+    corpusCache.set(language, corpusFrequencies(corpus));
   }
   return corpusCache.get(language);
 }

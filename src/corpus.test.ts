@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { availableLanguages, guessLanguage } from './corpus';
+import { availableLanguages, guessLanguage, loadCorpus } from './corpus';
 import { de } from './corpora/de';
 import { en } from './corpora/en';
 import { es } from './corpora/es';
@@ -111,5 +111,13 @@ describe('guessLanguage', () => {
 
   it('only guesses languages that exist', () => {
     expect(availableLanguages().map((c) => c.language)).toEqual(expect.arrayContaining(['en', 'de', 'fr', 'es', 'it', 'pl']));
+  });
+
+  it('lists each language under its corpus name', async () => {
+    for (const lang of availableLanguages()) {
+      const corpus = await loadCorpus(lang.language);
+      expect(corpus.language).toBe(lang.language);
+      expect(corpus.name).toBe(lang.name);
+    }
   });
 });

@@ -89,7 +89,8 @@ export interface OnboardingHost {
   layoutSource(): LayoutSetting['source'];
   /** Whether lessons already exist for the current language and layout. */
   hasLessons(): boolean;
-  setLanguage(language: string): void;
+  /** Resolves once the language is in use (its corpus loaded). */
+  setLanguage(language: string): Promise<void>;
   setLayout(layout: string, source: LayoutSetting['source']): Promise<void>;
   /** Stores one keystroke of the placement test in the log. */
   log(event: KeystrokeEvent): Promise<unknown>;
@@ -216,8 +217,9 @@ export class Onboarding {
       seg.style.gridTemplateColumns = `repeat(${langs.length}, 1fr)`;
       for (const c of langs) {
         const b = button(c.name, '', () => {
-          this.host.setLanguage(c.language);
-          this.render();
+          this.host.setLanguage(c.language)
+            .then(() => this.render())
+            .catch((err) => console.error('Failed to switch language', err));
         });
         b.setAttribute('role', 'radio');
         b.setAttribute('aria-checked', String(c.language === ctx.language));

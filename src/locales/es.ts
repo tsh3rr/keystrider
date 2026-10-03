@@ -7,6 +7,7 @@ import type { Messages } from '../i18n';
 export const es: Messages = {
   // --- Top bar ---
   'nav.aria': 'Menú principal',
+  'loading.text': 'Cargando textos de práctica',
   'nav.practice': 'Practicar',
   'nav.progress': 'Progreso',
   'nav.progressTitle': 'Tu velocidad, tu precisión y tus teclas débiles a lo largo del tiempo',

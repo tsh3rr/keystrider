@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
+import { loadCorpus } from './corpus';
 import { TypingSession } from './session';
 import { KeystrokeStore } from './store';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -155,7 +156,9 @@ describe('buildWeaknessModel', () => {
     expect(codeFor('qwerty-us', 'ü')).toBeNull();
   });
 
-  it('weights priority by language frequency', () => {
+  it('weights priority by language frequency', async () => {
+    // Default frequencies come from the corpus, which the app loads before practising.
+    await loadCorpus('en');
     // e and q equally weak; e is far more common in English.
     const events = typed('eqeqeqeq', { presses: 'xexqxexqxexqxexq' });
     const m = buildWeaknessModel(events, EN, { now: NOW });
