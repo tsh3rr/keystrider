@@ -111,11 +111,20 @@ export class Account {
     if (error) throw error;
   }
 
-  /** Creates an account. Returns false when it still has to be confirmed by e-mail. */
-  async signUp(email: string, password: string): Promise<boolean> {
+  /**
+   * Creates an account with its username (the database creates the profile
+   * in the same step, see the usernames migrations). Returns false when it
+   * still has to be confirmed by e-mail. Throws `{ code: 'username_taken' }`.
+   */
+  async signUp(email: string, password: string, username: string): Promise<boolean> {
     const client = await this.connect();
-    const { data, error } = await client.auth.signUp({ email, password, options: { emailRedirectTo: here() } });
+    const { data: free, error: checkError } = await client.rpc('username_available', { name: username });
+    if (checkError) throw checkError;
+    if (free === false) throw usernameTaken();
+    const { data, error } = await client.auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: here() } });
     if (error) throw error;
+    if (data.user) saveUsername(data.user.id, username);
+    this.emit();
     return data.session !== null;
   }
 
@@ -139,7 +148,7 @@ export class Account {
     const client = this.requireSignedIn();
     const user = this.session!.user.id;
     const { error } = await client.from('profiles').upsert({ user_id: user, username });
-    if (error) throw error.code === '23505' ? Object.assign(new Error(error.message), { code: 'username_taken' }) : error;
+    if (error) throw error.code === '23505' ? usernameTaken() : error;
     saveUsername(user, username);
     this.emit();
   }
@@ -300,6 +309,8 @@ export class Account {
     this.deps.stateChanged(this.state);
   }
 }
+
+const usernameTaken = () => Object.assign(new Error('username taken'), { code: 'username_taken' });
 
 const logSyncError = (err: unknown) => console.error('Sync failed', err);
 

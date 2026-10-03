@@ -1,47 +1,62 @@
-import { t, uiLanguage, type MessageKey } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { EMAIL_LINKS, OAUTH_PROVIDERS, type Account, type AccountState, type OAuthProvider } from './account';
-import { USERNAME_MAX, USERNAME_MIN, usernameProblem } from './username';
+import {
+  MIN_PASSWORD, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus,
+  userIcon, usernameError, usernameField, usernameHint, type SignedIn,
+} from './ui';
+
+export { benefits } from './ui';
 
 /**
- * The Account group in Settings: sign in with Google or e-mail and
- * password (and, once e-mail can be sent, by a one-time code), then see the
- * sync status, sync by hand, sign out or delete the account.
+ * The panel under the top-bar account button. Signed out: sign in, or
+ * create an account (with a username). Signed in: who is signed in, the
+ * sync status and a way to the profile page, where everything else lives.
  */
 
-type SignedIn = Extract<AccountState, { signedIn: true }>;
-
-type Step =
-  | { kind: 'password' }
+export type SignedOutStep =
+  | { kind: 'signin' }
+  | { kind: 'signup' }
   | { kind: 'code' }
   | { kind: 'code-sent'; email: string }
   | { kind: 'reset' };
 
 const PROVIDER_LABEL: Record<OAuthProvider, MessageKey> = { google: 'account.google', github: 'account.github' };
-const MIN_PASSWORD = 8;
 
 export class AccountView {
   private state: AccountState = { signedIn: false };
-  private step: Step = { kind: 'password' };
+  private step: SignedOutStep = { kind: 'signin' };
   private busy = false;
   private error = '';
   private notice = '';
   private email = '';
-  /** Changing an existing username. */
-  private renaming = false;
+  private username = '';
+  /** Kept while the panel redraws (a wrong password, a taken username), dropped once signed in. */
+  private password = '';
 
   constructor(
     private readonly root: HTMLElement,
     private readonly account: Account,
-    /** The top-bar button: "Sign in" while signed out, the account's initial and sync state once signed in. */
+    /** The top-bar button: "Sign in" while signed out, the account's initial and name once signed in. */
     private readonly topButton: HTMLButtonElement,
     /** One line about the account in Settings. */
     private readonly summary: HTMLElement,
+    private readonly openProfile: () => void,
   ) {}
 
   update(state: AccountState): void {
-    if (state.signedIn && !this.state.signedIn) this.step = { kind: 'password' };
-    if (!state.signedIn) this.renaming = false;
+    if (state.signedIn && !this.state.signedIn) {
+      this.step = { kind: 'signin' };
+      this.password = '';
+    }
     this.state = state;
+    this.render();
+  }
+
+  /** Shows signing in or creating an account the next time the panel opens signed out. */
+  show(kind: 'signin' | 'signup'): void {
+    if (this.state.signedIn || this.busy) return;
+    this.step = { kind };
+    this.error = '';
     this.render();
   }
 
@@ -55,7 +70,7 @@ export class AccountView {
 
   /** Focuses the first field, or the first button when signed in. */
   focus(): void {
-    this.root.querySelector<HTMLElement>('input, button')?.focus();
+    (this.root.querySelector<HTMLElement>('input') ?? this.root.querySelector<HTMLElement>('button'))?.focus();
   }
 
   private renderButton(): void {
@@ -69,13 +84,8 @@ export class AccountView {
       return;
     }
     const name = displayName(state);
-    b.className = `account-btn signed-in sync-${state.sync}`;
-    const avatar = Object.assign(document.createElement('span'), {
-      className: 'account-avatar', textContent: ([...name][0] ?? '?').toUpperCase(),
-    });
-    avatar.setAttribute('aria-hidden', 'true');
-    avatar.append(Object.assign(document.createElement('span'), { className: 'account-dot' }));
-    b.replaceChildren(avatar);
+    b.className = 'account-btn signed-in';
+    b.replaceChildren(avatar(state));
     if (state.username) {
       const label = Object.assign(document.createElement('span'), { className: 'account-name', textContent: state.username });
       label.setAttribute('aria-hidden', 'true');
@@ -85,39 +95,52 @@ export class AccountView {
     b.setAttribute('aria-label', `${t('account.signedInAs', { name })}. ${syncStatus(state)}`);
   }
 
-  private go(step: Step): void {
+  private go(step: SignedOutStep): void {
     this.step = step;
     this.error = '';
     this.notice = '';
     this.render();
-    this.root.querySelector<HTMLInputElement>('input')?.focus();
+    this.focus();
   }
 
   private signedOut(): Node[] {
     const nodes: Node[] = [];
-    if (this.notice) nodes.push(p(this.notice, 'account-note'));
     const step = this.step;
+    if (step.kind === 'signin' || step.kind === 'signup') nodes.push(this.tabs(step.kind));
+    if (this.notice) nodes.push(p(this.notice, 'account-note'));
     switch (step.kind) {
-      case 'password': {
-        nodes.push(benefits(), p(t('account.optional'), 'account-note'));
-        for (const provider of OAUTH_PROVIDERS) {
-          nodes.push(button(t(PROVIDER_LABEL[provider]), 'account-provider', () =>
-            this.run(() => this.account.signInWithProvider(provider))));
-        }
-        if (OAUTH_PROVIDERS.length) nodes.push(p(t('account.orEmail'), 'account-or'));
+      case 'signin': {
+        nodes.push(...this.providers());
         const email = this.emailField();
-        const password = field('password', t('account.password'), { autocomplete: 'current-password', minlength: String(MIN_PASSWORD) });
+        const password = this.passwordField('current-password');
         nodes.push(form([email, password], [
           { label: t('account.signIn'), primary: true, go: () => this.run(() => this.account.signInWithPassword(email.value.trim(), password.value)) },
-          { label: t('account.signUp'), go: () => this.run(async () => {
-            const signedIn = await this.account.signUp(email.value.trim(), password.value);
-            if (!signedIn) this.notice = t('account.confirmSent', { email: email.value.trim() });
-          }) },
         ]));
         if (EMAIL_LINKS) {
           nodes.push(button(t('account.useCode'), 'link-btn', () => this.go({ kind: 'code' })));
           nodes.push(button(t('account.forgot'), 'link-btn', () => this.go({ kind: 'reset' })));
         }
+        nodes.push(p(t('account.optional'), 'account-note'));
+        break;
+      }
+      case 'signup': {
+        nodes.push(benefits(), ...this.providers());
+        const username = usernameField(this.username);
+        username.addEventListener('input', () => (this.username = username.value));
+        const email = this.emailField();
+        const password = this.passwordField('new-password');
+        nodes.push(form([username, email, password], [{ label: t('account.signUp'), primary: true, go: () => {
+          const name = username.value.trim();
+          const problem = usernameError(name);
+          if (problem) return this.fail(problem);
+          void this.run(async () => {
+            const signedIn = await this.account.signUp(email.value.trim(), password.value, name);
+            if (!signedIn) {
+              this.notice = t('account.confirmSent', { email: email.value.trim() });
+              this.step = { kind: 'signin' };
+            }
+          });
+        } }]), usernameHint(), p(t('account.optional'), 'account-note'));
         break;
       }
       case 'code': {
@@ -143,7 +166,7 @@ export class AccountView {
         const email = this.emailField();
         nodes.push(form([email], [{ label: t('account.sendReset'), primary: true, go: () => this.run(async () => {
           await this.account.sendPasswordReset(email.value.trim());
-          this.step = { kind: 'password' };
+          this.step = { kind: 'signin' };
           this.notice = t('account.resetSent', { email: email.value.trim() });
         }) }]));
         nodes.push(this.back());
@@ -154,7 +177,29 @@ export class AccountView {
     return nodes;
   }
 
-  /** The e-mail field, keeping what was typed when the group redraws (e.g. after a wrong password). */
+  /** "Sign in | Create account" switch at the top of the signed-out panel. */
+  private tabs(current: 'signin' | 'signup'): HTMLElement {
+    const row = Object.assign(document.createElement('div'), { className: 'account-tabs' });
+    row.setAttribute('role', 'tablist');
+    for (const kind of ['signin', 'signup'] as const) {
+      const b = button(t(kind === 'signin' ? 'account.signIn' : 'account.signUp'), '', () => {
+        if (this.step.kind !== kind) this.go({ kind });
+      });
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(kind === current));
+      row.append(b);
+    }
+    return row;
+  }
+
+  private providers(): Node[] {
+    const nodes: Node[] = OAUTH_PROVIDERS.map((provider) => button(t(PROVIDER_LABEL[provider]), 'account-provider', () =>
+      this.run(() => this.account.signInWithProvider(provider))));
+    if (nodes.length) nodes.push(p(t('account.orEmail'), 'account-or'));
+    return nodes;
+  }
+
+  /** The e-mail field, keeping what was typed when the panel redraws (e.g. after a wrong password). */
   private emailField(): HTMLInputElement {
     const input = field('email', t('account.email'), { autocomplete: 'email' });
     input.value = this.email;
@@ -162,192 +207,61 @@ export class AccountView {
     return input;
   }
 
+  private passwordField(autocomplete: 'current-password' | 'new-password'): HTMLInputElement {
+    const input = field('password', t('account.password'), autocomplete === 'new-password' ? { autocomplete, minlength: String(MIN_PASSWORD) } : { autocomplete });
+    input.value = this.password;
+    input.addEventListener('input', () => (this.password = input.value));
+    return input;
+  }
+
   private back(): HTMLButtonElement {
-    return button(t('account.back'), 'link-btn', () => this.go({ kind: 'password' }));
+    return button(t('account.back'), 'link-btn', () => this.go({ kind: 'signin' }));
   }
 
   private signedIn(state: SignedIn): Node[] {
-    const status = syncStatus(state);
-    const nodes: Node[] = [p(t('account.signedInAs', { name: displayName(state) }), 'account-email')];
-    if (state.username) nodes.push(p(state.email, 'account-note account-address'));
-    if (this.notice) nodes.push(p(this.notice, 'account-note'));
-    // Prompted once the server said there is none, not while it is still being fetched.
-    if (state.username === null || this.renaming) nodes.push(...this.usernameForm(state));
-    if (state.choosePassword) {
-      // Came in through a password-reset link.
-      nodes.push(p(t('account.choosePassword'), 'account-note'));
-      const password = field('password', t('account.newPassword'), { autocomplete: 'new-password', minlength: String(MIN_PASSWORD) });
-      nodes.push(form([password], [{ label: t('account.savePassword'), primary: true, go: () => this.run(async () => {
-        await this.account.setPassword(password.value);
-        this.notice = t('account.passwordSaved');
-      }) }]));
+    const head = Object.assign(document.createElement('div'), { className: 'account-head' });
+    const who = document.createElement('div');
+    who.append(p(displayName(state), 'account-email'));
+    if (state.username) who.append(p(state.email, 'account-note account-address'));
+    head.append(avatar(state, 'account-avatar large'), who);
+    const nodes: Node[] = [head];
+    // Prompted once the server said there is none (Google sign-in, or an account from before usernames).
+    // A password-reset link signed in: the new password is chosen on the profile page.
+    const ask = state.choosePassword ? ['account.choosePassword', 'account.choosePasswordGo'] as const
+      : state.username === null ? ['account.usernameMissing', 'account.usernameChoose'] as const : null;
+    if (ask) {
+      const callout = Object.assign(document.createElement('div'), { className: 'account-callout' });
+      callout.append(p(t(ask[0]), 'account-note'), button(t(ask[1]), 'primary', this.openProfile));
+      nodes.push(callout);
     }
     nodes.push(
-      p(status, state.sync === 'error' ? 'account-error' : 'account-note'),
+      p(syncStatus(state), state.sync === 'error' ? 'account-error' : 'account-note'),
+      button(t('account.profile'), ask ? 'link-btn' : 'primary', this.openProfile),
       button(t('account.syncNow'), 'link-btn', () => this.run(() => this.account.syncNow())),
-      ...(state.username && !this.renaming ? [button(t('account.usernameChange'), 'link-btn', () => {
-        this.renaming = true;
-        this.go({ kind: 'password' });
-      })] : []),
       button(t('account.signOut'), 'link-btn', () => this.run(() => this.account.signOut())),
-      button(t('account.delete'), 'link-btn account-delete', () => {
-        if (!confirm(t('account.deleteConfirm'))) return;
-        void this.run(async () => {
-          await this.account.deleteAccount();
-          this.notice = t('account.deleted');
-        });
-      }),
       ...this.errorLine(),
-      privacyLink(),
     );
     return nodes;
-  }
-
-  /** Choosing a username (prompted while there is none) or changing it. */
-  private usernameForm(state: SignedIn): Node[] {
-    const input = field('text', t('account.username'), {
-      autocomplete: 'username', minlength: String(USERNAME_MIN), maxlength: String(USERNAME_MAX),
-      spellcheck: 'false', autocapitalize: 'off',
-    });
-    input.value = state.username ?? '';
-    const actions: Action[] = [{ label: t('account.usernameSave'), primary: true, go: () => {
-      const name = input.value.trim();
-      const problem = usernameProblem(name, uiLanguage());
-      if (problem) {
-        this.error = t(problem === 'blocked' ? 'account.usernameBlocked' : 'account.usernameInvalid', { min: USERNAME_MIN, max: USERNAME_MAX });
-        this.render();
-        this.root.querySelector<HTMLInputElement>('input')?.focus();
-        return;
-      }
-      void this.run(async () => {
-        await this.account.setUsername(name);
-        this.renaming = false;
-        this.notice = t('account.usernameSaved');
-      });
-    } }];
-    if (this.renaming) actions.push({ label: t('account.back'), go: () => { this.renaming = false; this.go({ kind: 'password' }); }, skipCheck: true });
-    const box = Object.assign(document.createElement('div'), { className: 'account-username' });
-    if (!state.username) box.append(p(t('account.usernamePrompt'), 'account-note'));
-    box.append(form([input], actions), p(t('account.usernameHint', { min: USERNAME_MIN, max: USERNAME_MAX }), 'account-hint'));
-    return [box];
   }
 
   private errorLine(): Node[] {
     return this.error ? [p(this.error, 'account-error', 'alert')] : [];
   }
 
+  private fail(message: string): void {
+    this.error = message;
+    this.render();
+    this.focus();
+  }
+
+
   private async run(work: () => Promise<void>): Promise<void> {
     if (this.busy) return;
     this.busy = true;
     this.error = '';
     this.notice = '';
-    this.root.querySelectorAll('button, input').forEach((el) => ((el as HTMLButtonElement).disabled = true));
-    try {
-      await work();
-    } catch (err) {
-      console.error('Account action failed', err);
-      this.error = errorMessage(err);
-    } finally {
-      this.busy = false;
-      this.render();
-    }
+    this.error = await runIn(this.root, work);
+    this.busy = false;
+    this.render();
   }
-}
-
-/** A short, translated reason for a failed sign-in or sync. */
-function errorMessage(err: unknown): string {
-  const e = err as { status?: number; code?: string; message?: string; name?: string };
-  switch (e?.code) {
-    case 'invalid_credentials': return t('account.errorCredentials');
-    case 'user_already_exists': case 'email_exists': return t('account.errorExists');
-    case 'weak_password': return t('account.errorWeak', { n: MIN_PASSWORD });
-    case 'email_not_confirmed': return t('account.errorNotConfirmed');
-    case 'otp_expired': return t('account.errorCode');
-    case 'validation_failed': case 'email_address_invalid': return t('account.errorEmail');
-    case 'username_taken': return t('account.usernameTaken');
-    case 'over_email_send_rate_limit': case 'over_request_rate_limit': return t('account.errorRateLimit');
-  }
-  if (e?.status === 429) return t('account.errorRateLimit');
-  if (e?.name === 'AuthRetryableFetchError' || err instanceof TypeError || (typeof navigator !== 'undefined' && !navigator.onLine)) return t('account.errorOffline');
-  return t('account.errorGeneric', { message: e?.message ?? String(err) });
-}
-
-function p(text: string, className: string, role?: string): HTMLParagraphElement {
-  const el = Object.assign(document.createElement('p'), { textContent: text, className });
-  if (role) el.setAttribute('role', role);
-  return el;
-}
-
-function button(label: string, className: string, onClick: () => void): HTMLButtonElement {
-  const b = Object.assign(document.createElement('button'), { type: 'button', textContent: label, className });
-  b.addEventListener('click', onClick);
-  return b;
-}
-
-function field(type: string, label: string, attrs: Record<string, string>): HTMLInputElement {
-  const input = Object.assign(document.createElement('input'), { type, required: true, className: 'account-input' });
-  input.setAttribute('aria-label', label);
-  input.placeholder = label;
-  for (const [k, v] of Object.entries(attrs)) input.setAttribute(k, v);
-  return input;
-}
-
-
-interface Action { label: string; primary?: boolean; go: () => void; /** Runs without checking the fields, e.g. Cancel. */ skipCheck?: boolean }
-
-/**
- * Fields and one or more actions. Enter and the first action submit; every
- * action checks the fields first, so the browser points at what is missing.
- */
-function form(inputs: HTMLInputElement[], actions: Action[]): HTMLFormElement {
-  const f = Object.assign(document.createElement('form'), { className: 'account-form' });
-  f.append(...inputs);
-  const row = Object.assign(document.createElement('div'), { className: 'account-actions' });
-  actions.forEach((a, i) => {
-    const b = Object.assign(document.createElement('button'), { type: i === 0 ? 'submit' : 'button', textContent: a.label });
-    if (a.primary) b.className = 'primary';
-    if (i > 0) b.addEventListener('click', () => { if (a.skipCheck || f.reportValidity()) a.go(); });
-    row.append(b);
-  });
-  f.append(row);
-  f.addEventListener('submit', (e) => {
-    e.preventDefault();
-    actions[0].go();
-  });
-  return f;
-}
-
-function privacyLink(): HTMLAnchorElement {
-  return Object.assign(document.createElement('a'), { href: '/datenschutz', textContent: t('account.privacy'), className: 'account-privacy' });
-}
-
-function displayName(state: SignedIn): string {
-  return state.username ?? state.email;
-}
-
-function syncStatus(state: SignedIn): string {
-  return state.sync === 'syncing' ? t('account.syncing')
-    : state.sync === 'error' ? t('account.syncFailed')
-    : state.lastSync === null ? t('account.neverSynced')
-    : t('account.synced', { time: new Date(state.lastSync).toLocaleString(uiLanguage(), { dateStyle: 'short', timeStyle: 'short' }) });
-}
-
-/** Why an account is worth having: a heading and three short points, for the account panel, the setup and the reminder. */
-export function benefits(): HTMLElement {
-  const box = Object.assign(document.createElement('div'), { className: 'account-benefits' });
-  const list = document.createElement('ul');
-  for (const key of ['account.benefit1', 'account.benefit2', 'account.benefit3'] as const) {
-    list.append(Object.assign(document.createElement('li'), { textContent: t(key) }));
-  }
-  box.append(Object.assign(document.createElement('strong'), { textContent: t('account.benefitsTitle') }), list);
-  return box;
-}
-
-function userIcon(): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('class', 'icon');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>';
-  return svg;
 }

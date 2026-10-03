@@ -95,7 +95,7 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Du kannst dich unter <em>Einstellungen → Konto</em> mit deinem Google-Konto oder mit E-Mail-Adresse und Passwort anmelden. Dann gleicht Keystrider deinen Fortschritt zwischen deinen Geräten ab. Dafür verarbeiten wir:</p>
     <ul>
       <li><strong>Anmeldedaten:</strong> deine E-Mail-Adresse, dein Passwort (nur als nicht umkehrbarer Hash gespeichert), eine interne Benutzerkennung, Zeitpunkt der Registrierung und der letzten Anmeldung sowie technische Protokolle der Anmeldung (IP-Adresse, Browserangaben, Zeitpunkt), die der Absicherung gegen Missbrauch dienen.</li>
-      <li><strong>Benutzername:</strong> falls du einen wählst. Er wird in der App statt deiner E-Mail-Adresse angezeigt und ist für andere Nutzer nicht sichtbar.</li>
+      <li><strong>Benutzername:</strong> den du beim Registrieren wählst. Er wird in der App statt deiner E-Mail-Adresse angezeigt. Andere Nutzer sehen ihn nicht; beim Registrieren lässt sich nur prüfen, ob ein Name schon vergeben ist.</li>
       <li><strong>Übungsdaten:</strong> das Tastenprotokoll jeder abgeschlossenen Übungsrunde (wie oben unter <em>Tastenprotokoll</em> beschrieben) und dein Lernstand je Sprache und Layout. Deine Einstellungen bleiben nur auf dem jeweiligen Gerät.</li>
     </ul>
     <p>Rechtsgrundlage ist die Erfüllung des Nutzungsverhältnisses, das du mit der Anmeldung eingehst (Art. 6 Abs. 1 lit. b DSGVO); die Anmeldeprotokolle verarbeiten wir aufgrund unseres berechtigten Interesses an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO).</p>
@@ -136,7 +136,7 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Under <em>Settings → Account</em> you can sign in with your Google account or with an e-mail address and password. Keystrider then keeps your progress in sync between your devices. For this we process:</p>
     <ul>
       <li><strong>Sign-in data:</strong> your e-mail address, your password (stored only as a one-way hash), an internal user ID, when you registered and last signed in, and technical sign-in logs (IP address, browser details, time) used to protect against abuse.</li>
-      <li><strong>Username:</strong> if you choose one. The app shows it instead of your e-mail address; other users cannot see it.</li>
+      <li><strong>Username:</strong> the one you choose when you sign up. The app shows it instead of your e-mail address. Other users cannot see it; signing up only reveals whether a name is already taken.</li>
       <li><strong>Practice data:</strong> the keystroke log of each finished practice round (as described above under <em>Keystroke log</em>) and your learning state per language and layout. Your settings stay on each device.</li>
     </ul>
     <p>The legal basis is performing the service you sign up for (Art. 6(1)(b) GDPR); we process the sign-in logs based on our legitimate interest in a secure service (Art. 6(1)(f) GDPR).</p>

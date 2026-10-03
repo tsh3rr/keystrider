@@ -31,6 +31,7 @@ import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
 import { Account } from './sync/account';
 import { AccountView, benefits } from './sync/accountView';
+import { ProfileView } from './sync/profileView';
 import {
   UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, tNodes, uiLanguage,
 } from './i18n';
@@ -948,7 +949,7 @@ $('progress-start').addEventListener('click', () => showView('practice'));
 
 // --- Navigation, menus and settings ---
 
-type View = 'practice' | 'progress' | 'log';
+type View = 'practice' | 'progress' | 'log' | 'profile';
 
 function showView(view: View, section?: ProgressSection): void {
   document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => {
@@ -961,7 +962,12 @@ function showView(view: View, section?: ProgressSection): void {
   $('practice-view').hidden = view !== 'practice';
   $('log-view').hidden = view !== 'log';
   $('progress-view').hidden = view !== 'progress';
+  $('profile-view').hidden = view !== 'profile';
   if (view === 'log') renderLog();
+  else if (view === 'profile') {
+    profileView.render();
+    profileView.focus();
+  }
   else if (view === 'progress') void showProgress(section);
   else inputEl.focus();
 }
@@ -970,6 +976,7 @@ document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((btn) => {
   btn.addEventListener('click', () => showView(btn.dataset.view as View));
 });
 $('log-back').addEventListener('click', () => showView('practice'));
+$('profile-back').addEventListener('click', () => showView('practice'));
 
 /** One choice in a top-bar menu, with a tick on the current one. */
 function menuItem(label: string, detail: string, checked: boolean, pick: () => void): HTMLButtonElement {
@@ -1089,7 +1096,7 @@ const onboarding = new Onboarding($('onboarding-view'), {
   log: (event) => store.add(event),
   signedIn: () => account.state.signedIn,
   // Deferred past the click, which would otherwise reach the document and close the panel again.
-  openAccount: () => setTimeout(openAccount, 0),
+  openAccount: (kind) => setTimeout(() => openAccount(kind), 0),
   finish: (lessons) => {
     saveOnboardedSetting();
     // Saved even when it was only guessed, so the next visit keeps it (see startLanguage).
@@ -1154,6 +1161,7 @@ onUiLanguageChange(() => {
   renderBreakText();
   renderBreakTimer();
   accountView.render();
+  profileView.render();
   if (!accountNudge.hidden) renderNudge();
   if (!$('progress-view').hidden) void showProgress();
   if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
@@ -1178,15 +1186,20 @@ const account = new Account({
   },
   stateChanged: (state) => {
     accountView.update(state);
+    profileView.update(state);
+    // Came in through a password-reset link: the new password is chosen there.
+    if (state.signedIn && state.choosePassword && $('profile-view').hidden) showView('profile');
     if (state.signedIn) accountNudge.hidden = true;
     onboarding.accountChanged();
   },
 });
-const accountView = new AccountView($('account'), account, $<HTMLButtonElement>('account-btn'), $('account-summary'));
+const accountView = new AccountView($('account'), account, $<HTMLButtonElement>('account-btn'), $('account-summary'), () => openProfile());
 accountView.render();
+const profileView = new ProfileView($('profile'), account, () => setTimeout(() => openAccount('signin'), 0));
 
-/** Opens the account panel under the top-bar button. */
-function openAccount(): void {
+/** Opens the account panel under the top-bar button; signed out, on signing in or creating an account. */
+function openAccount(kind?: 'signin' | 'signup'): void {
+  if (kind) accountView.show(kind);
   closeSettings(false);
   closeMenus();
   coach.close(false);
@@ -1194,10 +1207,18 @@ function openAccount(): void {
   $('account-btn').setAttribute('aria-expanded', 'true');
   accountView.focus();
 }
+/** The profile page: username, password, sync and the account. */
+function openProfile(): void {
+  closeMenus();
+  closeSettings(false);
+  showView('profile');
+}
+
 $('open-account').addEventListener('click', (e) => {
   // Not the document click that closes menus.
   e.stopPropagation();
-  openAccount();
+  if (account.state.signedIn) openProfile();
+  else openAccount('signin');
 });
 
 // After a few rounds, a learner without an account is offered one once, under the round's result.
@@ -1220,7 +1241,7 @@ function renderNudge(): void {
   create.addEventListener('click', (e) => {
     e.stopPropagation();
     dismissNudge();
-    openAccount();
+    openAccount('signup');
   });
   const later = Object.assign(document.createElement('button'), { type: 'button', className: 'link-btn', textContent: t('nudge.later') });
   later.addEventListener('click', () => {

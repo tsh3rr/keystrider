@@ -181,8 +181,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
   position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%;
   border: 2px solid var(--panel); background: oklch(0.65 0.15 150);
 }
-.account-btn.sync-syncing .account-dot { background: var(--focus); }
-.account-btn.sync-error .account-dot { background: var(--error); }
+.account-avatar.sync-syncing .account-dot { background: var(--focus); }
+.account-avatar.sync-error .account-dot { background: var(--error); }
+.account-avatar.large { width: 40px; height: 40px; font-size: 1.1rem; }
+.account-avatar.huge { width: 64px; height: 64px; font-size: 1.7rem; }
+.account-avatar.huge .account-dot { width: 14px; height: 14px; right: 0; bottom: 0; }
 .account-pop { width: min(340px, calc(100vw - 32px)); padding: 16px; }
 body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 @media (max-width: 420px) {
@@ -245,8 +248,23 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 .account-note { color: var(--muted); }
 .account-email { font-weight: 600; overflow-wrap: anywhere; }
 .account .account-address { margin-top: -8px; overflow-wrap: anywhere; }
-.account-username { display: grid; gap: 8px; width: 100%; padding: 12px; border-radius: 10px; background: var(--accent-soft); }
-.account .account-hint { color: var(--muted); font-size: 0.8rem; }
+.account-head { display: flex; gap: 12px; align-items: center; min-width: 0; width: 100%; }
+.account-head > div { min-width: 0; }
+.account .account-head .account-address { margin-top: 0; }
+.account-callout { display: grid; gap: 8px; justify-items: start; width: 100%; padding: 12px; border-radius: 10px; background: var(--accent-soft); }
+.account-tabs { display: flex; width: 100%; padding: 3px; gap: 3px; border-radius: 10px; background: var(--surface-2); }
+.account-tabs button { flex: 1; border: 0; background: transparent; padding: 6px 8px; color: var(--muted); font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
+.account-tabs button[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }
+.account-ok { color: oklch(0.5 0.13 150); }
+#profile-view { max-width: 640px; margin-inline: auto; }
+.profile { display: grid; gap: 16px; }
+.profile-hero { display: flex; gap: 18px; align-items: center; min-width: 0; }
+.profile-hero h3 { margin: 0 0 2px; font-size: 1.4rem; overflow-wrap: anywhere; }
+.profile-hero p { margin: 0; overflow-wrap: anywhere; }
+.profile-card { display: grid; gap: 10px; justify-items: start; }
+.profile-card p { margin: 0; font-size: 0.9rem; }
+.profile-card .account-form { max-width: 360px; }
+.account-hint, .profile-card .account-hint { color: var(--muted); font-size: 0.8rem; }
 .account-error { color: var(--error); }
 .account-form { display: grid; gap: 8px; width: 100%; }
 .account-actions { display: flex; gap: 8px; flex-wrap: wrap; }

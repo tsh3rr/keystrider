@@ -106,8 +106,8 @@ export interface OnboardingHost {
   log(event: KeystrokeEvent): Promise<unknown>;
   /** Whether the learner is signed in to the optional account. */
   signedIn(): boolean;
-  /** Opens the account panel (sign in or create an account). */
-  openAccount(): void;
+  /** Opens the account panel, showing sign-in or account creation. */
+  openAccount(kind: 'signin' | 'signup'): void;
   /**
    * Called when the learner is done or skips. `lessons` is the curriculum to
    * start with: a placement, a fresh start, or null to keep what is there.
@@ -211,7 +211,7 @@ export class Onboarding {
     card.append(head);
     if (this.step === 0 && !this.host.signedIn()) {
       const line = el('p', 'ob-signin', T.haveAccountQuestion + ' ');
-      line.append(button(T.haveAccountAction, 'link-btn', () => this.host.openAccount()));
+      line.append(button(T.haveAccountAction, 'link-btn', () => this.host.openAccount('signin')));
       card.append(line);
     }
     if (this.step === 0) this.renderKeyboard(card);
@@ -545,7 +545,7 @@ export class Onboarding {
       text.append(el('b', '', T.accountTitle), el('p', '', T.accountText));
       const create = button(T.accountCreate, 'ob-account-btn', () => {
         this.close(this.lessons());
-        this.host.openAccount();
+        this.host.openAccount('signup');
       });
       box.append(text, create);
       card.append(box);
