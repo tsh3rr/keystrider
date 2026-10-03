@@ -1,7 +1,7 @@
 import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
-  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, streak, weakest, weeklyTotals,
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, streak, weakest, weeklyTotals, weeklyTrend,
   type PeriodTotals, type SessionSummary, type Streak, type WeekTotals,
 } from './progress';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -443,6 +443,15 @@ function weekChart(host: HTMLElement, weeks: readonly WeekTotals[]): void {
     tipOnHover(g, lines);
     root.append(g);
   });
+  const trend = weeklyTrend(weeks);
+  if (trend) {
+    const known = weeks.flatMap((w, i) => (w.wpm === null ? [] : [i]));
+    const [a, b] = [known[0], known[known.length - 1]];
+    const y = (i: number) => m.t + ih - (Math.max(0, trend.intercept + trend.slope * i) / max) * ih;
+    const xAt = (i: number) => m.l + slot * (i + 0.5);
+    // Drawn above the columns but never catches the pointer, so tooltips still work.
+    root.append(svg('line', { x1: xAt(a), y1: y(a), x2: xAt(b), y2: y(b), class: 'wk-trend' }));
+  }
   host.replaceChildren(root);
 }
 
@@ -464,7 +473,11 @@ function renderWeeks(weeks: readonly WeekTotals[], allSessions: readonly Session
   } else {
     note.textContent = cur.wpm === null ? t('week.noPractice') : '\u00a0';
   }
-  $('week-caption').textContent = t('week.caption');
+  const trend = weeklyTrend(weeks);
+  const trendText = trend
+    ? `${t('week.trend', { arrow: trend.slope >= 0 ? '▲' : '▼', d: t('progress.wpm', { n: num(Math.abs(trend.slope), 1) }) })} `
+    : '';
+  $('week-caption').textContent = trendText + t('week.caption');
 }
 
 // --- Path ---
