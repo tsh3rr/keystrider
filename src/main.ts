@@ -674,6 +674,22 @@ breakSkip.addEventListener('click', () => {
 // log (both keyed by language and layout), so switching back and forth
 // keeps progress in each.
 
+// A thin bar along the top while a language's words are fetched; only on a
+// slow connection, so a quick load doesn't flash.
+const loadBar = $('load-bar');
+let loadsInFlight = 0;
+
+async function withLoadBar<T>(work: Promise<T>): Promise<T> {
+  loadsInFlight++;
+  const show = setTimeout(() => { loadBar.hidden = false; }, 150);
+  try {
+    return await work;
+  } finally {
+    clearTimeout(show);
+    if (--loadsInFlight === 0) loadBar.hidden = true;
+  }
+}
+
 /** The language most recently picked, while its corpus is still being fetched. */
 let pendingLanguage: string | null = null;
 
@@ -687,7 +703,7 @@ async function setLanguage(language: string, start = true): Promise<void> {
   if (finishing || language === (pendingLanguage ?? context.language)) return;
   pendingLanguage = language;
   try {
-    await loadCorpus(language);
+    await withLoadBar(loadCorpus(language));
   } catch (err) {
     if (pendingLanguage === language) pendingLanguage = null;
     throw err;
@@ -1126,7 +1142,7 @@ declare global {
   }
 }
 
-Promise.all([KeystrokeStore.open(), loadCorpus(context.language)]).then(([s]) => {
+Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).then(([s]) => {
   store = s;
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();

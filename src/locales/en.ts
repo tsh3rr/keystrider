@@ -11,6 +11,7 @@ export type Message = string | { one: string; few?: string; many?: string; other
 export const en = {
   // --- Top bar ---
   'nav.aria': 'Main',
+  'loading.text': 'Loading practice text',
   'nav.practice': 'Practice',
   'nav.progress': 'Progress',
   'nav.progressTitle': 'Your speed, accuracy and weak keys over time',
