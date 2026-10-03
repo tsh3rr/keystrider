@@ -29,6 +29,8 @@ import {
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
+import { Account } from './sync/account';
+import { AccountView } from './sync/accountView';
 import {
   UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, tNodes, uiLanguage,
 } from './i18n';
@@ -544,6 +546,7 @@ async function finishDrill(): Promise<void> {
     const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
     renderDrillBar();
     show(changes, improved, slipped, roundStep);
+    account.push().catch((err) => console.error('Sync failed', err));
   } finally {
     finishing = false;
   }
@@ -893,7 +896,18 @@ $('export-csv').addEventListener('click', async () => {
   download('keystrokes.csv', 'text/csv', toCsv(await store.all()));
 });
 $('clear-log').addEventListener('click', async () => {
-  if (!confirm(t('log.clearConfirm'))) return;
+  const synced = account.state.signedIn;
+  if (!confirm(t(synced ? 'log.clearConfirmSynced' : 'log.clearConfirm'))) return;
+  if (synced) {
+    // Server first: otherwise the next sync would bring the deleted rounds back.
+    try {
+      await account.clearRemoteSessions();
+    } catch (err) {
+      console.error('Failed to clear synced keystrokes', err);
+      alert(t('log.clearFailed'));
+      return;
+    }
+  }
   await store.clear();
   await renderLog();
 });
@@ -1131,8 +1145,36 @@ onUiLanguageChange(() => {
   redrawResult?.();
   renderBreakText();
   renderBreakTimer();
+  accountView.render();
   if (!$('progress-view').hidden) void showProgress();
   if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
+});
+
+// --- Account and sync (optional) ---
+//
+// Signed in, finished rounds and curricula are copied between devices; see
+// sync/account.ts. Signed out, nothing here talks to a server.
+
+const account = new Account({
+  store: () => store,
+  activeSession: () => (session.done ? null : session.id),
+  dataChanged: () => {
+    // Another device practised: pick up its curriculum and redraw what shows history.
+    curriculum = loadCurriculum(context) ?? curriculum;
+    renderDrillBar();
+    if (!$('progress-view').hidden) void showProgress();
+    if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
+  },
+  stateChanged: (state) => accountView.update(state),
+});
+const accountView = new AccountView($('account'), account);
+accountView.render();
+/** A full sync when the learner comes back to the tab, at most this often. */
+const RESYNC_MS = 5 * 60_000;
+document.addEventListener('visibilitychange', () => {
+  const state = account.state;
+  if (document.visibilityState === 'visible' && state.signedIn && state.sync !== 'syncing' &&
+    Date.now() - (state.lastSync ?? 0) > RESYNC_MS) account.syncNow().catch((err) => console.error('Sync failed', err));
 });
 
 // Console access for ad-hoc inspection: `await typingLog.all()`
@@ -1150,6 +1192,7 @@ Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).
   // A browser that practised before the setup existed goes straight to practice.
   if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
   else startDrill().catch((err) => console.error('Failed to start drill', err));
+  account.init().catch((err) => console.error('Account setup failed', err));
   detectFromBrowser()
     .then(backfillLegacyLog)
     .catch((err) => console.error('Layout detection failed', err));

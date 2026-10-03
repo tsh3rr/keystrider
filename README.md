@@ -123,12 +123,12 @@ On macOS/Linux use `python3` and `scripts/build-corpus.py`. Another language nee
 
 ## Deployment
 
-Hosting is Cloudflare Workers (static assets only) and, once accounts exist, Supabase for login and data.
+Hosting is Cloudflare Workers (static assets only) and Supabase for the optional account (login by e-mail code, sync of practice rounds and curricula between devices; `src/sync/`). Builds of `main` use the production Supabase project, everything else the staging one (`vite.config.ts`). One-time dashboard setup: [docs/accounts-setup.md](docs/accounts-setup.md).
 
 - `wrangler.jsonc` tells Cloudflare to serve the built `dist` folder. Build command `npm run build`, deploy command `npx wrangler deploy`; other branches upload previews with `npx wrangler versions upload`.
 - Node version: 22 (pinned in `.nvmrc`).
 - `supabase/` holds the Supabase CLI project. Database changes go in `supabase/migrations/` as SQL files.
-- `.env.example` lists the two Supabase values the app will read. Copy it to `.env.local` for local development.
+- `.env.example` lists the two Supabase values; copy it to `.env.local` only to point local development at another project.
 
 GitHub Actions:
 
@@ -137,4 +137,4 @@ GitHub Actions:
 
 ## Impressum and privacy policy
 
-`/impressum` and `/datenschutz` (`impressum.html`, `datenschutz.html`, texts in `src/legal/content.ts`) are written for a private, non-commercial site run from Austria, in German (binding) and English. Fill in your name, town and e-mail in `src/legal/owner.ts` before going public. The privacy policy says the site sets no cookies, has no analytics and only stores practice data in the browser; if that changes (accounts, Cloudflare Web Analytics, ads), update the texts first. A cookie banner is not needed while all browser storage is strictly necessary for the trainer (§ 165 Abs. 3 TKG 2021).
+`/impressum` and `/datenschutz` (`impressum.html`, `datenschutz.html`, texts in `src/legal/content.ts`) are written for a private, non-commercial site run from Austria, in German (binding) and English. The owner's name, town and e-mail are in `src/legal/owner.ts`. The privacy policy says the site sets no cookies, has no analytics, and stores practice data only in the browser unless the learner signs in (then in Supabase, Frankfurt); if that changes (Cloudflare Web Analytics, ads, a mail provider), update the texts first. A cookie banner is not needed while all browser storage is strictly necessary for the trainer (§ 165 Abs. 3 TKG 2021).

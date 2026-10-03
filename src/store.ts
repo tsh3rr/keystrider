@@ -1,4 +1,5 @@
 import type { KeystrokeEvent } from './types';
+import { signature } from './sync/codec';
 
 // Keeps the pre-Keystrider name: renaming it would hide every user's saved history.
 const DB_NAME = 'typing-trainer';
@@ -82,6 +83,47 @@ export class KeystrokeStore {
     });
   }
 
+  /** Each practice round's sync signature (see sync/codec.ts), by session id. */
+  async sessionSignatures(): Promise<Map<string, string>> {
+    const bySession = groupBySession(await this.all());
+    return new Map([...bySession].map(([id, events]) => [id, signature(events)]));
+  }
+
+  /** The keystrokes of the given rounds, grouped by session id. */
+  async sessions(ids: readonly string[]): Promise<Map<string, KeystrokeEvent[]>> {
+    const wanted = new Set(ids);
+    return groupBySession((await this.all()).filter((e) => wanted.has(e.sessionId)));
+  }
+
+  /** Replaces whole rounds with the given keystrokes, in one transaction. */
+  replaceSessions(events: readonly KeystrokeEvent[]): Promise<void> {
+    return this.deleteAndAdd(new Set(events.map((e) => e.sessionId)), events);
+  }
+
+  deleteSessions(ids: readonly string[]): Promise<void> {
+    return this.deleteAndAdd(new Set(ids), []);
+  }
+
+  private deleteAndAdd(ids: ReadonlySet<string>, events: readonly KeystrokeEvent[]): Promise<void> {
+    if (ids.size === 0) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      const index = store.index('sessionId');
+      // Collect every key first, so the new keystrokes are added only after the old ones are gone.
+      let pending = ids.size;
+      for (const id of ids) {
+        index.getAllKeys(IDBKeyRange.only(id)).onsuccess = function () {
+          for (const key of this.result) store.delete(key);
+          if (--pending === 0) for (const { id: _, ...event } of events) store.add(event);
+        };
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
   count(): Promise<number> {
     return this.tx('readonly', (s) => s.count());
   }
@@ -116,4 +158,14 @@ export function toCsv(events: KeystrokeEvent[]): string {
   };
   const rows = events.map((e) => CSV_COLUMNS.map((c) => cell(e[c])).join(','));
   return [CSV_COLUMNS.join(','), ...rows].join('\n');
+}
+
+function groupBySession(events: readonly KeystrokeEvent[]): Map<string, KeystrokeEvent[]> {
+  const groups = new Map<string, KeystrokeEvent[]>();
+  for (const e of events) {
+    const group = groups.get(e.sessionId);
+    if (group) group.push(e);
+    else groups.set(e.sessionId, [e]);
+  }
+  return groups;
 }

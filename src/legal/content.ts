@@ -4,10 +4,11 @@ import { LEGAL_UPDATED, OWNER } from './owner';
  * The Impressum and the privacy policy, in German and English.
  *
  * Written for a private, non-commercial site run from Austria: no ads, no
- * payment, no accounts, no tracking. Practice data stays in the browser, and
- * the only server is Cloudflare delivering the files. If any of that
- * changes (accounts and sync, analytics, ads, a donation button), these
- * texts have to change first.
+ * payment, no tracking. Practice data stays in the browser unless the
+ * learner signs in to the optional account, which syncs it through Supabase
+ * (EU, Frankfurt). Cloudflare delivers the files. If any of that changes
+ * (analytics, ads, a donation button, another processor such as a mail
+ * service), these texts have to change first.
  *
  * German is the binding version; the English text is a translation.
  */
@@ -75,7 +76,7 @@ const imprint: Record<LegalLanguage, string> = {
 const privacy: Record<LegalLanguage, string> = {
   de: `
     <h2>Kurz gesagt</h2>
-    <p>Keystrider braucht kein Konto und setzt keine Cookies. Es gibt keine Werbung, keine Analyse- oder Tracking-Dienste und keine eingebundenen Inhalte von Dritten, auch keine externen Schriftarten. Was du übst, bleibt in deinem Browser und wird nicht an uns übertragen.</p>
+    <p>Keystrider braucht kein Konto und setzt keine Cookies. Es gibt keine Werbung, keine Analyse- oder Tracking-Dienste und keine eingebundenen Inhalte von Dritten, auch keine externen Schriftarten. Was du übst, bleibt in deinem Browser. Nur wenn du dich freiwillig anmeldest, um deinen Fortschritt zwischen Geräten abzugleichen, werden deine Übungsdaten auf einem Server in der EU gespeichert (siehe <em>Freiwilliges Konto</em>).</p>
 
     <h2>Verantwortlicher</h2>
     <p>${name}<br>${town}, Österreich<br>${mail}</p>
@@ -87,8 +88,18 @@ const privacy: Record<LegalLanguage, string> = {
       <li><strong>Lernstand:</strong> welche Tasten freigeschaltet sind und wie weit du im Lernpfad bist, je Sprache und Layout.</li>
       <li><strong>Tastenprotokoll:</strong> für jeden Anschlag im Übungstext das erwartete und das getippte Zeichen, die Taste, die Zeit seit dem vorigen Anschlag, Datum und Uhrzeit sowie die Übungsrunde. Daraus berechnet Keystrider deine schwachen Tasten und die nächsten Übungen. Erfasst wird nur, was du in das Übungsfeld tippst.</li>
     </ul>
-    <p>Diese Daten verlassen dein Gerät nicht. Wir erhalten sie nicht und können sie nicht einsehen. Das Speichern ist technisch unbedingt erforderlich, um den Dienst bereitzustellen, den du ausdrücklich nutzt (§ 165 Abs. 3 TKG 2021); eine Einwilligung und ein Cookie-Banner sind dafür nicht nötig.</p>
+    <p>Ohne Konto verlassen diese Daten dein Gerät nicht; wir erhalten sie nicht und können sie nicht einsehen. Wenn du angemeldet bist, liegen hier außerdem deine Anmeldung (ein Zugangsschlüssel, damit du angemeldet bleibst) und der Stand des letzten Abgleichs. Das Speichern ist technisch unbedingt erforderlich, um den Dienst bereitzustellen, den du ausdrücklich nutzt (§ 165 Abs. 3 TKG 2021); eine Einwilligung und ein Cookie-Banner sind dafür nicht nötig.</p>
     <p>Du behältst die Kontrolle: Unter <em>Einstellungen → Tastenprotokoll und Export</em> kannst du das Protokoll ansehen, als JSON oder CSV exportieren und löschen. Alles zusammen entfernst du, indem du in deinem Browser die Websitedaten für diese Seite löschst.</p>
+
+    <h2>Freiwilliges Konto und Abgleich zwischen Geräten</h2>
+    <p>Du kannst dich unter <em>Einstellungen → Konto</em> mit deiner E-Mail-Adresse anmelden. Dann gleicht Keystrider deinen Fortschritt zwischen deinen Geräten ab. Dafür verarbeiten wir:</p>
+    <ul>
+      <li><strong>Anmeldedaten:</strong> deine E-Mail-Adresse, eine interne Benutzerkennung, Zeitpunkt der Registrierung und der letzten Anmeldung sowie technische Protokolle der Anmeldung (IP-Adresse, Browserangaben, Zeitpunkt), die der Absicherung gegen Missbrauch dienen.</li>
+      <li><strong>Übungsdaten:</strong> das Tastenprotokoll jeder abgeschlossenen Übungsrunde (wie oben unter <em>Tastenprotokoll</em> beschrieben) und dein Lernstand je Sprache und Layout. Deine Einstellungen bleiben nur auf dem jeweiligen Gerät.</li>
+    </ul>
+    <p>Zur Anmeldung schicken wir dir eine E-Mail mit einem einmaligen Code und Link. Rechtsgrundlage ist die Erfüllung des Nutzungsverhältnisses, das du mit der Anmeldung eingehst (Art. 6 Abs. 1 lit. b DSGVO); die Anmeldeprotokolle verarbeiten wir aufgrund unseres berechtigten Interesses an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO).</p>
+    <p>Konto und Daten werden bei Supabase gespeichert (Supabase, Inc., USA), auf Servern in Frankfurt am Main (EU). Supabase verarbeitet die Daten als unser Auftragsverarbeiter auf Grundlage seines Auftragsverarbeitungsvertrags und verschickt auch die Anmelde-E-Mails. Soweit dabei ein Zugriff aus Ländern außerhalb der EU möglich ist, etwa durch Supabase selbst oder dessen Unterauftragsverarbeiter, ist er durch die EU-Standardvertragsklauseln abgesichert (Art. 46 Abs. 2 lit. c DSGVO). Mehr dazu in der <a href="https://supabase.com/privacy">Datenschutzerklärung von Supabase</a>.</p>
+    <p>Wir speichern deine Daten, solange du dein Konto hast. Unter <em>Einstellungen → Konto → Konto löschen</em> löschst du dein Konto samt allen dort gespeicherten Übungsdaten sofort; die Daten auf deinem Gerät bleiben, bis du sie selbst löschst. Löschst du unter <em>Tastenprotokoll und Export</em> das Protokoll, während du angemeldet bist, wird es auch im Konto gelöscht. Anmeldeprotokolle löscht Supabase automatisch nach kurzer Zeit.</p>
 
     <h2>Hosting</h2>
     <p>Die Website wird über Cloudflare ausgeliefert (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA). Beim Aufruf verarbeitet Cloudflare technisch notwendige Daten, damit die Seite bei dir ankommt und vor Angriffen geschützt ist: deine IP-Adresse, Datum und Uhrzeit, die aufgerufene Adresse sowie Angaben deines Browsers wie Browsertyp und Betriebssystem. Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und funktionierenden Website (Art. 6 Abs. 1 lit. f DSGVO).</p>
@@ -101,10 +112,10 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung, auf Datenübertragbarkeit und auf Widerspruch (Art. 15 bis 21 DSGVO). Schreib uns dazu einfach eine E-Mail. Wenn du meinst, dass wir deine Daten nicht rechtmäßig verarbeiten, kannst du dich bei der Österreichischen Datenschutzbehörde beschweren: Barichgasse 40–42, 1030 Wien, <a href="https://www.dsb.gv.at">www.dsb.gv.at</a>.</p>
 
     <h2>Änderungen</h2>
-    <p>Derzeit gibt es keine Benutzerkonten. Sollte Keystrider später ein freiwilliges Konto anbieten, etwa um deinen Fortschritt zwischen Geräten abzugleichen, passen wir diese Erklärung vorher an.</p>`,
+    <p>Wenn Keystrider neue Funktionen bekommt, die Daten verarbeiten, oder einen weiteren Dienstleister einsetzt, passen wir diese Erklärung vorher an.</p>`,
   en: `
     <h2>In short</h2>
-    <p>Keystrider needs no account and sets no cookies. There are no ads, no analytics or tracking services and no embedded third-party content, not even external fonts. What you practise stays in your browser and is not sent to us.</p>
+    <p>Keystrider needs no account and sets no cookies. There are no ads, no analytics or tracking services and no embedded third-party content, not even external fonts. What you practise stays in your browser. Only if you choose to sign in, to keep your progress in sync between devices, is your practice data stored on a server in the EU (see <em>Optional account</em>).</p>
 
     <h2>Controller</h2>
     <p>${name}<br>${town}, Austria<br>${mail}</p>
@@ -116,8 +127,18 @@ const privacy: Record<LegalLanguage, string> = {
       <li><strong>Learning state:</strong> which keys are unlocked and how far along the learning path you are, per language and layout.</li>
       <li><strong>Keystroke log:</strong> for each keystroke in the practice text, the expected and the typed character, the key, the time since the previous keystroke, the date and time, and the practice round. Keystrider uses it to work out your weak keys and your next drills. Only what you type into the practice field is recorded.</li>
     </ul>
-    <p>This data does not leave your device. We do not receive it and cannot see it. Storing it is strictly necessary to provide the service you explicitly use (§ 165(3) of the Austrian Telecommunications Act 2021, TKG 2021), so it needs no consent and no cookie banner.</p>
+    <p>Without an account this data does not leave your device; we do not receive it and cannot see it. When you are signed in, your sign-in (an access token, so you stay signed in) and the state of the last sync are stored here too. Storing it is strictly necessary to provide the service you explicitly use (§ 165(3) of the Austrian Telecommunications Act 2021, TKG 2021), so it needs no consent and no cookie banner.</p>
     <p>You stay in control: under <em>Settings → Keystroke log and export</em> you can view the log, export it as JSON or CSV, and delete it. To remove everything, clear this site's data in your browser.</p>
+
+    <h2>Optional account and sync between devices</h2>
+    <p>Under <em>Settings → Account</em> you can sign in with your e-mail address. Keystrider then keeps your progress in sync between your devices. For this we process:</p>
+    <ul>
+      <li><strong>Sign-in data:</strong> your e-mail address, an internal user ID, when you registered and last signed in, and technical sign-in logs (IP address, browser details, time) used to protect against abuse.</li>
+      <li><strong>Practice data:</strong> the keystroke log of each finished practice round (as described above under <em>Keystroke log</em>) and your learning state per language and layout. Your settings stay on each device.</li>
+    </ul>
+    <p>To sign you in we send you an e-mail with a one-time code and link. The legal basis is performing the service you sign up for (Art. 6(1)(b) GDPR); we process the sign-in logs based on our legitimate interest in a secure service (Art. 6(1)(f) GDPR).</p>
+    <p>Accounts and data are stored with Supabase (Supabase, Inc., USA), on servers in Frankfurt am Main (EU). Supabase processes the data as our processor under its data processing agreement and also sends the sign-in e-mails. Where access from outside the EU is possible, for example by Supabase itself or its sub-processors, it is covered by the EU Standard Contractual Clauses (Art. 46(2)(c) GDPR). See <a href="https://supabase.com/privacy">Supabase's privacy policy</a> for more.</p>
+    <p>We keep your data for as long as you have your account. Under <em>Settings → Account → Delete account</em> you delete your account and all practice data stored with it at once; the data on your device stays until you delete it yourself. If you clear the log under <em>Keystroke log and export</em> while signed in, it is deleted from your account too. Supabase deletes sign-in logs automatically after a short time.</p>
 
     <h2>Hosting</h2>
     <p>The website is delivered through Cloudflare (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA). When you open it, Cloudflare processes the technical data needed to get the page to you and to protect it from attacks: your IP address, the date and time, the address requested, and details your browser sends such as browser type and operating system. The legal basis is our legitimate interest in a secure, working website (Art. 6(1)(f) GDPR).</p>
@@ -130,7 +151,7 @@ const privacy: Record<LegalLanguage, string> = {
     <p>You have the right of access, rectification, erasure and restriction of processing, the right to data portability and the right to object (Art. 15 to 21 GDPR). Just send us an e-mail. If you believe we process your data unlawfully, you can complain to the Austrian Data Protection Authority (Datenschutzbehörde): Barichgasse 40–42, 1030 Vienna, <a href="https://www.dsb.gv.at">www.dsb.gv.at</a>.</p>
 
     <h2>Changes</h2>
-    <p>There are no user accounts at the moment. If Keystrider later offers an optional account, for example to sync your progress between devices, we will update this policy first.</p>`,
+    <p>If Keystrider gets new features that process data, or uses another service provider, we will update this policy first.</p>`,
 };
 
 /** The body of a legal page as HTML. Only OWNER values are interpolated, and they are escaped. */

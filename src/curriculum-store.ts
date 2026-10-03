@@ -7,7 +7,8 @@ import type { PracticeContext } from './types';
  * the keystroke log, and can always be rebuilt from scratch.
  */
 
-const key = (ctx: PracticeContext) => `typing-trainer.curriculum.${ctx.language}.${ctx.layout}`;
+const PREFIX = 'typing-trainer.curriculum.';
+const key = (ctx: PracticeContext) => `${PREFIX}${ctx.language}.${ctx.layout}`;
 
 export function loadCurriculum(ctx: PracticeContext, storage: Storage | undefined = safeStorage()): CurriculumState | null {
   try {
@@ -40,7 +41,7 @@ export function clearCurriculum(ctx: PracticeContext, storage: Storage | undefin
 /** Whether any curriculum is saved, i.e. this browser has practised before. */
 export function hasAnyCurriculum(storage: Storage | undefined = safeStorage()): boolean {
   try {
-    for (let i = 0; i < (storage?.length ?? 0); i++) if (storage?.key(i)?.startsWith('typing-trainer.curriculum.')) return true;
+    for (let i = 0; i < (storage?.length ?? 0); i++) if (storage?.key(i)?.startsWith(PREFIX)) return true;
     return false;
   } catch {
     return false;
@@ -53,4 +54,21 @@ function safeStorage(): Storage | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Every saved curriculum, keyed "language.layout". */
+export function allCurricula(storage: Storage | undefined = safeStorage()): Record<string, CurriculumState> {
+  const out: Record<string, CurriculumState> = {};
+  try {
+    for (let i = 0; i < (storage?.length ?? 0); i++) {
+      const k = storage?.key(i);
+      if (!k?.startsWith(PREFIX)) continue;
+      const [language, ...rest] = k.slice(PREFIX.length).split('.');
+      const state = loadCurriculum({ language, layout: rest.join('.') }, storage);
+      if (state) out[`${state.language}.${state.layout}`] = state;
+    }
+  } catch {
+    // storage blocked: nothing saved
+  }
+  return out;
 }
