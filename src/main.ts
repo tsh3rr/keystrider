@@ -1190,6 +1190,8 @@ const account = new Account({
     // Came in through a password-reset link: the new password is chosen there.
     if (state.signedIn && state.choosePassword && $('profile-view').hidden) showView('profile');
     if (state.signedIn) accountNudge.hidden = true;
+    // An e-mail link that did not sign in: the panel says why and offers the code instead.
+    if (!state.signedIn && state.linkFailed) setTimeout(() => openAccount('signin'), 0);
     onboarding.accountChanged();
   },
 });

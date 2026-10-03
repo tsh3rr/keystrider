@@ -1,0 +1,35 @@
+{{ $l := or .Data.locale "en" }}<!doctype html>
+<html lang="{{ $l }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>{{ if eq $l "de" }}Willkommen bei Keystrider{{ else if eq $l "fr" }}Bienvenue sur Keystrider{{ else if eq $l "es" }}Te damos la bienvenida a Keystrider{{ else if eq $l "it" }}Ti diamo il benvenuto su Keystrider{{ else if eq $l "pl" }}Witaj w Keystrider{{ else }}Welcome to Keystrider{{ end }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f6fa;color:#262b3d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6fa">
+<tr><td align="center" style="padding:32px 16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px">
+<tr><td style="padding:0 4px 16px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td valign="bottom" style="padding:0 2px 0 0"><div style="width:7px;height:8px;background:#dd5400;border-radius:2px"></div></td><td valign="bottom" style="padding:0 2px 0 0"><div style="width:7px;height:14px;background:#a22697;border-radius:2px"></div></td><td valign="bottom" style="padding:0 2px 0 0"><div style="width:7px;height:20px;background:#214dba;border-radius:2px"></div></td>
+<td valign="bottom" style="padding-left:8px;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:#262b3d">Keystrider</td>
+</tr></table>
+</td></tr>
+<tr><td style="background:#ffffff;border:1px solid #e3e5ec;border-radius:14px;padding:28px 28px 24px">
+<h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#262b3d">{{ if eq $l "de" }}Willkommen bei Keystrider{{ else if eq $l "fr" }}Bienvenue sur Keystrider{{ else if eq $l "es" }}Te damos la bienvenida a Keystrider{{ else if eq $l "it" }}Ti diamo il benvenuto su Keystrider{{ else if eq $l "pl" }}Witaj w Keystrider{{ else }}Welcome to Keystrider{{ end }}</h1>
+<p style="margin:0 0 18px;font-size:16px;line-height:1.5">{{ if eq $l "de" }}Gib diesen Code in Keystrider ein, um deine E-Mail-Adresse zu bestätigen und dein Konto fertig anzulegen:{{ else if eq $l "fr" }}Saisis ce code dans Keystrider pour confirmer ton adresse e-mail et terminer la création de ton compte :{{ else if eq $l "es" }}Escribe este código en Keystrider para confirmar tu dirección de correo y terminar de crear tu cuenta:{{ else if eq $l "it" }}Inserisci questo codice in Keystrider per confermare il tuo indirizzo e-mail e completare la creazione dell’account:{{ else if eq $l "pl" }}Wpisz ten kod w Keystrider, aby potwierdzić adres e-mail i dokończyć zakładanie konta:{{ else }}Enter this code in Keystrider to confirm your e-mail address and finish creating your account:{{ end }}</p>
+<p style="margin:0 0 18px;padding:14px 0;background:#eef1fb;border-radius:10px;text-align:center;font-family:'JetBrains Mono',Menlo,Consolas,monospace;font-size:30px;font-weight:700;letter-spacing:0.18em;color:#262b3d">{{ .Token }}</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#5f6476">{{ if eq $l "de" }}Oder öffne diesen Link auf dem Gerät, auf dem du den Code angefordert hast:{{ else if eq $l "fr" }}Ou ouvre ce lien sur l’appareil où tu as demandé le code :{{ else if eq $l "es" }}O abre este enlace en el dispositivo donde pediste el código:{{ else if eq $l "it" }}Oppure apri questo link sul dispositivo da cui hai chiesto il codice:{{ else if eq $l "pl" }}Albo otwórz ten link na urządzeniu, na którym poproszono o kod:{{ else }}Or open this link on the device where you asked for the code:{{ end }}</p>
+<p style="margin:0 0 20px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:11px 20px;background:#214dba;color:#ffffff;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none">{{ if eq $l "de" }}Adresse bestätigen{{ else if eq $l "fr" }}Confirmer mon adresse{{ else if eq $l "es" }}Confirmar mi dirección{{ else if eq $l "it" }}Conferma il mio indirizzo{{ else if eq $l "pl" }}Potwierdź adres{{ else }}Confirm my address{{ end }}</a></p>
+<p style="margin:0 0 8px;font-size:14px;line-height:1.5;color:#5f6476">{{ if eq $l "de" }}Code und Link gelten eine Stunde lang.{{ else if eq $l "fr" }}Le code et le lien sont valables une heure.{{ else if eq $l "es" }}El código y el enlace valen durante una hora.{{ else if eq $l "it" }}Il codice e il link valgono per un’ora.{{ else if eq $l "pl" }}Kod i link są ważne przez godzinę.{{ else }}The code and the link work for one hour.{{ end }}</p>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#5f6476">{{ if eq $l "de" }}Wenn du kein Konto angelegt hast, ignoriere diese E-Mail einfach. Ohne den Code wird kein Konto eröffnet.{{ else if eq $l "fr" }}Si tu n’as pas créé de compte, ignore simplement cet e-mail. Sans le code, aucun compte n’est ouvert.{{ else if eq $l "es" }}Si no has creado ninguna cuenta, ignora este correo. Sin el código no se abre ninguna cuenta.{{ else if eq $l "it" }}Se non hai creato un account, ignora pure questa e-mail. Senza il codice non viene aperto nessun account.{{ else if eq $l "pl" }}Jeśli to nie Ty zakładasz konto, po prostu zignoruj tę wiadomość. Bez kodu żadne konto nie zostanie utworzone.{{ else }}If you did not create an account, just ignore this e-mail. Without the code, no account is opened.{{ end }}</p>
+</td></tr>
+<tr><td style="padding:16px 4px 0;font-size:12px;line-height:1.5;color:#5f6476">
+{{ if eq $l "de" }}Keystrider, der kostenlose Trainer fürs Zehnfingersystem{{ else if eq $l "fr" }}Keystrider, l’entraîneur de dactylographie gratuit{{ else if eq $l "es" }}Keystrider, el entrenador de mecanografía gratuito{{ else if eq $l "it" }}Keystrider, l’allenatore di dattilografia gratuito{{ else if eq $l "pl" }}Keystrider, darmowy trener pisania bezwzrokowego{{ else }}Keystrider, the free touch-typing trainer{{ end }} · <a href="{{ .SiteURL }}/datenschutz" style="color:#5f6476">{{ if eq $l "de" }}Datenschutzerklärung{{ else if eq $l "fr" }}Politique de confidentialité{{ else if eq $l "es" }}Política de privacidad{{ else if eq $l "it" }}Informativa sulla privacy{{ else if eq $l "pl" }}Polityka prywatności{{ else }}Privacy policy{{ end }}</a>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
