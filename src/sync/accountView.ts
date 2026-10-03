@@ -24,7 +24,14 @@ export class AccountView {
   private notice = '';
   private email = '';
 
-  constructor(private readonly root: HTMLElement, private readonly account: Account) {}
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly account: Account,
+    /** The top-bar button: "Sign in" while signed out, the account's initial and sync state once signed in. */
+    private readonly topButton: HTMLButtonElement,
+    /** One line about the account in Settings. */
+    private readonly summary: HTMLElement,
+  ) {}
 
   update(state: AccountState): void {
     if (state.signedIn && !this.state.signedIn) this.step = { kind: 'password' };
@@ -34,6 +41,35 @@ export class AccountView {
 
   render(): void {
     this.root.replaceChildren(...(this.state.signedIn ? this.signedIn(this.state) : this.signedOut()));
+    this.renderButton();
+    this.summary.textContent = this.state.signedIn
+      ? `${t('account.signedInAs', { email: this.state.email })} · ${syncStatus(this.state)}`
+      : t('account.signedOutStatus');
+  }
+
+  /** Focuses the first field, or the first button when signed in. */
+  focus(): void {
+    this.root.querySelector<HTMLElement>('input, button')?.focus();
+  }
+
+  private renderButton(): void {
+    const b = this.topButton;
+    const state = this.state;
+    if (!state.signedIn) {
+      b.className = 'account-btn';
+      b.replaceChildren(userIcon(), Object.assign(document.createElement('span'), { textContent: t('account.button') }));
+      b.title = t('account.signedOutStatus');
+      b.setAttribute('aria-label', t('account.button'));
+      return;
+    }
+    b.className = `account-btn signed-in sync-${state.sync}`;
+    const avatar = Object.assign(document.createElement('span'), {
+      className: 'account-avatar', textContent: (state.email[0] ?? '?').toUpperCase(),
+    });
+    avatar.setAttribute('aria-hidden', 'true');
+    b.replaceChildren(avatar, Object.assign(document.createElement('span'), { className: 'account-dot' }));
+    b.title = `${t('account.signedInAs', { email: state.email })}\n${syncStatus(state)}`;
+    b.setAttribute('aria-label', `${t('account.signedInAs', { email: state.email })}. ${syncStatus(state)}`);
   }
 
   private go(step: Step): void {
@@ -50,7 +86,7 @@ export class AccountView {
     const step = this.step;
     switch (step.kind) {
       case 'password': {
-        nodes.push(p(t('account.intro'), 'account-note'));
+        nodes.push(benefits(), p(t('account.optional'), 'account-note'));
         for (const provider of OAUTH_PROVIDERS) {
           nodes.push(button(t(PROVIDER_LABEL[provider]), 'account-provider', () =>
             this.run(() => this.account.signInWithProvider(provider))));
@@ -118,10 +154,7 @@ export class AccountView {
   }
 
   private signedIn(state: Extract<AccountState, { signedIn: true }>): Node[] {
-    const status = state.sync === 'syncing' ? t('account.syncing')
-      : state.sync === 'error' ? t('account.syncFailed')
-      : state.lastSync === null ? t('account.neverSynced')
-      : t('account.synced', { time: new Date(state.lastSync).toLocaleString(uiLanguage(), { dateStyle: 'short', timeStyle: 'short' }) });
+    const status = syncStatus(state);
     const nodes: Node[] = [p(t('account.signedInAs', { email: state.email }), 'account-email')];
     if (this.notice) nodes.push(p(this.notice, 'account-note'));
     if (state.choosePassword) {
@@ -236,4 +269,31 @@ function form(inputs: HTMLInputElement[], actions: Action[]): HTMLFormElement {
 
 function privacyLink(): HTMLAnchorElement {
   return Object.assign(document.createElement('a'), { href: '/datenschutz', textContent: t('account.privacy'), className: 'account-privacy' });
+}
+
+function syncStatus(state: Extract<AccountState, { signedIn: true }>): string {
+  return state.sync === 'syncing' ? t('account.syncing')
+    : state.sync === 'error' ? t('account.syncFailed')
+    : state.lastSync === null ? t('account.neverSynced')
+    : t('account.synced', { time: new Date(state.lastSync).toLocaleString(uiLanguage(), { dateStyle: 'short', timeStyle: 'short' }) });
+}
+
+/** Why an account is worth having: a heading and three short points, for the account panel, the setup and the reminder. */
+export function benefits(): HTMLElement {
+  const box = Object.assign(document.createElement('div'), { className: 'account-benefits' });
+  const list = document.createElement('ul');
+  for (const key of ['account.benefit1', 'account.benefit2', 'account.benefit3'] as const) {
+    list.append(Object.assign(document.createElement('li'), { textContent: t(key) }));
+  }
+  box.append(Object.assign(document.createElement('strong'), { textContent: t('account.benefitsTitle') }), list);
+  return box;
+}
+
+function userIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>';
+  return svg;
 }

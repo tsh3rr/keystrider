@@ -30,6 +30,12 @@
           </div>
         </div>
       </div>
+      <div class="menu-wrap account-wrap">
+        <button id="account-btn" class="account-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="account-pop"></button>
+        <div id="account-pop" class="menu account-pop" role="dialog" aria-label="Account" data-i18n-aria-label="account.title" hidden>
+          <div id="account" class="account"></div>
+        </div>
+      </div>
       <button id="settings-btn" class="settings-btn" aria-expanded="false" aria-controls="settings-drawer"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3h3.4l.5 2.6 1.9 1.1 2.5-.9 1.7 2.9-2 1.8v2.2l2 1.8-1.7 2.9-2.5-.9-1.9 1.1-.5 2.6h-3.4l-.5-2.6-1.9-1.1-2.5.9-1.7-2.9 2-1.8v-2.2l-2-1.8 1.7-2.9 2.5.9 1.9-1.1z"/><circle cx="12" cy="12" r="2.6"/></svg><span data-i18n="settings.button">Settings</span></button>
     </header>
 
@@ -60,7 +66,8 @@
       </section>
       <section class="drawer-group">
         <h3 data-i18n="account.title">Account</h3>
-        <div id="account" class="account"></div>
+        <p id="account-summary" class="account-note"></p>
+        <button id="open-account" class="link-btn" data-i18n="account.manage">Account and sync</button>
       </section>
       <section class="drawer-group">
         <h3 data-i18n="settings.data">Data</h3>
@@ -97,6 +104,7 @@
         <textarea id="input" class="typing-input" aria-label="Type the text shown above" data-i18n-aria-label="practice.inputAria" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
         <p id="type-hint" class="type-hint" data-i18n="practice.hint">A wrong key holds you on the same letter.</p>
         <div id="result" class="result" role="status" hidden></div>
+        <div id="account-nudge" class="account-nudge" hidden></div>
         <div id="break-card" class="break-card" role="status" hidden>
           <p id="break-text"></p>
           <p id="break-timer" class="break-timer" hidden></p>
