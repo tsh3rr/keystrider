@@ -234,3 +234,116 @@ export function newlyMastered(known: readonly string[], stored: ReadonlySet<stri
   }
   return { added, all };
 }
+
+// --- Practice plan ---
+//
+// When and where the learner means to practise ("Mon, Wed, Fri at 08:00,
+// after coffee"). Deciding that in advance is one of the best-supported
+// ways to build a habit (implementation intentions). The reminder is a
+// calendar entry the learner downloads; nothing is sent anywhere.
+
+export interface PracticePlan {
+  /** Weekdays, 0 = Monday … 6 = Sunday, ascending. */
+  days: number[];
+  /** Local time, "HH:MM". */
+  time: string;
+  /** Optional cue, e.g. "after coffee". */
+  cue: string;
+}
+
+export const PLAN_CUE_MAX = 40;
+const ICS_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+/** "Now" for a plan: from half an hour before the planned time to an hour and a half after. */
+const PLAN_EARLY_MS = 30 * 60_000;
+const PLAN_LATE_MS = 90 * 60_000;
+
+/** A plan with its fields checked, or null if it cannot be used. */
+export function cleanPlan(p: Partial<PracticePlan> | null | undefined): PracticePlan | null {
+  if (!p || !Array.isArray(p.days) || typeof p.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(p.time)) return null;
+  const days = [...new Set(p.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+  if (days.length === 0) return null;
+  return { days, time: p.time, cue: typeof p.cue === 'string' ? p.cue.trim().slice(0, PLAN_CUE_MAX) : '' };
+}
+
+/** Today's planned time (ms) if today is a plan day. */
+function plannedToday(plan: PracticePlan, now: number): number | null {
+  const d = new Date(now);
+  if (!plan.days.includes((d.getDay() + 6) % 7)) return null;
+  const [h, m] = plan.time.split(':').map(Number);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime();
+}
+
+/** Whether now is around a planned practice time; returns that day's midnight as an id. */
+export function planDue(plan: PracticePlan | null, now: number): number | null {
+  if (!plan) return null;
+  const at = plannedToday(plan, now);
+  return at !== null && now >= at - PLAN_EARLY_MS && now <= at + PLAN_LATE_MS ? startOfDay(now) : null;
+}
+
+/** A calendar file (iCalendar) with a weekly repeating event and a reminder at its start. */
+export function planIcs(
+  plan: PracticePlan,
+  { minutes, now = Date.now(), title, description, url, uid }: {
+    minutes: number; now?: number; title: string; description: string; url: string; uid: string;
+  },
+): string {
+  // The first planned day from today on, at the planned time, in floating local time.
+  const [h, m] = plan.time.split(':').map(Number);
+  let start = new Date(startOfDay(now));
+  while (!plan.days.includes((start.getDay() + 6) % 7)) start = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  start = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h, m);
+  const end = new Date(start.getTime() + Math.max(5, minutes) * 60_000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const local = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const stamp = new Date(now).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  // Text values escape backslash, semicolon, comma and newlines (RFC 5545, 3.3.11).
+  const text = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Keystrider//Practice plan//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`, `DTSTAMP:${stamp}`, `DTSTART:${local(start)}`, `DTEND:${local(end)}`,
+    `RRULE:FREQ=WEEKLY;BYDAY=${plan.days.map((d) => ICS_DAYS[d]).join(',')}`,
+    // The link goes in the description too: many calendars do not show the URL field.
+    `SUMMARY:${text(title)}`, `DESCRIPTION:${text(`${description}\n${url}`)}`, `URL:${url}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(title)}`, 'TRIGGER:PT0M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ];
+  return lines.join('\r\n') + '\r\n';
+}
+
+const PLAN_KEY = 'typing-trainer.plan';
+const PLAN_SEEN_KEY = 'typing-trainer.plan-seen';
+const PLAN_UID_KEY = 'typing-trainer.plan-uid';
+
+/** A stable id for this device's calendar entry, so downloading it again updates it in calendars that support that. */
+export function planUid(storage = safeStorage()): string {
+  let uid = read<string>(PLAN_UID_KEY, storage);
+  if (typeof uid !== 'string' || !uid) {
+    uid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}@keystrider`;
+    write(PLAN_UID_KEY, JSON.stringify(uid), storage);
+  }
+  return uid;
+}
+
+export function loadPlan(storage = safeStorage()): PracticePlan | null {
+  return cleanPlan(read<PracticePlan>(PLAN_KEY, storage));
+}
+
+export function savePlan(plan: PracticePlan | null, storage = safeStorage()): void {
+  try {
+    if (plan) storage?.setItem(PLAN_KEY, JSON.stringify(plan));
+    else storage?.removeItem(PLAN_KEY);
+  } catch {
+    // not kept
+  }
+}
+
+/** The day (midnight) the "you planned now" line was last shown. */
+export function loadPlanSeen(storage = safeStorage()): number | null {
+  const v = Number(read<number>(PLAN_SEEN_KEY, storage));
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+export function savePlanSeen(day: number, storage = safeStorage()): void {
+  write(PLAN_SEEN_KEY, day, storage);
+}

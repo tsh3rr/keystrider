@@ -668,6 +668,21 @@ tr.wrong td { color: var(--error); }
 .chart-svg .wk-col:focus { outline: none; }
 .chart-svg .wk-col:hover .wk-bar, .chart-svg .wk-col:focus-visible .wk-bar { stroke-width: 2; }
 .wk-caption { margin: 0; }
+.wk-plan { font-size: 0.85rem; margin-top: 2px; }
+.wk-plan .link-btn { font-size: inherit; padding: 0; }
+.wk-plan-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wk-plan-text { color: var(--fg); }
+.wk-plan-cal { font: inherit; padding: 3px 10px; border-radius: 6px; }
+.wk-plan-form { display: grid; gap: 8px; max-width: 360px; }
+.wk-plan-why { margin: 0; color: var(--muted); }
+.wk-plan-days { display: flex; gap: 4px; flex-wrap: wrap; }
+.wk-plan-days button { font: inherit; min-width: 3.1em; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); }
+.wk-plan-days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.wk-plan-time, .wk-plan-cue { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+.wk-plan-time { justify-self: start; }
+.wk-plan-error { margin: 0; color: var(--error); min-height: 0; }
+.wk-plan-error:empty { display: none; }
+.wk-plan-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .bd-card { display: grid; gap: 10px; }
 .bd-card > p, .bd-card .pg-note { margin: 0; }
 .bd-card > button { justify-self: start; }

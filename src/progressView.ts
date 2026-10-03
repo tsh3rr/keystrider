@@ -6,8 +6,8 @@ import {
   type PeriodTotals, type SessionSummary, type WeekTotals,
 } from './progress';
 import {
-  GOAL_DAY_CHOICES, GOAL_MINUTE_CHOICES, bestDrill, dailyActiveMs, goalStreak, weekDays,
-  type DayState, type GoalStreak, type WeeklyGoal,
+  GOAL_DAY_CHOICES, GOAL_MINUTE_CHOICES, PLAN_CUE_MAX, bestDrill, cleanPlan, dailyActiveMs, goalStreak, planIcs, planUid, weekDays,
+  type DayState, type GoalStreak, type PracticePlan, type WeeklyGoal,
 } from './goals';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import type { BigramStats, KeyStats, WeaknessModel } from './weakness';
@@ -413,6 +413,108 @@ function renderGoalPicker(goal: WeeklyGoal, st: GoalStreak, onGoal: (goal: Weekl
   minutes.onchange = change;
 }
 
+// --- Practice plan: when the learner means to practise, with a calendar entry ---
+
+/** Whether the plan box shows its form; kept across redraws until saved or cancelled. */
+let planEditing = false;
+
+const dayName = (d: number, style: 'short' | 'long' = 'short') =>
+  // 5 January 2026 was a Monday.
+  new Intl.DateTimeFormat(uiLanguage(), { weekday: style }).format(new Date(2026, 0, 5 + d));
+
+export function planSummary(plan: PracticePlan): string {
+  const days = plan.days.map((d) => dayName(d)).join(', ');
+  return t(plan.cue ? 'schedule.summaryCue' : 'schedule.summary', { days, time: plan.time, cue: plan.cue });
+}
+
+function downloadPlan(plan: PracticePlan, goal: WeeklyGoal): void {
+  const ics = planIcs(plan, {
+    minutes: goal.minutes, title: t('schedule.icsTitle'),
+    description: plan.cue ? t('schedule.icsTextCue', { min: goal.minutes, cue: plan.cue }) : t('schedule.icsText', { min: goal.minutes }),
+    url: `${location.origin}/`, uid: planUid(),
+  });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })), download: 'keystrider-practice.ics',
+  });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function renderPlan(plan: PracticePlan | null, goal: WeeklyGoal, onPlan: (plan: PracticePlan | null) => void): void {
+  const host = $('week-plan');
+  const btn = (label: string, cls: string, go: () => void) => {
+    const b = el('button', cls, label);
+    b.type = 'button';
+    b.addEventListener('click', go);
+    return b;
+  };
+  if (!planEditing) {
+    if (!plan) {
+      host.replaceChildren(btn(t('schedule.add'), 'link-btn', () => {
+        planEditing = true;
+        renderPlan(plan, goal, onPlan);
+        host.querySelector<HTMLElement>('button[aria-pressed]')?.focus();
+      }));
+      return;
+    }
+    const row = el('div', 'wk-plan-row');
+    row.append(
+      el('span', 'wk-plan-text', planSummary(plan)),
+      btn(t('schedule.calendar'), 'wk-plan-cal', () => downloadPlan(plan, goal)),
+      btn(t('schedule.change'), 'link-btn', () => {
+        planEditing = true;
+        renderPlan(plan, goal, onPlan);
+      }),
+    );
+    host.replaceChildren(row);
+    return;
+  }
+  const form = el('form', 'wk-plan-form');
+  const chosen = new Set(plan?.days ?? []);
+  const days = el('div', 'wk-plan-days');
+  days.setAttribute('role', 'group');
+  days.setAttribute('aria-label', t('schedule.daysAria'));
+  for (let d = 0; d < 7; d++) {
+    const b = btn(dayName(d), '', () => {
+      if (chosen.has(d)) chosen.delete(d);
+      else chosen.add(d);
+      b.setAttribute('aria-pressed', String(chosen.has(d)));
+    });
+    b.title = dayName(d, 'long');
+    b.setAttribute('aria-pressed', String(chosen.has(d)));
+    days.append(b);
+  }
+  const time = Object.assign(el('input', 'wk-plan-time'), { type: 'time', value: plan?.time ?? '18:00', required: true });
+  time.setAttribute('aria-label', t('schedule.timeAria'));
+  const cue = Object.assign(el('input', 'wk-plan-cue'), { type: 'text', value: plan?.cue ?? '', maxLength: PLAN_CUE_MAX, placeholder: t('schedule.cuePlaceholder') });
+  cue.setAttribute('aria-label', t('schedule.cueAria'));
+  const error = el('p', 'wk-plan-error');
+  error.setAttribute('role', 'alert');
+  const actions = el('div', 'wk-plan-actions');
+  const save = el('button', 'primary', t('schedule.save'));
+  save.type = 'submit';
+  actions.append(save, btn(t('schedule.cancel'), 'link-btn', () => {
+    planEditing = false;
+    renderPlan(plan, goal, onPlan);
+  }));
+  if (plan) actions.append(btn(t('schedule.remove'), 'link-btn', () => {
+    planEditing = false;
+    onPlan(null);
+  }));
+  form.append(el('p', 'wk-plan-why', t('schedule.why')), days, time, cue, error, actions);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const next = cleanPlan({ days: [...chosen], time: time.value, cue: cue.value });
+    if (!next) {
+      error.textContent = t('schedule.needDay');
+      return;
+    }
+    planEditing = false;
+    onPlan(next);
+  });
+  host.replaceChildren(form);
+}
+
 function renderBest(best: SessionSummary | null): void {
   const big = $('week-best');
   big.replaceChildren(best ? num(best.wpm) : '–');
@@ -497,12 +599,13 @@ function weekChart(host: HTMLElement, weeks: readonly WeekTotals[]): void {
 /** The goal and streak count practice in any language; speeds are for the current language and layout only. */
 function renderWeeks(
   weeks: readonly WeekTotals[], sessions: readonly SessionSummary[], allSessions: readonly SessionSummary[],
-  goal: WeeklyGoal, onGoal: (goal: WeeklyGoal) => void, now: number,
+  goal: WeeklyGoal, onGoal: (goal: WeeklyGoal) => void, plan: PracticePlan | null, onPlan: (plan: PracticePlan | null) => void, now: number,
 ): void {
   const daily = dailyActiveMs(allSessions);
   const st = goalStreak(daily, goal, now);
   renderStreak(st, goal);
   renderGoalPicker(goal, st, onGoal);
+  renderPlan(plan, goal, onPlan);
   renderWeekDays(weekDays(daily, goal, startOfWeek(now)), startOfWeek(now), now);
   renderBest(bestDrill(sessions));
   weekChart($('week-chart'), weeks);
@@ -559,6 +662,9 @@ export interface ProgressOptions {
   /** The weekly goal, and what to do when the learner changes it on the card. */
   goal: WeeklyGoal;
   onGoal: (goal: WeeklyGoal) => void;
+  /** When the learner plans to practise, and what to do when they change it. */
+  plan: PracticePlan | null;
+  onPlan: (plan: PracticePlan | null) => void;
   /** Steps mastered in this language and layout, marked on the keyboard. */
   mastered?: ReadonlySet<string>;
   now?: number;
@@ -567,7 +673,7 @@ export interface ProgressOptions {
 export async function renderProgress(
   store: { forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]>; all(): Promise<KeystrokeEvent[]> },
   context: PracticeContext,
-  { range, contextName, path = null, goal, onGoal, mastered = new Set(), now = Date.now() }: ProgressOptions,
+  { range, contextName, path = null, goal, onGoal, plan, onPlan, mastered = new Set(), now = Date.now() }: ProgressOptions,
 ): Promise<void> {
   const events = await store.forLanguage(context.language, context.layout);
   $('progress-context').textContent = contextName;
@@ -584,7 +690,7 @@ export async function renderProgress(
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
   renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 0 : range);
   const everywhere = sessionSummaries(await store.all());
-  renderWeeks(weeklyTotals(all, { weeks: WEEKS, now }), all, everywhere, goal, onGoal, now);
+  renderWeeks(weeklyTotals(all, { weeks: WEEKS, now }), all, everywhere, goal, onGoal, plan, onPlan, now);
   renderPath(path);
   $('progress-speed').hidden = sessions.length === 0;
   $('progress-no-sessions').hidden = sessions.length > 0;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  dailyActiveMs, freshStart, goalNews, goalStreak, loadGoal, newBest, newlyMastered, saveGoal, weekDays,
+  cleanPlan, dailyActiveMs, freshStart, goalNews, goalStreak, loadGoal, newBest, newlyMastered, planDue, planIcs, saveGoal, weekDays,
 } from './goals';
 import { startOfWeek, type SessionSummary } from './progress';
 
@@ -122,5 +122,34 @@ describe('goal storage', () => {
     expect(loadGoal(storage)).toEqual({ days: 5, minutes: 10 });
     map.set('typing-trainer.goal', '{"days":9,"minutes":"x"}');
     expect(loadGoal(storage)).toEqual({ days: 4, minutes: 5 });
+  });
+});
+
+describe('practice plan', () => {
+  const plan = { days: [0, 2, 4], time: '08:00', cue: 'after coffee' };
+
+  it('cleans what was stored', () => {
+    expect(cleanPlan({ days: [4, 0, 0, 9], time: '07:30', cue: '  tea  ' })).toEqual({ days: [0, 4], time: '07:30', cue: 'tea' });
+    expect(cleanPlan({ days: [], time: '07:30' })).toBeNull();
+    expect(cleanPlan({ days: [1], time: '25:00' })).toBeNull();
+  });
+
+  it('is due around the planned time on planned days only', () => {
+    // NOW is Thursday 1 October 2026; Friday the 2nd is planned.
+    expect(planDue(plan, at(2026, 9, 2, 8))).toBe(new Date(2026, 9, 2).getTime());
+    expect(planDue(plan, new Date(2026, 9, 2, 7, 40).getTime())).not.toBeNull();
+    expect(planDue(plan, new Date(2026, 9, 2, 10, 0).getTime())).toBeNull();
+    expect(planDue(plan, at(2026, 9, 1, 8))).toBeNull();
+    expect(planDue(null, NOW)).toBeNull();
+  });
+
+  it('writes a weekly calendar event from the next planned day', () => {
+    const ics = planIcs(plan, { minutes: 10, now: NOW, title: 'Keystrider', description: 'Practise, after coffee; 10 min', url: 'https://example.org/', uid: 'x@keystrider' });
+    expect(ics).toContain('DTSTART:20261002T080000\r\n');
+    expect(ics).toContain('DTEND:20261002T081000\r\n');
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR\r\n');
+    expect(ics).toContain('DESCRIPTION:Practise\\, after coffee\\; 10 min\\nhttps://example.org/\r\n');
+    expect(ics).toContain('URL:https://example.org/\r\n');
+    expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
   });
 });

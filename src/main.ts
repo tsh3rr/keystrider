@@ -20,8 +20,8 @@ import { periodTotals, sessionSummaries, startOfWeek, weakest } from './progress
 import { isoDate, loadShareSpeed, pendingInvite, takeInviteFromUrl, type BuddyStats } from './sync/buddies';
 import { BuddiesView, InvitePrompt, type BuddiesDeps } from './sync/buddiesView';
 import {
-  dailyActiveMs, freshStart, goalNews, goalStreak, loadFreshSeen, loadGoal, loadMastered, newBest, newlyMastered,
-  saveFreshSeen, saveGoal, saveMastered, type FreshStart,
+  dailyActiveMs, freshStart, goalNews, goalStreak, loadFreshSeen, loadGoal, loadMastered, loadPlan, loadPlanSeen, newBest, newlyMastered,
+  planDue, saveFreshSeen, saveGoal, saveMastered, savePlan, savePlanSeen, type FreshStart,
 } from './goals';
 import { CoachBar, type CoachData } from './coachView';
 import { renderResult, type Tone } from './resultCard';
@@ -1015,6 +1015,11 @@ async function showProgress(section?: ProgressSection): Promise<void> {
         saveGoal(g);
         void showProgress();
       },
+      plan: loadPlan(),
+      onPlan: (p) => {
+        savePlan(p);
+        void showProgress();
+      },
       mastered: masteredSteps(),
     });
     // With no practice in this language yet the rest of the page is hidden; the buddies card stays.
@@ -1396,11 +1401,15 @@ document.addEventListener('visibilitychange', () => {
 // says so, with the weekly goal; it never mentions a broken streak.
 
 const freshEl = $('fresh-start');
-let fresh: FreshStart | null = null;
+/** What the line says: a fresh start, or that now is a planned practice time. */
+let fresh: FreshStart | 'plan' | null = null;
 
 function renderFreshStart(): void {
   if (!fresh) return;
-  $('fresh-start-text').textContent = t(`restart.${fresh}`) + ' ' + t('restart.goal', { n: goal.days, min: goal.minutes });
+  const plan = loadPlan();
+  $('fresh-start-text').textContent = fresh === 'plan'
+    ? plan?.cue ? t('schedule.dueCue', { min: goal.minutes, cue: plan.cue }) : t('schedule.due', { min: goal.minutes })
+    : t(`restart.${fresh}`) + ' ' + t('restart.goal', { n: goal.days, min: goal.minutes });
 }
 
 function hideFreshStart(): void {
@@ -1410,12 +1419,30 @@ function hideFreshStart(): void {
 
 async function maybeFreshStart(): Promise<void> {
   const pick = freshStart(await store.latest(), Date.now(), loadFreshSeen());
-  if (!pick) return;
+  if (!pick) return maybePlanned();
   saveFreshSeen(pick.id);
   fresh = pick.reason;
   renderFreshStart();
   freshEl.hidden = false;
 }
+
+/** Around a planned practice time, once a day, unless today's goal is already done. */
+async function maybePlanned(): Promise<void> {
+  const now = Date.now();
+  const day = planDue(loadPlan(), now);
+  if (day === null || loadPlanSeen() === day || !freshEl.hidden) return;
+  const today = dailyActiveMs(sessionSummaries(await store.since(day))).get(day) ?? 0;
+  if (today >= goal.minutes * 60_000) return;
+  savePlanSeen(day);
+  fresh = 'plan';
+  renderFreshStart();
+  freshEl.hidden = false;
+}
+
+// Coming back to an open tab at the planned time counts as opening the app.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && store) maybePlanned().catch((err) => console.error('Failed to check the plan', err));
+});
 
 $('fresh-start-close').addEventListener('click', () => {
   hideFreshStart();
