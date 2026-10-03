@@ -1,10 +1,10 @@
 name: Email templates
 
-# Sends the e-mail templates in supabase/templates (and, once set up, the
-# Resend mail server) to the staging project on pull requests and to the
-# production project after merge to main. Run it by hand after adding the
-# Resend secret. Skips cleanly until the Supabase secrets are set.
-# See docs/email-setup.md.
+# Points the Supabase projects' mail at Resend and sends the e-mail templates
+# in supabase/templates: staging on pull requests, production after merge to
+# main, or either by hand. Does nothing until the environment has the
+# RESEND_API_KEY secret and MAIL_FROM variable, since Supabase's free plan
+# only takes templates with its own mail server. See docs/email-setup.md.
 
 on:
   pull_request:

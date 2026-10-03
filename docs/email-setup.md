@@ -20,7 +20,7 @@ Reihenfolge: erst Staging (Vorschau-Builds) testen, dann Produktion.
 
 ## 3. GitHub: Vorlagen und Mailserver in die Supabase-Projekte
 
-Der Workflow *Email templates* schickt die Vorlagen aus `supabase/templates` (sechs Sprachen) und den Resend-Server an Supabase. Die Vorlagen kommen schon jetzt bei jedem Merge an; den Mailserver erst, wenn diese Werte gesetzt sind.
+Der Workflow *Email templates* stellt Supabase auf den Resend-Server um und schickt die Vorlagen aus `supabase/templates` (sechs Sprachen). Vorher tut er nichts: Im kostenlosen Supabase-Tarif lassen sich die Vorlagen erst mit eigenem Mailserver ändern.
 
 - [ ] `tsh3rr/keystrider` → **Settings** → **Environments** → `staging`:
   - **Environment secrets** → `RESEND_API_KEY` = Schlüssel aus Schritt 2

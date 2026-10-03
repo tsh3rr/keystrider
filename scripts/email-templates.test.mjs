@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { KINDS, LANGUAGES, TEXTS, html, subject, withConfigBlock } from './email-templates.mjs';
-import { authConfig } from './push-email-templates.mjs';
+import { smtpConfig, templateConfig } from './push-email-templates.mjs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -43,14 +43,15 @@ describe('e-mail templates', () => {
 
 describe('pushing the templates', () => {
   it('sends templates and subjects, and the mail server only when Resend is set up', () => {
-    const plain = authConfig({});
-    expect(plain.mailer_templates_recovery_content).toBe(html('recovery'));
-    expect(plain.mailer_subjects_magic_link).toBe(subject('magic_link'));
-    expect(plain).not.toHaveProperty('smtp_host');
-    expect(authConfig({ RESEND_API_KEY: 'key' })).not.toHaveProperty('smtp_host');
-    const resend = authConfig({ RESEND_API_KEY: 'key', MAIL_FROM: 'login@example.org' });
-    expect(resend).toMatchObject({ smtp_host: 'smtp.resend.com', smtp_port: '465', smtp_user: 'resend', smtp_pass: 'key', smtp_admin_email: 'login@example.org', smtp_sender_name: 'Keystrider' });
+    const templates = templateConfig();
+    expect(templates.mailer_templates_recovery_content).toBe(html('recovery'));
+    expect(templates.mailer_subjects_magic_link).toBe(subject('magic_link'));
+    expect(smtpConfig({})).toBeNull();
+    expect(smtpConfig({ RESEND_API_KEY: 'key' })).toBeNull();
+    expect(smtpConfig({ RESEND_API_KEY: 'key', MAIL_FROM: 'login@example.org' })).toEqual({
+      smtp_host: 'smtp.resend.com', smtp_port: '465', smtp_user: 'resend', smtp_pass: 'key', smtp_admin_email: 'login@example.org', smtp_sender_name: 'Keystrider',
+    });
     // "Confirm email" stays a decision made by hand.
-    expect(resend).not.toHaveProperty('mailer_autoconfirm');
+    expect(templates).not.toHaveProperty('mailer_autoconfirm');
   });
 });
