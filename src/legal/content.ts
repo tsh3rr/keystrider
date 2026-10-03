@@ -6,9 +6,10 @@ import { LEGAL_UPDATED, OWNER } from './owner';
  * Written for a private, non-commercial site run from Austria: no ads, no
  * payment, no tracking. Practice data stays in the browser unless the
  * learner signs in to the optional account, which syncs it through Supabase
- * (EU, Frankfurt). Cloudflare delivers the files. If any of that changes
- * (analytics, ads, a donation button, another processor such as a mail
- * service), these texts have to change first.
+ * (EU, Frankfurt). Cloudflare delivers the files. Where the account sends
+ * e-mail through Resend (EMAIL_LINKS, see vite.config.ts), the policy says so.
+ * If any of that changes (analytics, ads, a donation button, another
+ * processor), these texts have to change first.
  *
  * German is the binding version; the English text is a translation.
  */
@@ -22,6 +23,29 @@ const esc = (s: string) =>
 const name = esc(OWNER.name);
 const town = esc(OWNER.town);
 const mail = `<a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a>`;
+
+/**
+ * Account e-mails go out through Resend, on the same switch as sign-in by
+ * e-mail code in the app: each build's Supabase project either sends through
+ * Resend (and the app offers codes) or does neither.
+ */
+const resend = __EMAIL_LINKS__;
+
+/** What changes in the privacy policy once account e-mails go through Resend. */
+const accountMail = {
+  de: {
+    methods: resend ? 'mit deinem Google-Konto, mit E-Mail-Adresse und Passwort oder mit einem Code, den wir dir per E-Mail schicken' : 'mit deinem Google-Konto oder mit E-Mail-Adresse und Passwort',
+    supabase: resend ? 'Die E-Mails rund um dein Konto verschickt Supabase über Resend (siehe unten).' : 'und verschickt auch E-Mails rund um dein Konto, etwa zum Zurücksetzen des Passworts.',
+    section: resend ? `
+    <p><strong>E-Mail-Versand:</strong> Anmeldecodes, die Bestätigung deiner E-Mail-Adresse und Codes zum Zurücksetzen des Passworts schicken wir dir über den Versanddienst Resend (Resend, Inc., USA). Resend erhält dafür deine E-Mail-Adresse und den Inhalt der Nachricht (Code und Anmeldelink) und speichert Versandprotokolle (Zeitpunkt, Empfänger, Zustellstatus), um die Zustellung sicherzustellen; diese bewahrt Resend nur begrenzte Zeit auf. Öffnungs- und Klickverfolgung haben wir ausgeschaltet. Die E-Mails werden über Server in der EU (Irland) verschickt. Resend verarbeitet die Daten als unser Auftragsverarbeiter auf Grundlage seines Auftragsverarbeitungsvertrags; soweit dabei ein Zugriff aus den USA möglich ist, ist er durch die EU-Standardvertragsklauseln abgesichert (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Mehr dazu in der <a href="https://resend.com/legal/privacy-policy">Datenschutzerklärung von Resend</a>.</p>` : '',
+  },
+  en: {
+    methods: resend ? 'with your Google account, with an e-mail address and password, or with a code we send you by e-mail' : 'with your Google account or with an e-mail address and password',
+    supabase: resend ? 'Supabase sends the e-mails about your account through Resend (see below).' : 'and also sends e-mails about your account, such as for resetting your password.',
+    section: resend ? `
+    <p><strong>Sending e-mail:</strong> we send you sign-in codes, the confirmation of your e-mail address and codes for resetting your password through the mail service Resend (Resend, Inc., USA). For this, Resend receives your e-mail address and the content of the message (code and sign-in link) and keeps delivery logs (time, recipient, delivery status) to make sure mail arrives; it keeps them only for a limited time. We have turned off open and click tracking. The e-mails are sent from servers in the EU (Ireland). Resend processes the data as our processor under its data processing agreement; where access from the USA is possible, it is covered by the EU Standard Contractual Clauses (Art. 46(2)(c) GDPR). The legal basis is Art. 6(1)(b) GDPR. See <a href="https://resend.com/legal/privacy-policy">Resend's privacy policy</a> for more.</p>` : '',
+  },
+};
 
 /** Page chrome: titles, the back link and the language switch. */
 export const LEGAL_UI = {
@@ -92,16 +116,16 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Du behältst die Kontrolle: Unter <em>Einstellungen → Tastenprotokoll und Export</em> kannst du das Protokoll ansehen, als JSON oder CSV exportieren und löschen. Alles zusammen entfernst du, indem du in deinem Browser die Websitedaten für diese Seite löschst.</p>
 
     <h2>Freiwilliges Konto und Abgleich zwischen Geräten</h2>
-    <p>Du kannst dich unter <em>Einstellungen → Konto</em> mit deinem Google-Konto oder mit E-Mail-Adresse und Passwort anmelden. Dann gleicht Keystrider deinen Fortschritt zwischen deinen Geräten ab. Dafür verarbeiten wir:</p>
+    <p>Du kannst dich unter <em>Einstellungen → Konto</em> ${accountMail.de.methods} anmelden. Dann gleicht Keystrider deinen Fortschritt zwischen deinen Geräten ab. Dafür verarbeiten wir:</p>
     <ul>
       <li><strong>Anmeldedaten:</strong> deine E-Mail-Adresse, dein Passwort (nur als nicht umkehrbarer Hash gespeichert), eine interne Benutzerkennung, Zeitpunkt der Registrierung und der letzten Anmeldung sowie technische Protokolle der Anmeldung (IP-Adresse, Browserangaben, Zeitpunkt), die der Absicherung gegen Missbrauch dienen.</li>
       <li><strong>Benutzername:</strong> den du beim Registrieren wählst. Er wird in der App statt deiner E-Mail-Adresse angezeigt. Andere Nutzer sehen ihn nicht; beim Registrieren lässt sich nur prüfen, ob ein Name schon vergeben ist.</li>
       <li><strong>Übungsdaten:</strong> das Tastenprotokoll jeder abgeschlossenen Übungsrunde (wie oben unter <em>Tastenprotokoll</em> beschrieben) und dein Lernstand je Sprache und Layout. Deine Einstellungen bleiben nur auf dem jeweiligen Gerät.</li>
     </ul>
     <p>Rechtsgrundlage ist die Erfüllung des Nutzungsverhältnisses, das du mit der Anmeldung eingehst (Art. 6 Abs. 1 lit. b DSGVO); die Anmeldeprotokolle verarbeiten wir aufgrund unseres berechtigten Interesses an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO).</p>
-    <p>Konto und Daten werden bei Supabase gespeichert (Supabase, Inc., USA), auf Servern in Frankfurt am Main (EU). Supabase verarbeitet die Daten als unser Auftragsverarbeiter auf Grundlage seines Auftragsverarbeitungsvertrags und verschickt auch E-Mails rund um dein Konto, etwa zum Zurücksetzen des Passworts. Soweit dabei ein Zugriff aus Ländern außerhalb der EU möglich ist, etwa durch Supabase selbst oder dessen Unterauftragsverarbeiter, ist er durch die EU-Standardvertragsklauseln abgesichert (Art. 46 Abs. 2 lit. c DSGVO). Mehr dazu in der <a href="https://supabase.com/privacy">Datenschutzerklärung von Supabase</a>.</p>
+    <p>Konto und Daten werden bei Supabase gespeichert (Supabase, Inc., USA), auf Servern in Frankfurt am Main (EU). Supabase verarbeitet die Daten als unser Auftragsverarbeiter auf Grundlage seines Auftragsverarbeitungsvertrags${resend ? '. ' : ' '}${accountMail.de.supabase} Soweit dabei ein Zugriff aus Ländern außerhalb der EU möglich ist, etwa durch Supabase selbst oder dessen Unterauftragsverarbeiter, ist er durch die EU-Standardvertragsklauseln abgesichert (Art. 46 Abs. 2 lit. c DSGVO). Mehr dazu in der <a href="https://supabase.com/privacy">Datenschutzerklärung von Supabase</a>.</p>
     <p>Wir speichern deine Daten, solange du dein Konto hast. Unter <em>Einstellungen → Konto → Konto löschen</em> löschst du dein Konto samt allen dort gespeicherten Übungsdaten sofort; die Daten auf deinem Gerät bleiben, bis du sie selbst löschst. Löschst du unter <em>Tastenprotokoll und Export</em> das Protokoll, während du angemeldet bist, wird es auch im Konto gelöscht. Anmeldeprotokolle löscht Supabase automatisch nach kurzer Zeit.</p>
-    <p><strong>Anmeldung mit Google:</strong> Wählst du „Weiter mit Google“, wirst du zu Google weitergeleitet (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland) und meldest dich dort an. Google teilt uns danach deine E-Mail-Adresse, deinen Namen und die Adresse deines Profilbilds mit; wir verwenden nur die E-Mail-Adresse und speichern die übrigen Angaben nur, weil Supabase sie mit der Anmeldung ablegt. Für die Anmeldung bei Google ist Google selbst verantwortlich, siehe <a href="https://policies.google.com/privacy?hl=de">Datenschutzerklärung von Google</a>. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
+    <p><strong>Anmeldung mit Google:</strong> Wählst du „Weiter mit Google“, wirst du zu Google weitergeleitet (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland) und meldest dich dort an. Google teilt uns danach deine E-Mail-Adresse, deinen Namen und die Adresse deines Profilbilds mit; wir verwenden nur die E-Mail-Adresse und speichern die übrigen Angaben nur, weil Supabase sie mit der Anmeldung ablegt. Für die Anmeldung bei Google ist Google selbst verantwortlich, siehe <a href="https://policies.google.com/privacy?hl=de">Datenschutzerklärung von Google</a>. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>${accountMail.de.section}
 
     <h2>Hosting</h2>
     <p>Die Website wird über Cloudflare ausgeliefert (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA). Beim Aufruf verarbeitet Cloudflare technisch notwendige Daten, damit die Seite bei dir ankommt und vor Angriffen geschützt ist: deine IP-Adresse, Datum und Uhrzeit, die aufgerufene Adresse sowie Angaben deines Browsers wie Browsertyp und Betriebssystem. Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und funktionierenden Website (Art. 6 Abs. 1 lit. f DSGVO).</p>
@@ -133,16 +157,16 @@ const privacy: Record<LegalLanguage, string> = {
     <p>You stay in control: under <em>Settings → Keystroke log and export</em> you can view the log, export it as JSON or CSV, and delete it. To remove everything, clear this site's data in your browser.</p>
 
     <h2>Optional account and sync between devices</h2>
-    <p>Under <em>Settings → Account</em> you can sign in with your Google account or with an e-mail address and password. Keystrider then keeps your progress in sync between your devices. For this we process:</p>
+    <p>Under <em>Settings → Account</em> you can sign in ${accountMail.en.methods}. Keystrider then keeps your progress in sync between your devices. For this we process:</p>
     <ul>
       <li><strong>Sign-in data:</strong> your e-mail address, your password (stored only as a one-way hash), an internal user ID, when you registered and last signed in, and technical sign-in logs (IP address, browser details, time) used to protect against abuse.</li>
       <li><strong>Username:</strong> the one you choose when you sign up. The app shows it instead of your e-mail address. Other users cannot see it; signing up only reveals whether a name is already taken.</li>
       <li><strong>Practice data:</strong> the keystroke log of each finished practice round (as described above under <em>Keystroke log</em>) and your learning state per language and layout. Your settings stay on each device.</li>
     </ul>
     <p>The legal basis is performing the service you sign up for (Art. 6(1)(b) GDPR); we process the sign-in logs based on our legitimate interest in a secure service (Art. 6(1)(f) GDPR).</p>
-    <p>Accounts and data are stored with Supabase (Supabase, Inc., USA), on servers in Frankfurt am Main (EU). Supabase processes the data as our processor under its data processing agreement and also sends e-mails about your account, such as for resetting your password. Where access from outside the EU is possible, for example by Supabase itself or its sub-processors, it is covered by the EU Standard Contractual Clauses (Art. 46(2)(c) GDPR). See <a href="https://supabase.com/privacy">Supabase's privacy policy</a> for more.</p>
+    <p>Accounts and data are stored with Supabase (Supabase, Inc., USA), on servers in Frankfurt am Main (EU). Supabase processes the data as our processor under its data processing agreement${resend ? '. ' : ' '}${accountMail.en.supabase} Where access from outside the EU is possible, for example by Supabase itself or its sub-processors, it is covered by the EU Standard Contractual Clauses (Art. 46(2)(c) GDPR). See <a href="https://supabase.com/privacy">Supabase's privacy policy</a> for more.</p>
     <p>We keep your data for as long as you have your account. Under <em>Settings → Account → Delete account</em> you delete your account and all practice data stored with it at once; the data on your device stays until you delete it yourself. If you clear the log under <em>Keystroke log and export</em> while signed in, it is deleted from your account too. Supabase deletes sign-in logs automatically after a short time.</p>
-    <p><strong>Signing in with Google:</strong> if you choose "Continue with Google", you are sent to Google (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland) to sign in there. Google then gives us your e-mail address, your name and the address of your profile picture; we only use the e-mail address and keep the rest only because Supabase stores it with the sign-in. Google is responsible for signing you in on its side, see <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The legal basis is Art. 6(1)(b) GDPR.</p>
+    <p><strong>Signing in with Google:</strong> if you choose "Continue with Google", you are sent to Google (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland) to sign in there. Google then gives us your e-mail address, your name and the address of your profile picture; we only use the e-mail address and keep the rest only because Supabase stores it with the sign-in. Google is responsible for signing you in on its side, see <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The legal basis is Art. 6(1)(b) GDPR.</p>${accountMail.en.section}
 
     <h2>Hosting</h2>
     <p>The website is delivered through Cloudflare (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA). When you open it, Cloudflare processes the technical data needed to get the page to you and to protect it from attacks: your IP address, the date and time, the address requested, and details your browser sends such as browser type and operating system. The legal basis is our legitimate interest in a secure, working website (Art. 6(1)(f) GDPR).</p>

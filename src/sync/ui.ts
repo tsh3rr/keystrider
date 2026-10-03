@@ -22,6 +22,7 @@ export function errorMessage(err: unknown): string {
     case 'same_password': return t('account.errorSamePassword');
     case 'email_not_confirmed': return t('account.errorNotConfirmed');
     case 'otp_expired': return t('account.errorCode');
+    case 'otp_disabled': return t('account.errorNoAccount');
     case 'validation_failed': case 'email_address_invalid': return t('account.errorEmail');
     case 'username_taken': return t('account.usernameTaken');
     case 'over_email_send_rate_limit': case 'over_request_rate_limit': return t('account.errorRateLimit');

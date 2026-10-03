@@ -1,5 +1,6 @@
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 import type { KeystrokeStore } from '../store';
+import { uiLanguage } from '../i18n';
 import { allCurricula, saveCurriculum } from '../curriculum-store';
 import { decodeSession, encodeSession, rowSignature, type SessionRow } from './codec';
 import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan';
@@ -16,13 +17,16 @@ import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan
 /** Sign-in providers offered as buttons; add 'google' once it is enabled in Supabase (docs/accounts-setup.md, step 4). */
 export const OAUTH_PROVIDERS: readonly OAuthProvider[] = [];
 /**
- * Sign-in by one-time code or link, and password reset, both send e-mail.
- * Off until the project has its own mail server: Supabase's built-in one
- * only delivers to the project's team.
+ * Sign-in by one-time code or link, password reset and confirming the address
+ * at sign-up all send e-mail. Off until the Supabase project has its own mail
+ * server, since its built-in one only delivers to the project's team; switched
+ * per project in vite.config.ts (docs/email-setup.md).
  */
-export const EMAIL_LINKS = false;
+export const EMAIL_LINKS: boolean = __EMAIL_LINKS__;
 
 export type OAuthProvider = 'google' | 'github';
+/** What a code from an e-mail is for: signing in, confirming a new account, or resetting the password. */
+export type CodePurpose = 'signin' | 'signup' | 'reset';
 
 // Same 'typing-trainer.' prefix as every other key this app stores.
 const AUTH_KEY = 'typing-trainer.auth';
@@ -36,7 +40,7 @@ const LIST_PAGE = 1000;
 export type SyncStatus = 'idle' | 'syncing' | 'error';
 
 export type AccountState =
-  | { signedIn: false }
+  | { signedIn: false; /** Just came back from an e-mail link or Google, but it did not sign in. Reported once. */ linkFailed?: boolean }
   | { signedIn: true; email: string; /** undefined until the first sync has fetched it. */ username: string | null | undefined; sync: SyncStatus; lastSync: number | null; choosePassword: boolean };
 
 export interface AccountDeps {
@@ -62,6 +66,7 @@ export class Account {
   private status: SyncStatus = 'idle';
   /** Signed in by a password-reset link: the learner should pick a new password. */
   private recovery = false;
+  private linkFailed = false;
   private running: Promise<void> = Promise.resolve();
 
   constructor(private readonly deps: AccountDeps) {}
@@ -82,20 +87,37 @@ export class Account {
 
   get state(): AccountState {
     const email = this.session?.user.email;
-    if (!this.session) return { signedIn: false };
+    if (!this.session) return this.linkFailed ? { signedIn: false, linkFailed: true } : { signedIn: false };
     return { signedIn: true, email: email ?? '', username: loadUsername(this.session.user.id), sync: this.status, lastSync: loadSyncState(this.session.user.id).at, choosePassword: this.recovery };
   }
 
-  /** Sends a one-time code (and a sign-in link) to `email`. */
+  /**
+   * Sends a one-time code (and a sign-in link) to `email`. Only for existing
+   * accounts, since a new one needs a username: throws `{ code: 'otp_disabled' }`
+   * for an address without one.
+   */
   async sendCode(email: string): Promise<void> {
     const client = await this.connect();
-    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: here() } });
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: here(), shouldCreateUser: false } });
     if (error) throw error;
   }
 
-  async verifyCode(email: string, code: string): Promise<void> {
+  /**
+   * Signs in with the code from an e-mail: a sign-in code, the code that
+   * confirms a new account's address, or a password-reset code (after which
+   * the learner picks a new password, see `choosePassword`).
+   */
+  async verifyCode(email: string, code: string, purpose: CodePurpose = 'signin'): Promise<void> {
     const client = await this.connect();
-    const { error } = await client.auth.verifyOtp({ email, token: code, type: 'email' });
+    const type = purpose === 'signup' ? 'signup' : purpose === 'reset' ? 'recovery' : 'email';
+    const { error } = await client.auth.verifyOtp({ email, token: code, type });
+    if (error) throw error;
+  }
+
+  /** Sends the e-mail that confirms a new account's address again. */
+  async resendConfirmation(email: string): Promise<void> {
+    const client = await this.connect();
+    const { error } = await client.auth.resend({ type: 'signup', email, options: { emailRedirectTo: here() } });
     if (error) throw error;
   }
 
@@ -121,14 +143,14 @@ export class Account {
     const { data: free, error: checkError } = await client.rpc('username_available', { name: username });
     if (checkError) throw checkError;
     if (free === false) throw usernameTaken();
-    const { data, error } = await client.auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: here() } });
+    const { data, error } = await client.auth.signUp({ email, password, options: { data: { username, locale: uiLanguage() }, emailRedirectTo: here() } });
     if (error) throw error;
     if (data.user) saveUsername(data.user.id, username);
     this.emit();
     return data.session !== null;
   }
 
-  /** Sends a link to choose a new password (needs EMAIL_LINKS); the link signs in, then `setPassword`. */
+  /** Sends a code and a link to choose a new password (needs EMAIL_LINKS); either signs in, then `setPassword`. */
   async sendPasswordReset(email: string): Promise<void> {
     const client = await this.connect();
     const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: here() });
@@ -249,7 +271,10 @@ export class Account {
     }
 
     changed = (await syncCurricula(client, user)) || changed;
-    if (full) await this.loadProfile(client, user);
+    if (full) {
+      await this.loadProfile(client, user);
+      await this.saveLocale(client);
+    }
     saveSyncState({ user, sessions: Object.fromEntries(synced), at: Date.now() });
     if (changed) this.deps.dataChanged();
   }
@@ -259,6 +284,18 @@ export class Account {
     const { data, error } = await client.from('profiles').select('username').eq('user_id', user).maybeSingle();
     if (error) throw error;
     saveUsername(user, (data?.username as string | undefined) ?? null);
+  }
+
+  /**
+   * Remembers the interface language with the account, so the e-mails
+   * Supabase sends (codes, password reset) are in that language too; the
+   * templates in supabase/templates pick their text by it.
+   */
+  private async saveLocale(client: SupabaseClient): Promise<void> {
+    const locale = uiLanguage();
+    if (this.session?.user.user_metadata?.locale === locale) return;
+    const { error } = await client.auth.updateUser({ data: { locale } });
+    if (error) throw error;
   }
 
   private requireSignedIn(): SupabaseClient {
@@ -296,11 +333,16 @@ export class Account {
       // Deferred: supabase-js holds a lock while this callback runs.
       if (session && event === 'SIGNED_IN' && !wasSignedIn) setTimeout(() => this.syncNow().catch(logSyncError), 0);
     });
+    const returning = returningFromLogin();
     const { data } = await client.auth.getSession();
     this.session = data.session;
+    // E.g. an expired link, or one opened in another browser than where the code was asked for (PKCE).
+    this.linkFailed = returning && !data.session;
     ready = true;
     cleanLoginParams();
     this.emit();
+    // Said once; the account panel keeps the explanation.
+    this.linkFailed = false;
     if (this.session) this.syncNow().catch(logSyncError);
     return client;
   }
