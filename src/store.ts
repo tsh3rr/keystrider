@@ -51,6 +51,20 @@ export class KeystrokeStore {
     return this.tx('readonly', (s) => s.getAll()) as Promise<KeystrokeEvent[]>;
   }
 
+  /** Events typed at or after `from` (ms since epoch), any language. */
+  since(from: number): Promise<KeystrokeEvent[]> {
+    return this.tx('readonly', (s) => s.index('timestamp').getAll(IDBKeyRange.lowerBound(from))) as Promise<KeystrokeEvent[]>;
+  }
+
+  /** Time of the most recent keystroke, or null with an empty log. */
+  latest(): Promise<number | null> {
+    return new Promise((resolve, reject) => {
+      const req = this.db.transaction(STORE, 'readonly').objectStore(STORE).index('timestamp').openCursor(null, 'prev');
+      req.onsuccess = () => resolve(req.result ? (req.result.value as KeystrokeEvent).timestamp : null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   /** Events typed in one language, optionally narrowed to one layout. */
   async forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]> {
     const events = (await this.tx('readonly', (s) => s.index('language').getAll(language))) as KeystrokeEvent[];
