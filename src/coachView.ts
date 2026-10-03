@@ -8,7 +8,7 @@ import { pct, t, tNodes } from './i18n';
 
 export type ChipId = 'path' | 'round' | 'now' | 'fresh';
 /** The Progress card a bubble's link opens. */
-export type ProgressTarget = 'path' | 'speed' | 'keys' | 'weak';
+export type ProgressTarget = 'path' | 'speed' | 'keys' | 'weak' | 'buddies';
 
 export interface CoachData {
   path: {
