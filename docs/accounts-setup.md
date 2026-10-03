@@ -28,10 +28,10 @@ Prüfen: GitHub → **Actions** → *Database migrations* → **Run workflow** (
 
 Projekt → **Authentication** → **URL Configuration**:
 
-- **Site URL**: die Adresse der Seite. Produktion: `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev` (oder später deine Domain). Staging: dieselbe Adresse ist in Ordnung.
+- **Site URL**: die Adresse der Seite. Produktion: `https://keystrider.jeremiasz-kapek.workers.dev` (oder später deine Domain). Staging: dieselbe Adresse ist in Ordnung.
 - **Redirect URLs** → **Add URL**:
-  - Produktion: `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev/**`
-  - Staging: `https://*-keystrider.<DEIN-SUBDOMAIN>.workers.dev/**` (Vorschau-Builds) und `http://localhost:5173/**` (lokal)
+  - Produktion: `https://keystrider.jeremiasz-kapek.workers.dev/**`
+  - Staging: `https://*-keystrider.jeremiasz-kapek.workers.dev/**` (Vorschau-Builds) und `http://localhost:5173/**` (lokal)
 
 ## 3. E-Mail und Passwort
 
@@ -50,10 +50,10 @@ Einmal in der Google Cloud Console, dann in beiden Supabase-Projekten:
 2. Menü → **APIs & Dienste** → **OAuth-Zustimmungsbildschirm** (heißt auch **Google Auth Platform**) → **Jetzt starten**:
    - App-Name `Keystrider`, Support-E-Mail: deine Adresse → **Weiter**
    - Zielgruppe: **Extern** → **Weiter**, Kontakt-E-Mail → **Weiter** → zustimmen → **Erstellen**
-   - **Branding**: Startseite `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev`, Datenschutzerklärung `…/datenschutz`, Nutzungsbedingungen leer lassen; unter **Autorisierte Domains** `supabase.co` und `workers.dev`-Adresse bzw. später deine Domain → **Speichern**
+   - **Branding**: Startseite `https://keystrider.jeremiasz-kapek.workers.dev`, Datenschutzerklärung `…/datenschutz`, Nutzungsbedingungen leer lassen; unter **Autorisierte Domains** `supabase.co` und `workers.dev`-Adresse bzw. später deine Domain → **Speichern**
    - **Zielgruppe** → **App veröffentlichen** (Status „In Produktion“). Für E-Mail und Name braucht es keine Prüfung durch Google.
 3. **Clients** → **Client erstellen** → Anwendungstyp **Webanwendung**, Name `Keystrider`:
-   - **Autorisierte JavaScript-Quellen**: `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev` und `http://localhost:5173`
+   - **Autorisierte JavaScript-Quellen**: `https://keystrider.jeremiasz-kapek.workers.dev` und `http://localhost:5173`
    - **Autorisierte Weiterleitungs-URIs**: `https://ubjwlxcawxwrgolszlkz.supabase.co/auth/v1/callback` und `https://dghypouxfnfcdvpylznt.supabase.co/auth/v1/callback`
    - **Erstellen** → **Client-ID** und **Clientschlüssel** kopieren.
 4. In **jedem** Supabase-Projekt: **Authentication** → **Sign In / Providers** → **Google** → **Enable Sign in with Google** an, Client-ID und Client Secret einfügen → **Save**.
