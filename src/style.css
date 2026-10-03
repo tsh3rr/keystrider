@@ -688,7 +688,7 @@ body.onboarding .tabs, body.onboarding .menu-wrap, body.onboarding .settings-btn
 }
 .ob-option-text { display: grid; gap: 3px; min-width: 0; }
 .ob-option-text span { color: var(--muted); font-size: 0.9rem; }
-.ob-option .stair-mark { width: 38px; height: 38px; flex: none; }
+.ob-option .stair-mark { width: 38px; height: 38px; flex: none; color: var(--typed); }
 .ob-option[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .ob-option[aria-checked="true"] b { color: var(--accent); }
 .ob-typing { position: relative; }

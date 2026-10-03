@@ -312,7 +312,7 @@ export class Onboarding {
       b.setAttribute('aria-checked', String(id === this.choice));
       const words = el('span', 'ob-option-text');
       words.append(el('b', '', title), el('span', '', text));
-      if (id === 'new' || id === 'test') b.append(stairMark(id === 'new' ? 3 : 4));
+      b.append(stairMark(id === 'new' ? 1 : id === 'test' ? 2 : 3));
       b.append(words);
       b.addEventListener('dblclick', () => next.click());
       options.append(b);
