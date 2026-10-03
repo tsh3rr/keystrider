@@ -8,11 +8,11 @@
  */
 export const OWNER = {
   /** Your first and last name. */
-  name: '[Vor- und Nachname]',
+  name: 'Jeremiasz Kapek',
   /** The town you live in, e.g. "Wien" or "Graz". No street address needed. */
-  town: '[Wohnort]',
+  town: 'Wien',
   /** An e-mail address you read, e.g. a separate one just for the site. */
-  email: '[E-Mail-Adresse]',
+  email: 'gownianyinteres@gmail.com',
 };
 
 /** The date the texts below were last changed, shown at the end of each page. */
