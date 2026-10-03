@@ -170,13 +170,15 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .account-btn { border: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding: 6px 8px; }
 .account-btn:hover, .account-btn[aria-expanded="true"] { color: var(--fg); background: var(--surface-2); }
 .account-btn:not(.signed-in) { color: var(--accent); font-weight: 600; }
-.account-btn.signed-in { position: relative; padding: 4px; border-radius: 999px; }
+.account-btn.signed-in { padding: 4px; border-radius: 999px; color: var(--fg); }
+.account-btn.signed-in:has(.account-name) { padding-right: 12px; }
+.account-name { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.9rem; }
 .account-avatar {
-  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
   background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 0.85rem;
 }
 .account-dot {
-  position: absolute; right: 2px; bottom: 2px; width: 10px; height: 10px; border-radius: 50%;
+  position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%;
   border: 2px solid var(--panel); background: oklch(0.65 0.15 150);
 }
 .account-btn.sync-syncing .account-dot { background: var(--focus); }
@@ -193,7 +195,8 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
   .settings-btn span { display: none; }
 }
 @media (max-width: 420px) {
-  .account-btn:not(.signed-in) span { display: none; }
+  .account-btn:not(.signed-in) span, .account-name { display: none; }
+  .account-btn.signed-in:has(.account-name) { padding-right: 4px; }
 }
 @media (max-width: 620px) {
   .account-pop { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 72px); }
@@ -241,6 +244,9 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 .account p { margin: 0; font-size: 0.88rem; }
 .account-note { color: var(--muted); }
 .account-email { font-weight: 600; overflow-wrap: anywhere; }
+.account .account-address { margin-top: -8px; overflow-wrap: anywhere; }
+.account-username { display: grid; gap: 8px; width: 100%; padding: 12px; border-radius: 10px; background: var(--accent-soft); }
+.account .account-hint { color: var(--muted); font-size: 0.8rem; }
 .account-error { color: var(--error); }
 .account-form { display: grid; gap: 8px; width: 100%; }
 .account-actions { display: flex; gap: 8px; flex-wrap: wrap; }

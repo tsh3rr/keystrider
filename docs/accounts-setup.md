@@ -22,7 +22,7 @@ Die Tabellen kommen aus `supabase/migrations/`. Der Workflow *Database migration
    - `SUPABASE_PROJECT_ID` = `dghypouxfnfcdvpylznt`
 4. Dasselbe für das Environment `production`, mit dem Produktions-Passwort und `ubjwlxcawxwrgolszlkz`.
 
-Prüfen: GitHub → **Actions** → *Database migrations* → **Run workflow** (läuft gegen Produktion), oder auf den nächsten PR warten (Staging). Danach siehst du in Supabase unter **Table Editor** die Tabellen `practice_sessions` und `user_state`.
+Prüfen: GitHub → **Actions** → *Database migrations* → **Run workflow** (läuft gegen Produktion), oder auf den nächsten PR warten (Staging). Danach siehst du in Supabase unter **Table Editor** die Tabellen `practice_sessions`, `user_state` und `profiles`.
 
 ## 2. Anmelde-Adressen erlauben
 

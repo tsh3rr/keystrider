@@ -27,6 +27,7 @@ export type OAuthProvider = 'google' | 'github';
 // Same 'typing-trainer.' prefix as every other key this app stores.
 const AUTH_KEY = 'typing-trainer.auth';
 const SYNC_KEY = 'typing-trainer.sync';
+const PROFILE_KEY = 'typing-trainer.profile';
 /** Rows per request, to keep each request well under the API's limits. */
 const UPLOAD_BATCH = 25;
 const DOWNLOAD_BATCH = 50;
@@ -36,7 +37,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'error';
 
 export type AccountState =
   | { signedIn: false }
-  | { signedIn: true; email: string; sync: SyncStatus; lastSync: number | null; choosePassword: boolean };
+  | { signedIn: true; email: string; /** undefined until the first sync has fetched it. */ username: string | null | undefined; sync: SyncStatus; lastSync: number | null; choosePassword: boolean };
 
 export interface AccountDeps {
   store: () => KeystrokeStore;
@@ -82,7 +83,7 @@ export class Account {
   get state(): AccountState {
     const email = this.session?.user.email;
     if (!this.session) return { signedIn: false };
-    return { signedIn: true, email: email ?? '', sync: this.status, lastSync: loadSyncState(this.session.user.id).at, choosePassword: this.recovery };
+    return { signedIn: true, email: email ?? '', username: loadUsername(this.session.user.id), sync: this.status, lastSync: loadSyncState(this.session.user.id).at, choosePassword: this.recovery };
   }
 
   /** Sends a one-time code (and a sign-in link) to `email`. */
@@ -130,6 +131,16 @@ export class Account {
     const { error } = await client.auth.updateUser({ password });
     if (error) throw error;
     this.recovery = false;
+    this.emit();
+  }
+
+  /** Sets or changes the username. Throws `{ code: 'username_taken' }` when another account has it. */
+  async setUsername(username: string): Promise<void> {
+    const client = this.requireSignedIn();
+    const user = this.session!.user.id;
+    const { error } = await client.from('profiles').upsert({ user_id: user, username });
+    if (error) throw error.code === '23505' ? Object.assign(new Error(error.message), { code: 'username_taken' }) : error;
+    saveUsername(user, username);
     this.emit();
   }
 
@@ -229,8 +240,16 @@ export class Account {
     }
 
     changed = (await syncCurricula(client, user)) || changed;
+    if (full) await this.loadProfile(client, user);
     saveSyncState({ user, sessions: Object.fromEntries(synced), at: Date.now() });
     if (changed) this.deps.dataChanged();
+  }
+
+  /** Fetches the username, which may have been set or changed on another device. */
+  private async loadProfile(client: SupabaseClient, user: string): Promise<void> {
+    const { data, error } = await client.from('profiles').select('username').eq('user_id', user).maybeSingle();
+    if (error) throw error;
+    saveUsername(user, (data?.username as string | undefined) ?? null);
   }
 
   private requireSignedIn(): SupabaseClient {
@@ -261,6 +280,7 @@ export class Account {
       if (!session) {
         this.recovery = false;
         clearSyncState();
+        clearUsername();
       }
       if (!ready) return;
       this.emit();
@@ -356,6 +376,32 @@ function saveSyncState(state: SyncState): void {
 function clearSyncState(): void {
   try {
     localStorage.removeItem(SYNC_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** The username is remembered so the top bar shows it right away, before the first sync. */
+function loadUsername(user: string): string | null | undefined {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as { user?: string; username?: string | null } | null;
+    return saved?.user === user ? saved.username ?? null : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveUsername(user: string, username: string | null): void {
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ user, username }));
+  } catch {
+    // shown again after the next sync
+  }
+}
+
+function clearUsername(): void {
+  try {
+    localStorage.removeItem(PROFILE_KEY);
   } catch {
     // ignore
   }

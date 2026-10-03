@@ -1,11 +1,14 @@
 import { t, uiLanguage, type MessageKey } from '../i18n';
 import { EMAIL_LINKS, OAUTH_PROVIDERS, type Account, type AccountState, type OAuthProvider } from './account';
+import { USERNAME_MAX, USERNAME_MIN, usernameProblem } from './username';
 
 /**
  * The Account group in Settings: sign in with Google or e-mail and
  * password (and, once e-mail can be sent, by a one-time code), then see the
  * sync status, sync by hand, sign out or delete the account.
  */
+
+type SignedIn = Extract<AccountState, { signedIn: true }>;
 
 type Step =
   | { kind: 'password' }
@@ -23,6 +26,8 @@ export class AccountView {
   private error = '';
   private notice = '';
   private email = '';
+  /** Changing an existing username. */
+  private renaming = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -35,6 +40,7 @@ export class AccountView {
 
   update(state: AccountState): void {
     if (state.signedIn && !this.state.signedIn) this.step = { kind: 'password' };
+    if (!state.signedIn) this.renaming = false;
     this.state = state;
     this.render();
   }
@@ -43,7 +49,7 @@ export class AccountView {
     this.root.replaceChildren(...(this.state.signedIn ? this.signedIn(this.state) : this.signedOut()));
     this.renderButton();
     this.summary.textContent = this.state.signedIn
-      ? `${t('account.signedInAs', { email: this.state.email })} · ${syncStatus(this.state)}`
+      ? `${t('account.signedInAs', { name: displayName(this.state) })} · ${syncStatus(this.state)}`
       : t('account.signedOutStatus');
   }
 
@@ -62,14 +68,21 @@ export class AccountView {
       b.setAttribute('aria-label', t('account.button'));
       return;
     }
+    const name = displayName(state);
     b.className = `account-btn signed-in sync-${state.sync}`;
     const avatar = Object.assign(document.createElement('span'), {
-      className: 'account-avatar', textContent: (state.email[0] ?? '?').toUpperCase(),
+      className: 'account-avatar', textContent: ([...name][0] ?? '?').toUpperCase(),
     });
     avatar.setAttribute('aria-hidden', 'true');
-    b.replaceChildren(avatar, Object.assign(document.createElement('span'), { className: 'account-dot' }));
-    b.title = `${t('account.signedInAs', { email: state.email })}\n${syncStatus(state)}`;
-    b.setAttribute('aria-label', `${t('account.signedInAs', { email: state.email })}. ${syncStatus(state)}`);
+    avatar.append(Object.assign(document.createElement('span'), { className: 'account-dot' }));
+    b.replaceChildren(avatar);
+    if (state.username) {
+      const label = Object.assign(document.createElement('span'), { className: 'account-name', textContent: state.username });
+      label.setAttribute('aria-hidden', 'true');
+      b.append(label);
+    }
+    b.title = `${t('account.signedInAs', { name })}\n${syncStatus(state)}`;
+    b.setAttribute('aria-label', `${t('account.signedInAs', { name })}. ${syncStatus(state)}`);
   }
 
   private go(step: Step): void {
@@ -153,10 +166,13 @@ export class AccountView {
     return button(t('account.back'), 'link-btn', () => this.go({ kind: 'password' }));
   }
 
-  private signedIn(state: Extract<AccountState, { signedIn: true }>): Node[] {
+  private signedIn(state: SignedIn): Node[] {
     const status = syncStatus(state);
-    const nodes: Node[] = [p(t('account.signedInAs', { email: state.email }), 'account-email')];
+    const nodes: Node[] = [p(t('account.signedInAs', { name: displayName(state) }), 'account-email')];
+    if (state.username) nodes.push(p(state.email, 'account-note account-address'));
     if (this.notice) nodes.push(p(this.notice, 'account-note'));
+    // Prompted once the server said there is none, not while it is still being fetched.
+    if (state.username === null || this.renaming) nodes.push(...this.usernameForm(state));
     if (state.choosePassword) {
       // Came in through a password-reset link.
       nodes.push(p(t('account.choosePassword'), 'account-note'));
@@ -169,6 +185,10 @@ export class AccountView {
     nodes.push(
       p(status, state.sync === 'error' ? 'account-error' : 'account-note'),
       button(t('account.syncNow'), 'link-btn', () => this.run(() => this.account.syncNow())),
+      ...(state.username && !this.renaming ? [button(t('account.usernameChange'), 'link-btn', () => {
+        this.renaming = true;
+        this.go({ kind: 'password' });
+      })] : []),
       button(t('account.signOut'), 'link-btn', () => this.run(() => this.account.signOut())),
       button(t('account.delete'), 'link-btn account-delete', () => {
         if (!confirm(t('account.deleteConfirm'))) return;
@@ -181,6 +201,35 @@ export class AccountView {
       privacyLink(),
     );
     return nodes;
+  }
+
+  /** Choosing a username (prompted while there is none) or changing it. */
+  private usernameForm(state: SignedIn): Node[] {
+    const input = field('text', t('account.username'), {
+      autocomplete: 'username', minlength: String(USERNAME_MIN), maxlength: String(USERNAME_MAX),
+      spellcheck: 'false', autocapitalize: 'off',
+    });
+    input.value = state.username ?? '';
+    const actions: Action[] = [{ label: t('account.usernameSave'), primary: true, go: () => {
+      const name = input.value.trim();
+      const problem = usernameProblem(name, uiLanguage());
+      if (problem) {
+        this.error = t(problem === 'blocked' ? 'account.usernameBlocked' : 'account.usernameInvalid', { min: USERNAME_MIN, max: USERNAME_MAX });
+        this.render();
+        this.root.querySelector<HTMLInputElement>('input')?.focus();
+        return;
+      }
+      void this.run(async () => {
+        await this.account.setUsername(name);
+        this.renaming = false;
+        this.notice = t('account.usernameSaved');
+      });
+    } }];
+    if (this.renaming) actions.push({ label: t('account.back'), go: () => { this.renaming = false; this.go({ kind: 'password' }); }, skipCheck: true });
+    const box = Object.assign(document.createElement('div'), { className: 'account-username' });
+    if (!state.username) box.append(p(t('account.usernamePrompt'), 'account-note'));
+    box.append(form([input], actions), p(t('account.usernameHint', { min: USERNAME_MIN, max: USERNAME_MAX }), 'account-hint'));
+    return [box];
   }
 
   private errorLine(): Node[] {
@@ -215,6 +264,7 @@ function errorMessage(err: unknown): string {
     case 'email_not_confirmed': return t('account.errorNotConfirmed');
     case 'otp_expired': return t('account.errorCode');
     case 'validation_failed': case 'email_address_invalid': return t('account.errorEmail');
+    case 'username_taken': return t('account.usernameTaken');
     case 'over_email_send_rate_limit': case 'over_request_rate_limit': return t('account.errorRateLimit');
   }
   if (e?.status === 429) return t('account.errorRateLimit');
@@ -243,7 +293,7 @@ function field(type: string, label: string, attrs: Record<string, string>): HTML
 }
 
 
-interface Action { label: string; primary?: boolean; go: () => void }
+interface Action { label: string; primary?: boolean; go: () => void; /** Runs without checking the fields, e.g. Cancel. */ skipCheck?: boolean }
 
 /**
  * Fields and one or more actions. Enter and the first action submit; every
@@ -256,7 +306,7 @@ function form(inputs: HTMLInputElement[], actions: Action[]): HTMLFormElement {
   actions.forEach((a, i) => {
     const b = Object.assign(document.createElement('button'), { type: i === 0 ? 'submit' : 'button', textContent: a.label });
     if (a.primary) b.className = 'primary';
-    if (i > 0) b.addEventListener('click', () => { if (f.reportValidity()) a.go(); });
+    if (i > 0) b.addEventListener('click', () => { if (a.skipCheck || f.reportValidity()) a.go(); });
     row.append(b);
   });
   f.append(row);
@@ -271,7 +321,11 @@ function privacyLink(): HTMLAnchorElement {
   return Object.assign(document.createElement('a'), { href: '/datenschutz', textContent: t('account.privacy'), className: 'account-privacy' });
 }
 
-function syncStatus(state: Extract<AccountState, { signedIn: true }>): string {
+function displayName(state: SignedIn): string {
+  return state.username ?? state.email;
+}
+
+function syncStatus(state: SignedIn): string {
   return state.sync === 'syncing' ? t('account.syncing')
     : state.sync === 'error' ? t('account.syncFailed')
     : state.lastSync === null ? t('account.neverSynced')
