@@ -166,6 +166,28 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .menu-note { display: block; font-size: 0.8rem; color: var(--muted); padding: 6px 8px 2px; border-top: 1px solid var(--border); margin-top: 4px; }
 .settings-btn { border: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding: 6px 8px; }
 .settings-btn:hover, .settings-btn[aria-expanded="true"] { color: var(--fg); background: var(--surface-2); }
+/* Account: "Sign in" while signed out; the initial with a sync dot once signed in. */
+.account-btn { border: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding: 6px 8px; }
+.account-btn:hover, .account-btn[aria-expanded="true"] { color: var(--fg); background: var(--surface-2); }
+.account-btn:not(.signed-in) { color: var(--accent); font-weight: 600; }
+.account-btn.signed-in { padding: 4px; border-radius: 999px; color: var(--fg); }
+.account-btn.signed-in:has(.account-name) { padding-right: 12px; }
+.account-name { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.9rem; }
+.account-avatar {
+  position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 0.85rem;
+}
+.account-dot {
+  position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--panel); background: oklch(0.65 0.15 150);
+}
+.account-avatar.sync-syncing .account-dot { background: var(--focus); }
+.account-avatar.sync-error .account-dot { background: var(--error); }
+.account-avatar.large { width: 40px; height: 40px; font-size: 1.1rem; }
+.account-avatar.huge { width: 64px; height: 64px; font-size: 1.7rem; }
+.account-avatar.huge .account-dot { width: 14px; height: 14px; right: 0; bottom: 0; }
+.account-pop { width: min(340px, calc(100vw - 32px)); padding: 16px; }
+body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 @media (max-width: 420px) {
   .menu-sep, .menu-layout { display: none; }
 }
@@ -174,6 +196,13 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
   .tabs { order: 5; width: 100%; }
   .tabs button { flex: 1; justify-content: center; }
   .settings-btn span { display: none; }
+}
+@media (max-width: 420px) {
+  .account-btn:not(.signed-in) span, .account-name { display: none; }
+  .account-btn.signed-in:has(.account-name) { padding-right: 4px; }
+}
+@media (max-width: 620px) {
+  .account-pop { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 72px); }
 }
 
 /* --- Settings drawer --- */
@@ -205,6 +234,48 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .switch-row input:checked::before { transform: translateX(14px); }
 @media (prefers-reduced-motion: reduce) { .switch-row input, .switch-row input::before { transition: none; } }
 #reset-lessons { color: var(--error); }
+.account-benefits { display: grid; gap: 6px; font-size: 0.9rem; }
+.account-benefits ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.account-benefits li { position: relative; padding-left: 20px; color: var(--muted); line-height: 1.4; }
+.account-benefits li::before { content: "✓"; position: absolute; left: 2px; color: var(--accent); font-weight: 700; }
+.account-nudge {
+  display: grid; gap: 12px; margin-top: 14px; padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--accent-soft);
+}
+.account-nudge-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.account { display: grid; gap: 10px; justify-items: start; }
+.account p { margin: 0; font-size: 0.88rem; }
+.account-note { color: var(--muted); }
+.account-email { font-weight: 600; overflow-wrap: anywhere; }
+.account .account-address { margin-top: -8px; overflow-wrap: anywhere; }
+.account-head { display: flex; gap: 12px; align-items: center; min-width: 0; width: 100%; }
+.account-head > div { min-width: 0; }
+.account .account-head .account-address { margin-top: 0; }
+.account-callout { display: grid; gap: 8px; justify-items: start; width: 100%; padding: 12px; border-radius: 10px; background: var(--accent-soft); }
+.account-tabs { display: flex; width: 100%; padding: 3px; gap: 3px; border-radius: 10px; background: var(--surface-2); }
+.account-tabs button { flex: 1; border: 0; background: transparent; padding: 6px 8px; color: var(--muted); font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
+.account-tabs button[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }
+.account-ok { color: oklch(0.5 0.13 150); }
+#profile-view { max-width: 640px; margin-inline: auto; }
+.profile { display: grid; gap: 16px; }
+.profile-hero { display: flex; gap: 18px; align-items: center; min-width: 0; }
+.profile-hero h3 { margin: 0 0 2px; font-size: 1.4rem; overflow-wrap: anywhere; }
+.profile-hero p { margin: 0; overflow-wrap: anywhere; }
+.profile-card { display: grid; gap: 10px; justify-items: start; }
+.profile-card p { margin: 0; font-size: 0.9rem; }
+.profile-card .account-form { max-width: 360px; }
+.account-hint, .profile-card .account-hint { color: var(--muted); font-size: 0.8rem; }
+.account-error { color: var(--error); }
+.account-form { display: grid; gap: 8px; width: 100%; }
+.account-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.account-provider { width: 100%; font-weight: 600; }
+.account .account-or { color: var(--muted); font-size: 0.8rem; }
+.account-input {
+  width: 100%; min-width: 0; font: inherit; padding: 6px 10px; color: var(--fg);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+}
+.account-delete { color: var(--error); }
+.account-privacy { font-size: 0.82rem; color: var(--muted); }
 .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 8px; background: var(--bg); }
 .segmented button { border: 0; padding: 6px; color: var(--muted); border-radius: 6px; font-size: 0.88rem; }
 .segmented button[aria-checked="true"] { background: var(--panel); color: var(--fg); box-shadow: var(--shadow-sm); }
@@ -667,6 +738,13 @@ body.onboarding .tabs, body.onboarding .menu-wrap, body.onboarding .settings-btn
 .ob-steps li.done::before { content: "✓ "; }
 .ob-steps li.current { background: var(--accent); color: var(--accent-ink); font-weight: 500; }
 .ob-skip { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.ob-signin { margin: -4px 0 0; font-size: 0.88rem; color: var(--muted); }
+.ob-signin .link-btn { font-size: inherit; font-weight: 600; }
+.ob-account {
+  display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 10px; background: var(--accent-soft);
+}
+.ob-account p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
 .ob-intro { margin: -6px 0 0; color: var(--muted); line-height: 1.5; }
 .ob-field { display: grid; gap: 6px; }
 .ob-label { font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }

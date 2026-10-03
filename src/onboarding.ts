@@ -16,7 +16,11 @@ import { num, pct, t, tMaybe } from './i18n';
  *    confirm or correct the choice from the physical keys pressed.
  * 2. Where to start: from the beginning, or a one-minute placement test
  *    (placement.ts) that skips the keys the learner already types well.
- * 3. How it works: the method in four points.
+ * 3. How it works: the method in four points, and what the optional
+ *    account is good for.
+ *
+ * Someone who already has an account can sign in from step 1; once their
+ * lessons have synced, the setup closes by itself (see main.ts).
  *
  * The screen only talks to the rest of the app through `OnboardingHost`.
  * Its text comes from the translation files (`onboarding.*` keys) through `T` below.
@@ -56,6 +60,12 @@ const T = {
   get keepText() { return t('onboarding.keepText'); },
   replaceNote: (lang: string, layout: string) => t('onboarding.replaceNote', { lang, layout }),
 
+  get haveAccountQuestion() { return t('onboarding.haveAccount'); },
+  get haveAccountAction() { return t('account.signIn'); },
+  get accountTitle() { return t('onboarding.accountTitle'); },
+  get accountText() { return t('onboarding.accountText'); },
+  get accountCreate() { return t('onboarding.accountCreate'); },
+
   get testTitleRun() { return t('onboarding.testTitleRun'); },
   get testIntro() { return t('onboarding.testIntro'); },
   get testHint() { return t('onboarding.testHint'); },
@@ -94,6 +104,10 @@ export interface OnboardingHost {
   setLayout(layout: string, source: LayoutSetting['source']): Promise<void>;
   /** Stores one keystroke of the placement test in the log. */
   log(event: KeystrokeEvent): Promise<unknown>;
+  /** Whether the learner is signed in to the optional account. */
+  signedIn(): boolean;
+  /** Opens the account panel, showing sign-in or account creation. */
+  openAccount(kind: 'signin' | 'signup'): void;
   /**
    * Called when the learner is done or skips. `lessons` is the curriculum to
    * start with: a placement, a fresh start, or null to keep what is there.
@@ -157,6 +171,16 @@ export class Onboarding {
     this.render();
   }
 
+  /** Closes the setup keeping the lessons there are, e.g. after signing in brought them from another device. */
+  dismiss(): void {
+    if (!this.root.hidden) this.close(null);
+  }
+
+  /** Redraws when the learner signs in or out, unless the placement test is being typed. */
+  accountChanged(): void {
+    if (!this.root.hidden && !this.test) this.render();
+  }
+
   private close(lessons: CurriculumState | null): void {
     this.root.hidden = true;
     this.root.replaceChildren();
@@ -185,6 +209,11 @@ export class Onboarding {
     });
     head.append(dots, button(T.skip, 'link-btn ob-skip', () => this.skip()));
     card.append(head);
+    if (this.step === 0 && !this.host.signedIn()) {
+      const line = el('p', 'ob-signin', T.haveAccountQuestion + ' ');
+      line.append(button(T.haveAccountAction, 'link-btn', () => this.host.openAccount('signin')));
+      card.append(line);
+    }
     if (this.step === 0) this.renderKeyboard(card);
     else if (this.step === 1) this.renderStart(card);
     else this.renderMethod(card);
@@ -510,6 +539,17 @@ export class Onboarding {
       list.append(li);
     });
     card.append(list, el('p', 'ob-note', T.methodTip));
+    if (!this.host.signedIn()) {
+      const box = el('div', 'ob-account');
+      const text = el('div');
+      text.append(el('b', '', T.accountTitle), el('p', '', T.accountText));
+      const create = button(T.accountCreate, 'ob-account-btn', () => {
+        this.close(this.lessons());
+        this.host.openAccount('signup');
+      });
+      box.append(text, create);
+      card.append(box);
+    }
     card.append(this.footer(button(T.start, '', () => this.close(this.lessons())), () => this.go(1)));
   }
 

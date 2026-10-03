@@ -29,6 +29,9 @@ import {
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
+import { Account } from './sync/account';
+import { AccountView, benefits } from './sync/accountView';
+import { ProfileView } from './sync/profileView';
 import {
   UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, tNodes, uiLanguage,
 } from './i18n';
@@ -470,12 +473,14 @@ async function startDrill(kind?: Drill['kind']): Promise<void> {
   drillEvents = [];
   pendingWrites = [];
   resultEl.hidden = true;
+  accountNudge.hidden = true;
   redrawResult = null;
   practiceView.classList.remove('showing-result');
   renderDrillBar();
   renderText();
   renderStats();
-  inputEl.focus();
+  // Not while the account panel is open, e.g. right after setup ended with "Create account".
+  if ($('account-pop').hidden) inputEl.focus();
 }
 
 function describeChange(c: CurriculumChange): string {
@@ -544,6 +549,8 @@ async function finishDrill(): Promise<void> {
     const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
     renderDrillBar();
     show(changes, improved, slipped, roundStep);
+    account.push().catch((err) => console.error('Sync failed', err));
+    maybeNudge(state.coreDrills);
   } finally {
     finishing = false;
   }
@@ -893,7 +900,18 @@ $('export-csv').addEventListener('click', async () => {
   download('keystrokes.csv', 'text/csv', toCsv(await store.all()));
 });
 $('clear-log').addEventListener('click', async () => {
-  if (!confirm(t('log.clearConfirm'))) return;
+  const synced = account.state.signedIn;
+  if (!confirm(t(synced ? 'log.clearConfirmSynced' : 'log.clearConfirm'))) return;
+  if (synced) {
+    // Server first: otherwise the next sync would bring the deleted rounds back.
+    try {
+      await account.clearRemoteSessions();
+    } catch (err) {
+      console.error('Failed to clear synced keystrokes', err);
+      alert(t('log.clearFailed'));
+      return;
+    }
+  }
   await store.clear();
   await renderLog();
 });
@@ -931,7 +949,7 @@ $('progress-start').addEventListener('click', () => showView('practice'));
 
 // --- Navigation, menus and settings ---
 
-type View = 'practice' | 'progress' | 'log';
+type View = 'practice' | 'progress' | 'log' | 'profile';
 
 function showView(view: View, section?: ProgressSection): void {
   document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => {
@@ -944,7 +962,12 @@ function showView(view: View, section?: ProgressSection): void {
   $('practice-view').hidden = view !== 'practice';
   $('log-view').hidden = view !== 'log';
   $('progress-view').hidden = view !== 'progress';
+  $('profile-view').hidden = view !== 'profile';
   if (view === 'log') renderLog();
+  else if (view === 'profile') {
+    profileView.render();
+    profileView.focus();
+  }
   else if (view === 'progress') void showProgress(section);
   else inputEl.focus();
 }
@@ -953,6 +976,7 @@ document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((btn) => {
   btn.addEventListener('click', () => showView(btn.dataset.view as View));
 });
 $('log-back').addEventListener('click', () => showView('practice'));
+$('profile-back').addEventListener('click', () => showView('practice'));
 
 /** One choice in a top-bar menu, with a tick on the current one. */
 function menuItem(label: string, detail: string, checked: boolean, pick: () => void): HTMLButtonElement {
@@ -971,6 +995,7 @@ function menuItem(label: string, detail: string, checked: boolean, pick: () => v
 
 const menus = [
   { btn: $('context-btn'), menu: $('context-menu') },
+  { btn: $('account-btn'), menu: $('account-pop') },
 ];
 
 function closeMenus(): void {
@@ -988,7 +1013,8 @@ for (const m of menus) {
     coach.close(false);
     m.menu.hidden = !open;
     m.btn.setAttribute('aria-expanded', String(open));
-    if (open) m.menu.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
+    if (open && m.menu.id === 'account-pop') accountView.focus();
+    else if (open) m.menu.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
   });
   m.menu.addEventListener('click', (e) => e.stopPropagation());
 }
@@ -1068,6 +1094,9 @@ const onboarding = new Onboarding($('onboarding-view'), {
   setLanguage: (language) => setLanguage(language, false),
   setLayout,
   log: (event) => store.add(event),
+  signedIn: () => account.state.signedIn,
+  // Deferred past the click, which would otherwise reach the document and close the panel again.
+  openAccount: (kind) => setTimeout(() => openAccount(kind), 0),
   finish: (lessons) => {
     saveOnboardedSetting();
     // Saved even when it was only guessed, so the next visit keeps it (see startLanguage).
@@ -1131,8 +1160,109 @@ onUiLanguageChange(() => {
   redrawResult?.();
   renderBreakText();
   renderBreakTimer();
+  accountView.render();
+  profileView.render();
+  if (!accountNudge.hidden) renderNudge();
   if (!$('progress-view').hidden) void showProgress();
   if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
+});
+
+// --- Account and sync (optional) ---
+//
+// Signed in, finished rounds and curricula are copied between devices; see
+// sync/account.ts. Signed out, nothing here talks to a server.
+
+const account = new Account({
+  store: () => store,
+  activeSession: () => (session.done ? null : session.id),
+  dataChanged: () => {
+    // Another device practised: pick up its curriculum and redraw what shows history.
+    curriculum = loadCurriculum(context) ?? curriculum;
+    // Signed in during first-run setup on a new device: the lessons came along, so the setup is done.
+    if (document.body.classList.contains('onboarding') && loadCurriculum(context)) onboarding.dismiss();
+    renderDrillBar();
+    if (!$('progress-view').hidden) void showProgress();
+    if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
+  },
+  stateChanged: (state) => {
+    accountView.update(state);
+    profileView.update(state);
+    // Came in through a password-reset link: the new password is chosen there.
+    if (state.signedIn && state.choosePassword && $('profile-view').hidden) showView('profile');
+    if (state.signedIn) accountNudge.hidden = true;
+    onboarding.accountChanged();
+  },
+});
+const accountView = new AccountView($('account'), account, $<HTMLButtonElement>('account-btn'), $('account-summary'), () => openProfile());
+accountView.render();
+const profileView = new ProfileView($('profile'), account, () => setTimeout(() => openAccount('signin'), 0));
+
+/** Opens the account panel under the top-bar button; signed out, on signing in or creating an account. */
+function openAccount(kind?: 'signin' | 'signup'): void {
+  if (kind) accountView.show(kind);
+  closeSettings(false);
+  closeMenus();
+  coach.close(false);
+  $('account-pop').hidden = false;
+  $('account-btn').setAttribute('aria-expanded', 'true');
+  accountView.focus();
+}
+/** The profile page: username, password, sync and the account. */
+function openProfile(): void {
+  closeMenus();
+  closeSettings(false);
+  showView('profile');
+}
+
+$('open-account').addEventListener('click', (e) => {
+  // Not the document click that closes menus.
+  e.stopPropagation();
+  if (account.state.signedIn) openProfile();
+  else openAccount('signin');
+});
+
+// After a few rounds, a learner without an account is offered one once, under the round's result.
+const accountNudge = $('account-nudge');
+const NUDGE_KEY = 'typing-trainer.account-nudge';
+const NUDGE_AFTER = 5;
+
+function nudgeDismissed(): boolean {
+  try { return localStorage.getItem(NUDGE_KEY) === 'dismissed'; } catch { return true; }
+}
+
+function maybeNudge(rounds: number): void {
+  if (account.state.signedIn || rounds < NUDGE_AFTER || nudgeDismissed()) return;
+  renderNudge();
+  accountNudge.hidden = false;
+}
+
+function renderNudge(): void {
+  const create = Object.assign(document.createElement('button'), { type: 'button', className: 'primary', textContent: t('nudge.create') });
+  create.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dismissNudge();
+    openAccount('signup');
+  });
+  const later = Object.assign(document.createElement('button'), { type: 'button', className: 'link-btn', textContent: t('nudge.later') });
+  later.addEventListener('click', () => {
+    dismissNudge();
+    inputEl.focus();
+  });
+  const actions = Object.assign(document.createElement('div'), { className: 'account-nudge-actions' });
+  actions.append(create, later);
+  accountNudge.replaceChildren(benefits(), actions);
+}
+
+function dismissNudge(): void {
+  accountNudge.hidden = true;
+  try { localStorage.setItem(NUDGE_KEY, 'dismissed'); } catch { /* shown again next time, which is fine */ }
+}
+/** A full sync when the learner comes back to the tab, at most this often. */
+const RESYNC_MS = 5 * 60_000;
+document.addEventListener('visibilitychange', () => {
+  const state = account.state;
+  if (document.visibilityState === 'visible' && state.signedIn && state.sync !== 'syncing' &&
+    Date.now() - (state.lastSync ?? 0) > RESYNC_MS) account.syncNow().catch((err) => console.error('Sync failed', err));
 });
 
 // Console access for ad-hoc inspection: `await typingLog.all()`
@@ -1150,6 +1280,7 @@ Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).
   // A browser that practised before the setup existed goes straight to practice.
   if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
   else startDrill().catch((err) => console.error('Failed to start drill', err));
+  account.init().catch((err) => console.error('Account setup failed', err));
   detectFromBrowser()
     .then(backfillLegacyLog)
     .catch((err) => console.error('Layout detection failed', err));
