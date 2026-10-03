@@ -490,9 +490,19 @@ function renderPath(path: CoachData['path'] | null): void {
       const fill = el('b');
       fill.style.width = width(st.state === 'done' ? 1 : st.total ? st.done / st.total : 0);
       bar.append(fill);
-      const state = st.state === 'done' ? t('progress.stageDone') : st.state === 'locked' ? t('progress.stageLocked')
-        : t('progress.stageOf', { done: st.done, total: st.total });
-      li.append(el('span', 'pg-stage-name', st.name), el('span', 'pg-stage-state', state), bar);
+      const state = el('span', 'pg-stage-state');
+      if (st.state === 'locked') {
+        // A long "not started" wrapped under the stage name in narrow columns; a lock fits in any width.
+        state.setAttribute('role', 'img');
+        state.setAttribute('aria-label', t('progress.stageLocked'));
+        state.title = t('progress.stageLocked');
+        const lock = svg('svg', { viewBox: '0 0 16 16', class: 'pg-lock', 'aria-hidden': 'true' });
+        lock.append(svg('rect', { x: 3, y: 7, width: 10, height: 7, rx: 1.5 }), svg('path', { d: 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2' }));
+        state.append(lock);
+      } else {
+        state.textContent = st.state === 'done' ? t('progress.stageDone') : t('progress.stageOf', { done: st.done, total: st.total });
+      }
+      li.append(el('span', 'pg-stage-name', st.name), state, bar);
       return li;
     }),
   );

@@ -1,6 +1,7 @@
 import '@fontsource-variable/jetbrains-mono';
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
+import { withFlag } from './flags';
 import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage, loadCorpus } from './corpus';
 import { clearCurriculum, hasAnyCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
@@ -731,7 +732,7 @@ function renderLanguage(): void {
   const lang = availableLanguages().find((c) => c.language === context.language);
   $('language-name').textContent = lang?.name ?? context.language;
   $('language-options').replaceChildren(...availableLanguages().map((c) =>
-    menuItem(c.name, '', c.language === context.language, () => {
+    menuItem(withFlag(c.language, c.name), '', c.language === context.language, () => {
       setLanguage(c.language).catch((err) => console.error('Failed to switch language', err));
     })));
 }
@@ -979,11 +980,11 @@ $('log-back').addEventListener('click', () => showView('practice'));
 $('profile-back').addEventListener('click', () => showView('practice'));
 
 /** One choice in a top-bar menu, with a tick on the current one. */
-function menuItem(label: string, detail: string, checked: boolean, pick: () => void): HTMLButtonElement {
+function menuItem(label: string | (Node | string)[], detail: string, checked: boolean, pick: () => void): HTMLButtonElement {
   const b = Object.assign(document.createElement('button'), { type: 'button', className: 'menu-item' });
   b.setAttribute('role', 'menuitemradio');
   b.setAttribute('aria-checked', String(checked));
-  b.append(label);
+  b.append(...(Array.isArray(label) ? label : [label]));
   if (detail) b.append(Object.assign(document.createElement('small'), { textContent: detail }));
   b.addEventListener('click', () => {
     closeMenus();
@@ -1130,7 +1131,8 @@ let uiChoice: string = isUiLanguage(savedUiLanguage) ? savedUiLanguage : 'auto';
 function renderUiLanguagePicker(): void {
   const choices = [{ id: 'auto', name: t('settings.uiAuto') }, ...UI_LANGUAGES];
   uiLanguageEl.replaceChildren(...choices.map((l) => {
-    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: l.name });
+    const b = Object.assign(document.createElement('button'), { type: 'button' });
+    b.append(...withFlag(l.id, l.name));
     b.setAttribute('role', 'radio');
     if (isUiLanguage(l.id)) b.setAttribute('lang', l.id);
     else b.title = t('settings.uiAutoTitle');
