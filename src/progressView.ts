@@ -1,8 +1,8 @@
 import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
-  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, weakest,
-  type PeriodTotals, type SessionSummary,
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, streak, weakest, weeklyTotals, weeklyTrend, smoothedTrend,
+  type PeriodTotals, type SessionSummary, type Streak, type WeekTotals,
 } from './progress';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import type { BigramStats, KeyStats, WeaknessModel } from './weakness';
@@ -15,6 +15,8 @@ import type { CoachData, ProgressTarget } from './coachView';
 
 const DAY_MS = 86_400_000;
 const TREND_DAYS = 14;
+/** Calendar weeks in the week-by-week card. */
+const WEEKS = 8;
 /** Error-rate bin edges for the heatmap; below the first is the model's 2% target. */
 const HEAT_BINS = [0.02, 0.05, 0.08, 0.12];
 
@@ -44,6 +46,7 @@ const pct = (x: number, digits = 1) => fmtPct(x, digits);
 const width = (x: number) => `${Math.round(x * 100)}%`;
 const showChars = (s: string) => s.replace(/ /g, '␣');
 const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(uiLanguage(), { day: 'numeric', month: 'short' });
+const fmtShortDate = (ms: number) => new Date(ms).toLocaleDateString(uiLanguage(), { day: 'numeric', month: 'numeric' });
 const fmtDateTime = (ms: number) =>
   new Date(ms).toLocaleString(uiLanguage(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -361,6 +364,119 @@ function renderWeakTable(
   );
 }
 
+// --- Week by week ---
+
+function renderStreak(st: Streak): void {
+  const big = $('week-streak');
+  big.replaceChildren(num(st.current));
+  big.append(el('small', undefined, t('week.days', { n: st.current })));
+  const note = $('week-streak-note');
+  note.className = 'pg-delta';
+  if (st.current > 0 && !st.today) {
+    note.textContent = t('week.keepGoing');
+    note.classList.add('good');
+  } else {
+    note.textContent = t('week.best', { n: st.best });
+  }
+}
+
+function renderWeekDays(week: WeekTotals, now: number): void {
+  const fmt = new Intl.DateTimeFormat(uiLanguage(), { weekday: 'narrow' });
+  const long = new Intl.DateTimeFormat(uiLanguage(), { weekday: 'long' });
+  const todayIdx = Math.round((startOfDay(now) - week.start) / DAY_MS);
+  $('week-days').replaceChildren(
+    ...week.activeDays.map((active, i) => {
+      const day = new Date(week.start);
+      day.setDate(day.getDate() + i);
+      const li = el('li', [active ? 'on' : '', i === todayIdx ? 'today' : '', i > todayIdx ? 'future' : ''].join(' ').trim());
+      li.append(el('i'), el('span', undefined, fmt.format(day)));
+      li.title = `${long.format(day)}: ${active ? t('week.practised') : t('week.notPractised')}`;
+      li.setAttribute('aria-label', li.title);
+      return li;
+    }),
+  );
+}
+
+/** Average speed per calendar week as columns; weeks without practice keep their slot so gaps show. */
+function weekChart(host: HTMLElement, weeks: readonly WeekTotals[]): void {
+  const W = Math.max(300, Math.round(host.clientWidth) || 720);
+  const H = W < 500 ? 150 : 170;
+  const m = { l: 8, r: 8, t: 22, b: 24 };
+  const iw = W - m.l - m.r;
+  const ih = H - m.t - m.b;
+  const slot = iw / weeks.length;
+  const bw = Math.min(56, slot * 0.62);
+  const max = niceMax(Math.max(10, ...weeks.map((w) => w.wpm ?? 0)) * 1.1, 10);
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart-svg', role: 'img' });
+  root.setAttribute('aria-label', t('week.chartLabel'));
+  root.append(svg('line', { x1: m.l, x2: W - m.r, y1: m.t + ih, y2: m.t + ih, class: 'grid' }));
+  weeks.forEach((w, i) => {
+    const cx = m.l + slot * (i + 0.5);
+    const current = i === weeks.length - 1;
+    const g = svg('g', { class: `wk-col${current ? ' current' : ''}`, tabindex: 0 });
+    if (w.wpm !== null) {
+      const h = Math.max(3, (w.wpm / max) * ih);
+      g.append(svg('rect', { x: cx - bw / 2, y: m.t + ih - h, width: bw, height: h, rx: 4, class: 'wk-bar' }));
+      const v = svg('text', { x: cx, y: m.t + ih - h - 6, class: 'wk-value', 'text-anchor': 'middle' });
+      v.textContent = num(w.wpm);
+      g.append(v);
+    } else {
+      g.append(svg('rect', { x: cx - bw / 2, y: m.t + ih - 2, width: bw, height: 2, rx: 1, class: 'wk-none' }));
+    }
+    const label = svg('text', { x: cx, y: H - 6, class: 'axis', 'text-anchor': 'middle' });
+    // Narrow slots get numeric dates, so eight labels fit side by side on a phone.
+    label.textContent = slot < 80 ? fmtShortDate(w.start) : current ? t('week.now') : fmtDate(w.start);
+    g.append(label);
+    g.append(svg('rect', { x: cx - slot / 2, y: 0, width: slot, height: H, fill: 'transparent' }));
+    const end = new Date(w.start);
+    end.setDate(end.getDate() + 6);
+    const lines = () => [
+      t('week.range', { from: fmtDate(w.start), to: fmtDate(end.getTime()) }),
+      ...(w.wpm === null || w.accuracy === null
+        ? [t('week.noPractice')]
+        : [
+          t('progress.wpm', { n: num(w.wpm, 1) }), t('progress.tipAccuracy', { acc: pct(w.accuracy) }),
+          t('week.tipTime', { time: fmtDuration(w.activeMs), n: w.activeDays.filter(Boolean).length }),
+        ]),
+    ];
+    g.setAttribute('aria-label', lines().join(', '));
+    tipOnHover(g, lines);
+    root.append(g);
+  });
+  const trend = smoothedTrend(weeks);
+  if (trend.length > 0) {
+    const points = trend.map(([i, v]) => `${m.l + slot * (i + 0.5)},${m.t + ih - (v / max) * ih}`).join(' ');
+    // Drawn above the columns but never catches the pointer, so tooltips still work.
+    root.append(svg('polyline', { points, class: 'wk-trend' }));
+  }
+  host.replaceChildren(root);
+}
+
+/** The streak counts practice in any language; speeds are for the current language and layout only. */
+function renderWeeks(weeks: readonly WeekTotals[], allSessions: readonly SessionSummary[], now: number): void {
+  renderStreak(streak(allSessions, now));
+  renderWeekDays(weeks[weeks.length - 1], now);
+  weekChart($('week-chart'), weeks);
+  const [prev, cur] = weeks.slice(-2);
+  const speed = $('week-speed');
+  speed.replaceChildren(cur.wpm === null ? '–' : num(cur.wpm));
+  if (cur.wpm !== null) speed.append(el('small', undefined, t('now.wpm')));
+  const note = $('week-speed-note');
+  note.className = 'pg-delta';
+  if (cur.wpm !== null && prev.wpm !== null) {
+    const d = cur.wpm - prev.wpm;
+    note.textContent = t('week.vsLast', { arrow: d >= 0 ? '▲' : '▼', d: t('progress.wpm', { n: num(Math.abs(d), 1) }) });
+    note.classList.add(d >= 0 ? 'good' : 'bad');
+  } else {
+    note.textContent = cur.wpm === null ? t('week.noPractice') : '\u00a0';
+  }
+  const trend = weeklyTrend(weeks);
+  const trendText = trend
+    ? `${t('week.trend', { arrow: trend.slope >= 0 ? '▲' : '▼', d: t('progress.wpm', { n: num(Math.abs(trend.slope), 1) }) })} `
+    : '';
+  $('week-caption').textContent = trendText + t('week.caption');
+}
+
 // --- Path ---
 
 /** The path card mirrors the Path chip's bubble, with room for every stage. */
@@ -395,7 +511,7 @@ export interface ProgressOptions {
 }
 
 export async function renderProgress(
-  store: { forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]> },
+  store: { forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]>; all(): Promise<KeystrokeEvent[]> },
   context: PracticeContext,
   { range, contextName, path = null, now = Date.now() }: ProgressOptions,
 ): Promise<void> {
@@ -413,6 +529,8 @@ export async function renderProgress(
 
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
   renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 0 : range);
+  const everywhere = sessionSummaries(await store.all());
+  renderWeeks(weeklyTotals(all, { weeks: WEEKS, now }), everywhere, now);
   renderPath(path);
   $('progress-speed').hidden = sessions.length === 0;
   $('progress-no-sessions').hidden = sessions.length > 0;

@@ -138,6 +138,27 @@
         <div id="progress-body" class="pg-body">
           <div id="progress-tiles" class="pg-tiles"></div>
           <p id="progress-no-sessions" class="pg-card pg-quiet" data-i18n="progress.noSessions" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
+          <section id="progress-week" class="pg-card">
+            <div class="pg-card-head"><h2 data-i18n="week.title">Week by week</h2></div>
+            <div class="wk-top">
+              <div class="wk-streak">
+                <div class="pg-label" data-i18n="week.streak">Streak</div>
+                <div id="week-streak" class="pg-big"></div>
+                <div id="week-streak-note" class="pg-delta"></div>
+              </div>
+              <div class="wk-streak">
+                <div class="pg-label" data-i18n="week.speed">Speed this week</div>
+                <div id="week-speed" class="pg-big"></div>
+                <div id="week-speed-note" class="pg-delta"></div>
+              </div>
+              <div class="wk-days-wrap">
+                <div class="pg-label" data-i18n="week.thisWeek">This week</div>
+                <ol id="week-days" class="wk-days"></ol>
+              </div>
+            </div>
+            <div id="week-chart" class="chart wk-chart"></div>
+            <p id="week-caption" class="pg-sub wk-caption"></p>
+          </section>
           <section id="progress-path" class="pg-card" hidden>
             <div class="pg-card-head"><h2 data-i18n="coach.pathTitle">Your path</h2></div>
             <ol id="path-stages" class="pg-stages"></ol>

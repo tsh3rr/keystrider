@@ -178,3 +178,101 @@ export function startOfDay(t: number): number {
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
+
+/** Midnight (local time) of the Monday that starts the week containing `t`. */
+export function startOfWeek(t: number): number {
+  const d = new Date(startOfDay(t));
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getTime();
+}
+
+/** `t` moved by `days` calendar days, so a DST switch does not shift it off midnight. */
+function addDays(t: number, days: number): number {
+  const d = new Date(t);
+  d.setDate(d.getDate() + days);
+  return d.getTime();
+}
+
+export interface Streak {
+  /** Days in a row with practice, ending today, or yesterday while today is still open. */
+  current: number;
+  /** Longest run of practice days ever. */
+  best: number;
+  /** Whether today already counts. */
+  today: boolean;
+}
+
+/** Day streaks over the days any session started on (local time). */
+export function streak(sessions: readonly SessionSummary[], now = Date.now()): Streak {
+  const days = new Set(sessions.map((s) => startOfDay(s.start)));
+  const sorted = [...days].sort((a, b) => a - b);
+  let best = 0;
+  let run = 0;
+  let prev = -Infinity;
+  for (const d of sorted) {
+    run = addDays(prev, 1) === d ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = d;
+  }
+  const today = startOfDay(now);
+  const hasToday = days.has(today);
+  let current = 0;
+  for (let d = hasToday ? today : addDays(today, -1); days.has(d); d = addDays(d, -1)) current++;
+  return { current, best, today: hasToday };
+}
+
+export interface WeekTotals extends PeriodTotals {
+  /** Monday 00:00 local time. */
+  start: number;
+  /** Days of the week with at least one session, Monday first. */
+  activeDays: boolean[];
+}
+
+/** Totals for each of the last `weeks` calendar weeks (Monday to Sunday), oldest first; the last one is the current week. */
+export function weeklyTotals(sessions: readonly SessionSummary[], { weeks = 8, now = Date.now() } = {}): WeekTotals[] {
+  const out: WeekTotals[] = [];
+  const thisWeek = startOfWeek(now);
+  for (let w = weeks - 1; w >= 0; w--) {
+    const start = addDays(thisWeek, -7 * w);
+    const end = addDays(start, 7);
+    const dayStarts = Array.from({ length: 8 }, (_, i) => addDays(start, i));
+    const activeDays = dayStarts.slice(0, 7).map((from, i) => sessions.some((s) => s.start >= from && s.start < dayStarts[i + 1]));
+    out.push({ start, activeDays, ...periodTotals(sessions, start, end) });
+  }
+  return out;
+}
+
+/**
+ * Least-squares line through the weekly speeds, as WPM at week index `i`
+ * = `intercept + slope * i`. Null with fewer than three weeks of practice:
+ * two points always make a "trend".
+ */
+export function weeklyTrend(weeks: readonly { wpm: number | null }[]): { slope: number; intercept: number } | null {
+  const pts = weeks.flatMap((w, i) => (w.wpm === null ? [] : [[i, w.wpm] as const]));
+  if (pts.length < 3) return null;
+  const mx = pts.reduce((s, [x]) => s + x, 0) / pts.length;
+  const my = pts.reduce((s, [, y]) => s + y, 0) / pts.length;
+  const sxx = pts.reduce((s, [x]) => s + (x - mx) ** 2, 0);
+  const slope = pts.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / sxx;
+  return { slope, intercept: my - slope * mx };
+}
+
+/**
+ * The weekly speeds smoothed with 1-2-1 weights over each practised week and
+ * its practised neighbours, as [week index, WPM] points. A lasting jump bends
+ * the line; a single odd week only nudges it. Empty with fewer than three
+ * practised weeks, like `weeklyTrend`.
+ */
+export function smoothedTrend(weeks: readonly { wpm: number | null }[]): [number, number][] {
+  const pts = weeks.flatMap((w, i) => (w.wpm === null ? [] : [[i, w.wpm] as const]));
+  if (pts.length < 3) return [];
+  return pts.map(([i, y], k) => {
+    const prev = pts[k - 1];
+    const next = pts[k + 1];
+    let sum = 2 * y;
+    let weight = 2;
+    if (prev) { sum += prev[1]; weight += 1; }
+    if (next) { sum += next[1]; weight += 1; }
+    return [i, sum / weight];
+  });
+}
