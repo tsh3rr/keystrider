@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
-import { getCorpus, randomText, type Corpus } from './corpus';
+import { getCorpus, loadCorpus, randomText, type Corpus } from './corpus';
 
 const EN = { language: 'en', layout: 'qwerty-us' };
 const PL = { language: 'pl', layout: 'pl-programmer' };
@@ -66,9 +66,19 @@ describe('corpus', () => {
     expect(words.every((w) => pl.words.includes(w))).toBe(true);
   });
 
-  it('fails loudly for a language without a corpus', () => {
-    expect(getCorpus('en').language).toBe('en');
+  it('fails loudly for a language without a corpus', async () => {
     expect(() => getCorpus('xx')).toThrow(/xx/);
+    await expect(loadCorpus('xx')).rejects.toThrow(/xx/);
+    // Prototype keys are not languages.
+    await expect(loadCorpus('constructor')).rejects.toThrow(/constructor/);
+  });
+
+  it('loads a corpus on demand, once', async () => {
+    expect(() => getCorpus('it')).toThrow(/not loaded/);
+    const first = await loadCorpus('it');
+    expect(first.language).toBe('it');
+    expect(await loadCorpus('it')).toBe(first);
+    expect(getCorpus('it')).toBe(first);
   });
 });
 
