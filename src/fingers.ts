@@ -43,7 +43,8 @@ export const HOME_KEYS: Readonly<Record<string, string>> = {
 export const HOME_ROW: readonly string[] = Object.values(HOME_KEYS);
 
 export function fingerFor(code: string): Finger | null {
-  if (code === 'Space') return { hand: 'right', name: 'thumb' };
+  // AltGr, right of Space, is held with the right thumb.
+  if (code === 'Space' || code === 'AltRight') return { hand: 'right', name: 'thumb' };
   return FINGER_OF.get(code) ?? null;
 }
 
@@ -63,16 +64,13 @@ export interface KeyGuide {
   home: string | null;
   /** Shift key to hold with the other hand, for capitals and shifted symbols. */
   shift: 'ShiftLeft' | 'ShiftRight' | null;
-  /** AltGr is held with the key (Polish ą). */
+  /** AltGr is held with the key, by the right thumb (Polish ą, German @). */
   altGr: boolean;
   /** Dead key pressed first (´ before e for é): its key and the accent it prints. */
   dead: { code: string; accent: string } | null;
 }
 
-/**
- * How to type `ch` on the layout, or null when the layout cannot type it
- * (AltGr symbols are not mapped yet).
- */
+/** How to type `ch` on the layout, or null when the layout cannot type it. */
 export function guideFor(layoutId: string, ch: string): KeyGuide | null {
   // Capitals the Shift layer lacks (e.g. É on Swiss) still come from their lowercase key.
   const how = howToType(layoutId, ch) ?? (ch !== ch.toLowerCase() ? howToType(layoutId, ch.toLowerCase()) : null);

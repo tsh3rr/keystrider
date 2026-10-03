@@ -48,9 +48,30 @@ describe('howToType', () => {
     expect(howToType('qwerty-us', ' ')).toEqual({ code: 'Space', shift: false });
   });
 
-  it('returns null for AltGr characters and unknown layouts', () => {
-    expect(howToType('qwertz-de', '@')).toBeNull();
+  it('returns null for characters a layout lacks and for unknown layouts', () => {
+    expect(howToType('qwerty-us', '€')).toBeNull();
+    expect(howToType('qwertz-de', '£')).toBeNull();
     expect(howToType('unknown', 'a')).toBeNull();
+  });
+
+  it('types symbols on AltGr', () => {
+    expect(howToType('qwertz-de', '@')).toEqual({ code: 'KeyQ', shift: false, altGr: true });
+    expect(howToType('qwertz-de', '{')).toEqual({ code: 'Digit7', shift: false, altGr: true });
+    expect(howToType('qwertz-de', '\\')).toEqual({ code: 'Minus', shift: false, altGr: true });
+    expect(howToType('azerty-fr', '@')).toEqual({ code: 'Digit0', shift: false, altGr: true });
+    expect(howToType('qwerty-it', '{')).toEqual({ code: 'BracketLeft', shift: true, altGr: true });
+    expect(howToType('qwerty-pl', '€')).toEqual({ code: 'KeyU', shift: false, altGr: true });
+    // A symbol on the base or Shift layer is typed there, not with AltGr.
+    expect(howToType('qwerty-uk', '@')).toEqual({ code: 'Quote', shift: true });
+  });
+
+  it('puts AltGr symbols only on keys the layout has, and never on a symbol the plain layers already type', () => {
+    for (const l of LAYOUTS) {
+      for (const [ch, { code }] of l.altGrSymbols) {
+        expect(l.keys.has(code), `${l.id} ${ch}`).toBe(true);
+        expect([...l.keys.values(), ...l.shifted.values()], `${l.id} ${ch}`).not.toContain(ch);
+      }
+    }
   });
 
   it('gives every layout capitals for all its base-layer ASCII letters', () => {

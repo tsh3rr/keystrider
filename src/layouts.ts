@@ -6,8 +6,9 @@
  * code "KeyZ". A layout maps those physical codes to the characters printed
  * on the user's keyboard. The base layer tells layouts apart and names
  * keys; the Shift layer says how capitals, punctuation and digits are typed.
- * Accented letters typed with a dead key (´ then e for é) and letters on
- * AltGr (Polish ą) are listed separately; other AltGr symbols are not.
+ * Accented letters typed with a dead key (´ then e for é), letters on
+ * AltGr (Polish ą) and symbols on AltGr (German @ and €) are listed
+ * separately, as on the standard Windows layouts.
  */
 export interface Layout {
   /** Stored in `KeystrokeEvent.layout`, e.g. "qwertz-de". */
@@ -24,6 +25,8 @@ export interface Layout {
   dead: ReadonlySet<string>;
   /** Letters typed with AltGr, to the base-layer letter of their key ("ą" → "a"). Capitals add Shift. */
   altGr: ReadonlyMap<string, string>;
+  /** Symbols typed with AltGr, to their key and whether Shift is held too (German @ is AltGr + Q). */
+  altGrSymbols: ReadonlyMap<string, { code: string; shift: boolean }>;
 }
 
 /** Combining mark each dead-key accent adds. */
@@ -33,7 +36,7 @@ const ACCENTS = new Map([['´', '\u0301'], ['`', '\u0300'], ['^', '\u0302'], ['�
 export interface KeyPress {
   code: string;
   shift: boolean;
-  /** Held with the key (Polish ą). */
+  /** Held with the key (Polish ą, German @). */
   altGr?: true;
   /** Dead key pressed before the key (´ before e for é), and the accent printed on it. */
   dead?: { code: string; shift: boolean; accent: string };
@@ -56,6 +59,8 @@ interface Extras {
   dead?: string;
   /** AltGr letter to the base letter of its key, e.g. { ą: 'a' }. */
   altGr?: Record<string, string>;
+  /** AltGr symbol to the code of its key, e.g. { '@': 'KeyQ' }; a leading ⇧ adds Shift. */
+  symbols?: Record<string, string>;
 }
 
 /** Builds a layout from one string per row, base and Shift layer; a space marks a key the layout lacks. */
@@ -74,6 +79,12 @@ function layout(id: string, name: string, locales: string[], rows: Rows, shiftRo
   return {
     id, name, locales, keys: map(rows), shifted: map(shiftRows),
     dead: new Set(extras.dead ?? ''), altGr: new Map(Object.entries(extras.altGr ?? {})),
+    altGrSymbols: new Map(Object.entries(extras.symbols ?? {}).map(([ch, key]) => {
+      const shift = key.startsWith('⇧');
+      const code = shift ? key.slice(1) : key;
+      if (!ROWS.some((row) => row.includes(code))) throw new Error(`Layout ${id}: unknown key ${code} for ${ch}`);
+      return [ch, { code, shift }];
+    })),
   };
 }
 
@@ -86,33 +97,74 @@ export const LAYOUTS: readonly Layout[] = [
     '~!@#$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:"|', ' ZXCVBNM<>?']),
   layout('qwerty-uk', 'English (UK) QWERTY', ['en-GB', 'en-IE'], [
     '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'#", '\\zxcvbnm,./'], [
-    '¬!"£$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:@~', '|ZXCVBNM<>?']),
+    '¬!"£$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:@~', '|ZXCVBNM<>?'], {
+    symbols: { '€': 'Digit4', '¦': 'Backquote' },
+  }),
   layout('qwertz-de', 'German QWERTZ', ['de', 'de-DE', 'de-AT'], [
     '^1234567890ß´', 'qwertzuiopü+', 'asdfghjklöä#', '<yxcvbnm,.-'], [
-    '°!"§$%&/()=?`', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", '>YXCVBNM;:_'], { dead: '^´`' }),
+    '°!"§$%&/()=?`', 'QWERTZUIOPÜ*', "ASDFGHJKLÖÄ'", '>YXCVBNM;:_'], {
+    dead: '^´`',
+    symbols: {
+      '@': 'KeyQ', '€': 'KeyE', 'µ': 'KeyM', '²': 'Digit2', '³': 'Digit3', '{': 'Digit7', '[': 'Digit8', ']': 'Digit9',
+      '}': 'Digit0', '\\': 'Minus', '~': 'BracketRight', '|': 'IntlBackslash',
+    },
+  }),
   layout('qwertz-ch', 'Swiss QWERTZ', ['de-CH', 'fr-CH', 'it-CH'], [
     "§1234567890'^", 'qwertzuiopü¨', 'asdfghjklöä$', '<yxcvbnm,.-'], [
-    '°+"*ç%&/()=?`', 'QWERTZUIOPè!', 'ASDFGHJKLéà£', '>YXCVBNM;:_'], { dead: '^`¨' }),
+    '°+"*ç%&/()=?`', 'QWERTZUIOPè!', 'ASDFGHJKLéà£', '>YXCVBNM;:_'], {
+    dead: '^`¨',
+    symbols: {
+      '¦': 'Digit1', '@': 'Digit2', '#': 'Digit3', '¬': 'Digit6', '|': 'Digit7', '¢': 'Digit8', '€': 'KeyE',
+      '[': 'BracketLeft', ']': 'BracketRight', '{': 'Quote', '}': 'Backslash', '\\': 'IntlBackslash',
+    },
+  }),
   layout('azerty-fr', 'French AZERTY', ['fr', 'fr-FR'], [
     `²&é"'(-è_çà)=`, 'azertyuiop^$', 'qsdfghjklmù*', '<wxcvbn,;:!'], [
-    ' 1234567890°+', 'AZERTYUIOP¨£', 'QSDFGHJKLM%µ', '>WXCVBN?./§'], { dead: '^¨' }),
+    ' 1234567890°+', 'AZERTYUIOP¨£', 'QSDFGHJKLM%µ', '>WXCVBN?./§'], {
+    dead: '^¨',
+    symbols: {
+      '#': 'Digit3', '{': 'Digit4', '[': 'Digit5', '|': 'Digit6', '\\': 'Digit8', '@': 'Digit0', ']': 'Minus',
+      '}': 'Equal', '€': 'KeyE', '¤': 'BracketRight',
+    },
+  }),
   layout('azerty-be', 'Belgian AZERTY', ['fr-BE', 'nl-BE'], [
     `²&é"'(§è!çà)-`, 'azertyuiop^$', 'qsdfghjklmùµ', '<wxcvbn,;:='], [
-    '³1234567890°_', 'AZERTYUIOP¨*', 'QSDFGHJKLM%£', '>WXCVBN?./+'], { dead: '^¨' }),
+    '³1234567890°_', 'AZERTYUIOP¨*', 'QSDFGHJKLM%£', '>WXCVBN?./+'], {
+    dead: '^¨',
+    symbols: {
+      '|': 'Digit1', '@': 'Digit2', '#': 'Digit3', '{': 'Digit9', '}': 'Digit0', '€': 'KeyE', '[': 'BracketLeft',
+      ']': 'BracketRight', '\\': 'IntlBackslash',
+    },
+  }),
   layout('qwerty-es', 'Spanish QWERTY', ['es', 'es-ES'], [
     "º1234567890'¡", 'qwertyuiop`+', 'asdfghjklñ´ç', '<zxcvbnm,.-'], [
-    'ª!"·$%&/()=?¿', 'QWERTYUIOP^*', 'ASDFGHJKLÑ¨Ç', '>ZXCVBNM;:_'], { dead: '´`^¨' }),
+    'ª!"·$%&/()=?¿', 'QWERTYUIOP^*', 'ASDFGHJKLÑ¨Ç', '>ZXCVBNM;:_'], {
+    dead: '´`^¨',
+    symbols: {
+      '\\': 'Backquote', '|': 'Digit1', '@': 'Digit2', '#': 'Digit3', '¬': 'Digit6', '€': 'KeyE', '[': 'BracketLeft',
+      ']': 'BracketRight', '{': 'Quote', '}': 'Backslash',
+    },
+  }),
   layout('qwerty-it', 'Italian QWERTY', ['it', 'it-IT'], [
     "\\1234567890'ì", 'qwertyuiopè+', 'asdfghjklòàù', '<zxcvbnm,.-'], [
-    '|!"£$%&/()=?^', 'QWERTYUIOPé*', 'ASDFGHJKLç°§', '>ZXCVBNM;:_']),
+    '|!"£$%&/()=?^', 'QWERTYUIOPé*', 'ASDFGHJKLç°§', '>ZXCVBNM;:_'], {
+    symbols: { '€': 'KeyE', '[': 'BracketLeft', ']': 'BracketRight', '{': '⇧BracketLeft', '}': '⇧BracketRight', '@': 'Semicolon', '#': 'Quote' },
+  }),
   layout('qwerty-se', 'Swedish / Finnish QWERTY', ['sv', 'fi'], [
     '§1234567890+´', 'qwertyuiopå¨', "asdfghjklöä'", '<zxcvbnm,.-'], [
-    '½!"#¤%&/()=?`', 'QWERTYUIOPÅ^', 'ASDFGHJKLÖÄ*', '>ZXCVBNM;:_'], { dead: '´`¨^' }),
+    '½!"#¤%&/()=?`', 'QWERTYUIOPÅ^', 'ASDFGHJKLÖÄ*', '>ZXCVBNM;:_'], {
+    dead: '´`¨^',
+    symbols: {
+      '@': 'Digit2', '£': 'Digit3', '$': 'Digit4', '€': 'KeyE', '{': 'Digit7', '[': 'Digit8', ']': 'Digit9', '}': 'Digit0',
+      '\\': 'Minus', '|': 'IntlBackslash', 'µ': 'KeyM',
+    },
+  }),
   // Same base layer as US; Polish letters come from AltGr.
   layout('qwerty-pl', 'Polish (Programmers)', ['pl'], [
     '`1234567890-=', 'qwertyuiop[]', "asdfghjkl;'\\", '\\zxcvbnm,./'], [
     '~!@#$%^&*()_+', 'QWERTYUIOP{}', 'ASDFGHJKL:"|', '|ZXCVBNM<>?'], {
     altGr: { ą: 'a', ć: 'c', ę: 'e', ł: 'l', ń: 'n', ó: 'o', ś: 's', ź: 'x', ż: 'z' },
+    symbols: { '€': 'KeyU' },
   }),
   layout('dvorak-us', 'Dvorak (US)', [], [
     '`1234567890[]', "',.pyfgcrl/=", 'aoeuidhtns-\\', ' ;qjkxbmwvz'], [
@@ -133,9 +185,8 @@ export function getLayout(id: string): Layout | undefined {
 /**
  * The physical key that types `ch` on the layout, and whether it needs
  * Shift. Base layer first, so "1" on QWERTY is unshifted while on AZERTY it
- * needs Shift. Then AltGr letters and letters made with a dead key, which
- * say so. Null when the layout cannot type it this way (AltGr symbols,
- * unknown layout).
+ * needs Shift. Then AltGr letters and symbols and letters made with a dead
+ * key, which say so. Null when the layout cannot type it (or is unknown).
  */
 export function howToType(layoutId: string, ch: string): KeyPress | null {
   if (ch === ' ') return { code: 'Space', shift: false };
@@ -151,6 +202,8 @@ function direct(l: Layout, ch: string): KeyPress | null {
 }
 
 function viaAltGr(l: Layout, ch: string): KeyPress | null {
+  const symbol = l.altGrSymbols.get(ch);
+  if (symbol) return { ...symbol, altGr: true };
   const lower = ch.toLowerCase();
   const base = l.altGr.get(lower);
   if (base === undefined) return null;

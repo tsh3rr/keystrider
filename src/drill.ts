@@ -265,7 +265,7 @@ export function unlockOrder(corpus: Corpus): string[] {
 /**
  * Every unlock step for the language on the layout: the letters, then
  * capitals, then the corpus' punctuation, then digits. Steps whose
- * characters the layout cannot type (without AltGr) are left out, letters
+ * characters the layout cannot type are left out, letters
  * included: German on US QWERTY drills words without ä, ö, ü and ß.
  */
 export function unlockSteps(corpus: Corpus, layoutId: string): string[] {
