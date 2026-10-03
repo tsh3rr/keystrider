@@ -195,6 +195,8 @@ export const de: Messages = {
   'guide.shiftKey': '⇧',
   'guide.shift': 'Umschalt + {key}',
   'guide.shiftFor': 'Umschalt + {key} für {ch}',
+  'guide.altGr': 'AltGr + {keys}',
+  'guide.dead': '{accent}, dann {keys}',
   'guide.caption': '{keys}: {finger}',
   'guide.reach': ', von {home} aus',
   'guide.holdShift.left': '. Halte Umschalt mit dem linken kleinen Finger',

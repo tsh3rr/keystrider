@@ -1,14 +1,19 @@
 import { en, type Message } from './locales/en';
 import { de } from './locales/de';
+import { es } from './locales/es';
+import { fr } from './locales/fr';
+import { it } from './locales/it';
+import { pl } from './locales/pl';
 
 /**
  * Interface text in the learner's language. Every string on screen comes from
  * a locale file (src/locales/<lang>.ts) by key: `t('result.done', { name })`.
  *
  * English is the source: its keys define what every other locale must have,
- * so a missing German string is a type error, not a blank on screen.
+ * so a missing translation is a type error, not a blank on screen.
  * Placeholders are `{name}`; a message that depends on a count is an object
- * of plural forms (`one`, `other`) picked with the `n` parameter.
+ * of plural forms (`one`, `other`, and `few`/`many` where a language has them)
+ * picked with the `n` parameter.
  *
  * Static text in index.html carries `data-i18n` (text), `data-i18n-title`,
  * `data-i18n-aria-label` or `data-i18n-placeholder` attributes naming a key;
@@ -22,13 +27,17 @@ export type MessageKey = keyof typeof en;
 export type Messages = Record<MessageKey, Message>;
 export type Params = Record<string, string | number>;
 
-const LOCALES = { en, de } satisfies Record<string, Messages>;
+const LOCALES = { en, de, fr, es, it, pl } satisfies Record<string, Messages>;
 export type UiLanguage = keyof typeof LOCALES;
 
 /** The interface languages, each named in its own language for the picker. */
 export const UI_LANGUAGES: readonly { id: UiLanguage; name: string }[] = [
   { id: 'en', name: 'English' },
   { id: 'de', name: 'Deutsch' },
+  { id: 'fr', name: 'Français' },
+  { id: 'es', name: 'Español' },
+  { id: 'it', name: 'Italiano' },
+  { id: 'pl', name: 'Polski' },
 ];
 
 let current: UiLanguage = 'en';
@@ -72,7 +81,8 @@ export function t(key: MessageKey, params: Params = {}): string {
     const n = Number(params.n ?? 0);
     let rules = pluralRules.get(current);
     if (!rules) pluralRules.set(current, (rules = new Intl.PluralRules(current)));
-    msg = rules.select(n) === 'one' ? msg.one : msg.other;
+    const form = rules.select(n);
+    msg = (form === 'one' || form === 'few' || form === 'many' ? msg[form] : undefined) ?? msg.other;
   }
   return msg.replace(/\{(\w+)\}/g, (all, name: string) => (name in params ? String(params[name]) : all));
 }

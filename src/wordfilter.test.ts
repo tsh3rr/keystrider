@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { Corpus } from './corpus';
 import { de } from './corpora/de';
 import { en } from './corpora/en';
+import { es } from './corpora/es';
+import { fr } from './corpora/fr';
+import { it as itCorpus } from './corpora/it';
+import { pl } from './corpora/pl';
 import { eligibleWords, seededRandom } from './drill';
 import { trigramModel } from './pseudowords';
 import { loadWordFilterSetting, saveWordFilterSetting } from './settings';
@@ -13,7 +17,7 @@ const ALL_LETTERS = new Set('abcdefghijklmnopqrstuvwxyz');
 
 describe('blockList', () => {
   it('has terms for English and other languages, and none for unknown ones', () => {
-    for (const lang of ['en', 'de', 'pl', 'fr', 'es']) expect(blockList(lang).substrings.length).toBeGreaterThan(20);
+    for (const lang of ['en', 'de', 'pl', 'fr', 'es', 'it']) expect(blockList(lang).substrings.length).toBeGreaterThan(20);
     expect(blockList('xx').substrings.length).toBe(0);
     expect(blockList('xx').words.size).toBe(0);
   });
@@ -65,6 +69,32 @@ describe('German', () => {
     const kept = eligibleWords(de, all).length;
     expect(kept).toBeLessThan(de.words.length);
     expect(kept).toBeGreaterThan(de.words.length * 0.98);
+  });
+});
+
+describe.each([fr, es, itCorpus, pl])('$name', (corpus) => {
+  const all = new Set(corpus.words.join(''));
+
+  it('drops some real words and keeps the rest', () => {
+    const kept = eligibleWords(corpus, all).length;
+    expect(kept).toBeLessThan(corpus.words.length);
+    expect(kept).toBeGreaterThan(corpus.words.length * 0.98);
+  });
+
+  it('never makes up a pseudo-word with a blocked term', () => {
+    const list = blockList(corpus.language);
+    const tri = trigramModel(corpus);
+    const rand = seededRandom(9);
+    let made = 0;
+    let blocked = 0;
+    for (let i = 0; i < 3000; i++) {
+      const w = tri.sample({ allowed: all, rand });
+      if (w === null || !tri.acceptable(w)) continue;
+      made++;
+      if (isBlocked(w, list)) blocked++;
+    }
+    expect(made).toBeGreaterThan(500);
+    expect(blocked).toBe(0);
   });
 });
 

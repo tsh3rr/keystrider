@@ -1,5 +1,9 @@
 import { de } from './corpora/de';
 import { en } from './corpora/en';
+import { es } from './corpora/es';
+import { fr } from './corpora/fr';
+import { it } from './corpora/it';
+import { pl } from './corpora/pl';
 
 /**
  * Practice text source for one language. Drill generation reads words from
@@ -31,7 +35,7 @@ export interface Corpus {
   blockedSubstrings?: readonly string[];
 }
 
-const CORPORA = new Map<string, Corpus>([en, de].map((c) => [c.language, c]));
+const CORPORA = new Map<string, Corpus>([en, de, fr, es, it, pl].map((c) => [c.language, c]));
 
 export const DEFAULT_LANGUAGE = en.language;
 

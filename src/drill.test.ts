@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { Corpus } from './corpus';
 import { de } from './corpora/de';
 import { en } from './corpora/en';
+import { es } from './corpora/es';
 import {
   CAPITALS, DEFAULT_DRILL_PARAMS, DEFAULT_PUNCTUATION, DIGIT_ORDER, afterDrill, decorate, drillFeedback, drillResult,
   eligibleWords, initialCurriculum, isNewSession, modelOptions, needsShift, nextDrill, nextKind, openChars, pseudoShare,
-  reviewItems, seededRandom, sentencePool, sentencesReady, spaceOut, stepStats, tierTargetMs, unlockOrder, unlockSteps,
+  reviewItems, seededRandom, sentencePool, sentencesReady, spaceOut, stepChars, stepStats, tierTargetMs, unlockOrder, unlockSteps,
   type CurriculumState,
 } from './drill';
 import { TrigramModel } from './pseudowords';
@@ -544,6 +545,32 @@ describe('capitals, punctuation and digits', () => {
     const words = ['alpha', 'beta', 'gamma'];
     const out = decorate(words, { open: new Set('abglmpht'), focus: new Set(), targets: [], prio: () => 0, rand: seededRandom(1) });
     expect(out).toEqual(words);
+  });
+
+  it('opens Spanish questions and exclamations with ¿ and ¡', () => {
+    const words = ['hola', 'mesa', 'casa', 'sol', 'mar', 'pan', 'luna', 'gato', 'perro', 'agua', 'cielo', 'leche'];
+    const ctx = { open: new Set([...'abcdeghilmnoprstu', 'H', '.', '¿', '?', '¡', '!']), focus: new Set<string>(), targets: [], prio: () => 0 };
+    for (let seed = 1; seed <= 20; seed++) {
+      const text = decorate(words, { ...ctx, rand: seededRandom(seed) }).join(' ');
+      for (const sentence of text.match(/[^.?!]+[.?!]/g) ?? []) {
+        const s = sentence.trim();
+        expect(s.startsWith('¿'), s).toBe(s.endsWith('?'));
+        expect(s.startsWith('¡'), s).toBe(s.endsWith('!'));
+      }
+    }
+  });
+
+  it('unlocks ¿ with ? and ¡ with ! for Spanish', () => {
+    const steps = unlockSteps(es, 'qwerty-es');
+    expect(steps).toContain('¿?');
+    expect(stepChars('¿?', [])).toEqual(['¿', '?']);
+    expect(steps).toContain('á');
+  });
+
+  it('leaves out capitals the layout cannot type, keeping the rest', () => {
+    const caps = stepChars(CAPITALS, [...'aàeé'], 'azerty-fr');
+    expect(caps).toEqual(['A', 'E']);
+    expect(stepChars(CAPITALS, [...'aàeé'])).toEqual(['A', 'À', 'E', 'É']);
   });
 
   it('only hyphenates pairs the word filter allows', () => {

@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { en } from './locales/en';
+import { en, type Message } from './locales/en';
 import { de } from './locales/de';
+import { es } from './locales/es';
+import { fr } from './locales/fr';
+import { it as itLocale } from './locales/it';
+import { pl } from './locales/pl';
 import html from '../index.html?raw';
 import { guessUiLanguage, num, pct, setUiLanguage, t, tMaybe, tNodes } from './i18n';
 
 afterEach(() => setUiLanguage('en'));
 
-const placeholders = (m: string | { one: string; other: string }) =>
-  [...new Set([...(typeof m === 'string' ? m : m.one + m.other).matchAll(/\{(\w+)\}/g)].map((x) => x[1]))].sort();
+const placeholders = (m: Message) =>
+  [...new Set([...(typeof m === 'string' ? m : Object.values(m).join(' ')).matchAll(/\{(\w+)\}/g)].map((x) => x[1]))].sort();
 
 describe('i18n', () => {
   it('fills placeholders and leaves unknown ones visible', () => {
@@ -47,14 +51,25 @@ describe('i18n', () => {
 
   it('guesses from the browser languages', () => {
     expect(guessUiLanguage(['de-AT', 'en'])).toBe('de');
-    expect(guessUiLanguage(['fr-FR', 'en-GB'])).toBe('en');
-    expect(guessUiLanguage(['pl'])).toBe('en');
+    expect(guessUiLanguage(['fr-FR', 'en-GB'])).toBe('fr');
+    expect(guessUiLanguage(['pl'])).toBe('pl');
+    expect(guessUiLanguage(['pt-BR', 'es-MX'])).toBe('es');
+    expect(guessUiLanguage(['nl'])).toBe('en');
   });
 
-  it('German uses the same placeholders as English', () => {
+  it.each([['de', de], ['fr', fr], ['es', es], ['it', itLocale], ['pl', pl]] as const)('%s uses the same placeholders as English', (_, locale) => {
     for (const key of Object.keys(en) as (keyof typeof en)[]) {
-      expect(placeholders(de[key]), key).toEqual(placeholders(en[key]));
+      expect(placeholders(locale[key]), key).toEqual(placeholders(en[key]));
+      expect(typeof locale[key], key).toBe(typeof en[key]);
     }
+  });
+
+  it('uses Polish few and many forms', () => {
+    setUiLanguage('pl');
+    expect(t('result.slips', { n: 1 })).toBe('pomyłka');
+    expect(t('result.slips', { n: 3 })).toBe('pomyłki');
+    expect(t('result.slips', { n: 5 })).toBe('pomyłek');
+    expect(t('result.slips', { n: 22 })).toBe('pomyłki');
   });
 
   it('every key named in index.html exists', () => {

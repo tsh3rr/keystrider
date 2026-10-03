@@ -106,6 +106,7 @@ export class FingerGuide {
     };
     light(g.code, 'fg-next');
     if (g.shift) light(g.shift, 'fg-next');
+    if (g.dead) light(g.dead.code, 'fg-next');
     light(g.home, 'fg-from');
     if (g.finger.name === 'thumb') {
       for (const id of ['left-thumb', 'right-thumb']) this.lightFinger(id, 'fg-next');
@@ -117,7 +118,10 @@ export class FingerGuide {
 
     const name = ch === ' ' ? t('key.space') : keyLabel(this.layout, g.code);
     // A shifted symbol is named by its key too: "Shift + ß for ?" on German QWERTZ.
-    const keys = !g.shift ? name : ch.toUpperCase() === name ? t('guide.shift', { key: name }) : t('guide.shiftFor', { key: name, ch });
+    let keys = !g.shift ? name : ch.toUpperCase() === name ? t('guide.shift', { key: name }) : t('guide.shiftFor', { key: name, ch });
+    // Polish ą is AltGr + A; Spanish é is the ´ dead key, then E.
+    if (g.altGr) keys = t('guide.altGr', { keys });
+    if (g.dead) keys = t('guide.dead', { accent: g.dead.accent, keys });
     const finger = t((g.finger.name === 'thumb' ? 'finger.thumb' : `finger.${fingerId(g.finger)}`) as MessageKey);
     let text = t('guide.caption', { keys, finger });
     if (g.home) text += t('guide.reach', { home: keyLabel(this.layout, g.home) });

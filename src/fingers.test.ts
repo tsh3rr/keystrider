@@ -20,6 +20,12 @@ describe('fingerFor', () => {
 });
 
 describe('guideFor', () => {
+  it('says when AltGr or a dead key is needed', () => {
+    expect(guideFor('qwerty-pl', 'ą')).toMatchObject({ code: 'KeyA', altGr: true, dead: null, shift: null });
+    expect(guideFor('qwerty-es', 'é')).toMatchObject({ code: 'KeyE', altGr: false, dead: { code: 'Quote', accent: '´' } });
+    expect(guideFor('qwerty-es', 'ñ')).toMatchObject({ code: 'Semicolon', altGr: false, dead: null });
+  });
+
   it('follows the physical key on German QWERTZ, not US positions', () => {
     // QWERTZ y sits bottom left (code KeyZ), z sits right of t (code KeyY).
     expect(guideFor('qwertz-de', 'y')).toMatchObject({ code: 'KeyZ', finger: { hand: 'left', name: 'pinky' }, home: 'KeyA' });

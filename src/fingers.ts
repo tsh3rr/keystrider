@@ -63,11 +63,15 @@ export interface KeyGuide {
   home: string | null;
   /** Shift key to hold with the other hand, for capitals and shifted symbols. */
   shift: 'ShiftLeft' | 'ShiftRight' | null;
+  /** AltGr is held with the key (Polish ą). */
+  altGr: boolean;
+  /** Dead key pressed first (´ before e for é): its key and the accent it prints. */
+  dead: { code: string; accent: string } | null;
 }
 
 /**
- * How to type `ch` on the layout, or null when neither the base nor the
- * Shift layer has it (AltGr symbols are not mapped yet).
+ * How to type `ch` on the layout, or null when the layout cannot type it
+ * (AltGr symbols are not mapped yet).
  */
 export function guideFor(layoutId: string, ch: string): KeyGuide | null {
   // Capitals the Shift layer lacks (e.g. É on Swiss) still come from their lowercase key.
@@ -81,5 +85,6 @@ export function guideFor(layoutId: string, ch: string): KeyGuide | null {
   const needsShift = how.shift || ch !== ch.toLowerCase();
   // Shift is held by the pinky of the hand that is not typing the key.
   const shift = needsShift ? (finger.hand === 'left' ? 'ShiftRight' : 'ShiftLeft') : null;
-  return { code, finger, home, shift };
+  const dead = how.dead ? { code: how.dead.code, accent: how.dead.accent } : null;
+  return { code, finger, home, shift, altGr: how.altGr === true, dead };
 }

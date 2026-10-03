@@ -41,6 +41,10 @@ TATOEBA_CODES = {
 LETTERS = {
     "en": "abcdefghijklmnopqrstuvwxyz",
     "de": "abcdefghijklmnopqrstuvwxyzäöüß",
+    "fr": "abcdefghijklmnopqrstuvwxyzàâæçéèêëîïôœùûüÿ",
+    "es": "abcdefghijklmnopqrstuvwxyzáéíóúüñ",
+    "it": "abcdefghijklmnopqrstuvwxyzàèéìòù",
+    "pl": "abcdefghijklmnopqrstuvwxyząćęłńóśźż",
 }
 
 # Languages that capitalise nouns, so a capital mid-sentence is not a name.
@@ -55,7 +59,7 @@ ALWAYS_CAPITAL = {
     "en": {"I"},
 }
 
-PUNCTUATION = ".,?!;:'\"-"
+PUNCTUATION = ".,?!;:'\"-¿¡"
 MIN_CHARS, MAX_CHARS = 15, 80
 # Every word must be at least this common (wordfreq Zipf scale; 3 is about once per million words).
 MIN_ZIPF = 3.0

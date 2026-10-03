@@ -1,10 +1,12 @@
 /**
  * English interface text, the source every other locale translates.
  * Keys are grouped by screen area (`settings.`, `coach.`, `result.` …);
- * add new strings to the group they belong to, then to src/locales/de.ts.
- * `{name}` is a placeholder; `{ one, other }` are plural forms picked by `{n}`.
+ * add new strings to the group they belong to, then to every other locale
+ * (de, fr, es, it, pl).
+ * `{name}` is a placeholder; `{ one, other }` are plural forms picked by `{n}`,
+ * plus `few` and `many` for languages that have them (Polish: 2 minuty, 5 minut).
  */
-export type Message = string | { one: string; other: string };
+export type Message = string | { one: string; few?: string; many?: string; other: string };
 
 export const en = {
   // --- Top bar ---
@@ -199,6 +201,8 @@ export const en = {
   'guide.shiftKey': 'Shift',
   'guide.shift': 'Shift + {key}',
   'guide.shiftFor': 'Shift + {key} for {ch}',
+  'guide.altGr': 'AltGr + {keys}',
+  'guide.dead': '{accent}, then {keys}',
   'guide.caption': '{keys}: {finger}',
   'guide.reach': ', reaching from {home}',
   'guide.holdShift.left': '. Hold Shift with your left pinky',
