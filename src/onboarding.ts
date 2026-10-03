@@ -31,8 +31,15 @@ const T = {
   get keyboardTitle() { return t('onboarding.keyboardTitle'); },
   get keyboardIntro() { return t('onboarding.keyboardIntro'); },
   get language() { return t('menu.practiceLanguage'); },
-  get layout() { return t('menu.layout'); },
-  source: (s: LayoutSetting['source']) => t(s === 'guessed' ? 'onboarding.sourceGuessed' : `layout.source.${s}`),
+  get layoutDetected() { return t('onboarding.layoutDetected'); },
+  get layoutGuessed() { return t('onboarding.layoutGuessed'); },
+  get layoutChosen() { return t('onboarding.layoutChosen'); },
+  get confirmQuestion() { return t('onboarding.confirmQuestion'); },
+  get confirmYes() { return t('onboarding.confirmYes'); },
+  get confirmNo() { return t('onboarding.confirmNo'); },
+  get notSure() { return t('onboarding.notSure'); },
+  get pickHint() { return t('onboarding.pickHint'); },
+  get useList() { return t('onboarding.useList'); },
   get checkLabel() { return t('onboarding.checkLabel'); },
   get checkPlaceholder() { return t('onboarding.checkPlaceholder'); },
   checkMatch: (name: string) => t('onboarding.checkMatch', { name }),
@@ -95,6 +102,8 @@ export interface OnboardingHost {
 }
 
 type Choice = 'new' | 'test' | 'keep';
+/** Step 1: confirm the shown layout, pick one from the list, or find it by typing. */
+type KeyboardMode = 'confirm' | 'pick' | 'check';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
   const e = document.createElement(tag);
@@ -112,6 +121,7 @@ function button(text: string, cls: string, onClick: () => void): HTMLButtonEleme
 
 export class Onboarding {
   private step = 0;
+  private kbMode: KeyboardMode = 'confirm';
   private choice: Choice = 'new';
   private placement: Placement | null = null;
   private observer = new KeyObserver();
@@ -125,6 +135,7 @@ export class Onboarding {
 
   open(): void {
     this.step = 0;
+    this.kbMode = 'confirm';
     this.placement = null;
     this.test = null;
     this.observer = new KeyObserver();
@@ -215,15 +226,16 @@ export class Onboarding {
       card.append(field);
     }
 
-    const field = el('label', 'ob-field');
-    field.append(el('span', 'ob-label', T.layout));
-    const select = el('select', 'ob-select');
-    for (const l of LAYOUTS) select.append(new Option(layoutName(l.id), l.id, false, l.id === ctx.layout));
-    select.addEventListener('change', () => {
-      this.host.setLayout(select.value, 'user').then(() => this.render()).catch((err) => console.error('Failed to update layout', err));
-    });
-    field.append(select, el('span', 'ob-note', T.source(this.host.layoutSource())));
-    card.append(field);
+    // The layout: shown as found, with a clear yes. Picking from the list and
+    // the typing check only open on request ("No" / "I'm not sure").
+    const box = el('div', 'ob-layout');
+    const source = this.host.layoutSource();
+    const head = el('div', 'ob-layout-head');
+    head.append(
+      el('span', 'ob-label', source === 'guessed' ? T.layoutGuessed : source === 'user' ? T.layoutChosen : T.layoutDetected),
+      el('b', 'ob-layout-name', layoutName(ctx.layout)),
+    );
+    box.append(head);
 
     const kb = el('div', 'kb ob-kb');
     kb.setAttribute('aria-hidden', 'true');
@@ -239,52 +251,91 @@ export class Onboarding {
       }
       kb.append(rowEl);
     });
-    card.append(kb);
+    box.append(kb);
+    card.append(box);
 
-    const check = el('label', 'ob-field');
-    check.append(el('span', 'ob-label-plain', T.checkLabel));
-    const input = el('input', 'ob-check');
-    Object.assign(input, { type: 'text', placeholder: T.checkPlaceholder, autocomplete: 'off', spellcheck: false });
-    input.setAttribute('autocapitalize', 'off');
-    const status = el('span', 'ob-note ob-status');
-    status.setAttribute('aria-live', 'polite');
-    input.addEventListener('keydown', (e) => {
-      this.observer.observe(e);
-      keys.get(e.code)?.classList.add('ob-hit');
-    });
-    input.addEventListener('input', () => {
-      const d = detectLayout(this.observer.observations(), this.locales);
-      const current = this.host.context().layout;
-      if (!d.layout) status.textContent = input.value ? T.checkNone : '';
-      else if (d.candidates.includes(current)) {
-        status.textContent = d.confidence === 'high' ? T.checkMatch(layoutName(current)) : T.checkFits(layoutName(current));
-        status.classList.add('ok');
-      } else {
-        // The keys contradict the chosen layout: switch, and keep what was typed.
-        const typed = input.value;
-        this.host.setLayout(d.layout, 'detected').then(() => {
-          this.render();
-          const again = this.root.querySelector<HTMLInputElement>('.ob-check');
-          const note = this.root.querySelector<HTMLElement>('.ob-status');
-          if (again && note) {
-            again.value = typed;
-            note.textContent = T.checkSwitched(layoutName(d.layout!));
-            again.focus();
-          }
-        }).catch((err) => console.error('Failed to update layout', err));
-      }
-    });
-    check.append(input, status);
-    card.append(check);
-
-    card.append(this.footer(button(T.next, '', () => {
+    const confirm = () => {
       // Going on with a layout confirms it.
-      const layout = this.host.context().layout;
       if (this.host.layoutSource() !== 'user') {
-        this.host.setLayout(layout, 'user').catch((err) => console.error('Failed to update layout', err));
+        this.host.setLayout(this.host.context().layout, 'user').catch((err) => console.error('Failed to update layout', err));
       }
+      // Coming back to this step shows the confirmed layout, not the list or the check.
+      this.kbMode = 'confirm';
       this.go(1);
-    })));
+    };
+    const mode = (m: KeyboardMode) => () => {
+      this.kbMode = m;
+      this.render();
+    };
+
+    if (this.kbMode === 'confirm') {
+      box.append(el('p', 'ob-question', T.confirmQuestion));
+      const actions = el('div', 'ob-actions');
+      const yes = button(T.confirmYes, 'primary', confirm);
+      yes.dataset.autofocus = '';
+      actions.append(yes, button(T.confirmNo, '', mode('pick')), button(T.notSure, 'link-btn ob-unsure', mode('check')));
+      box.append(actions);
+      return;
+    }
+
+    if (this.kbMode === 'pick') {
+      const field = el('label', 'ob-field');
+      field.append(el('span', 'ob-label-plain', T.pickHint));
+      const select = el('select', 'ob-select');
+      for (const l of LAYOUTS) select.append(new Option(layoutName(l.id), l.id, false, l.id === ctx.layout));
+      select.addEventListener('change', () => {
+        this.host.setLayout(select.value, 'user').then(() => {
+          this.render();
+          this.root.querySelector<HTMLElement>('.ob-select')?.focus();
+        }).catch((err) => console.error('Failed to update layout', err));
+      });
+      select.dataset.autofocus = '';
+      field.append(select);
+      card.append(field, button(T.notSure, 'link-btn ob-switch', mode('check')));
+    } else {
+      const check = el('label', 'ob-field');
+      check.append(el('span', 'ob-label-plain', T.checkLabel));
+      const input = el('input', 'ob-check');
+      Object.assign(input, { type: 'text', placeholder: T.checkPlaceholder, autocomplete: 'off', spellcheck: false });
+      input.setAttribute('autocapitalize', 'off');
+      input.dataset.autofocus = '';
+      const status = el('span', 'ob-note ob-status');
+      status.setAttribute('aria-live', 'polite');
+      input.addEventListener('keydown', (e) => {
+        this.observer.observe(e);
+        keys.get(e.code)?.classList.add('ob-hit');
+      });
+      input.addEventListener('input', () => {
+        const d = detectLayout(this.observer.observations(), this.locales);
+        const current = this.host.context().layout;
+        if (!d.layout) status.textContent = input.value ? T.checkNone : '';
+        else if (d.candidates.includes(current)) {
+          status.textContent = d.confidence === 'high' ? T.checkMatch(layoutName(current)) : T.checkFits(layoutName(current));
+          status.classList.add('ok');
+        } else {
+          // The keys contradict the shown layout: switch, and keep what was typed.
+          const typed = input.value;
+          this.host.setLayout(d.layout, 'detected').then(() => {
+            this.render();
+            const again = this.root.querySelector<HTMLInputElement>('.ob-check');
+            const note = this.root.querySelector<HTMLElement>('.ob-status');
+            if (again && note) {
+              again.value = typed;
+              note.textContent = T.checkSwitched(layoutName(d.layout!));
+              note.classList.add('ok');
+              again.focus();
+            }
+          }).catch((err) => console.error('Failed to update layout', err));
+        }
+      });
+      check.append(input, status);
+      card.append(check, button(T.useList, 'link-btn ob-switch', mode('pick')));
+    }
+
+    const foot = el('div', 'ob-foot');
+    const next = button(T.next, 'primary', confirm);
+    foot.append(button(T.back, 'ob-back', mode('confirm')), next);
+    card.append(foot);
   }
 
   // --- Step 2: where to start, and the placement test ---
