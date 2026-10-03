@@ -688,7 +688,17 @@ body.onboarding .tabs, body.onboarding .menu-wrap, body.onboarding .settings-btn
 }
 .ob-option-text { display: grid; gap: 3px; min-width: 0; }
 .ob-option-text span { color: var(--muted); font-size: 0.9rem; }
-.ob-option .stair-mark { width: 38px; height: 38px; flex: none; color: var(--typed); }
+.ob-option .stair-mark { width: 38px; height: 38px; flex: none; }
+/* Steps still to climb: a thin outline and a light tint in the step's own sweep colour. */
+.stair-mark .ol { stroke-width: 3; stroke-linejoin: round; }
+.stair-mark .ol-1 { stroke: var(--brand-magenta); fill: color-mix(in oklch, var(--brand-magenta) 14%, transparent); }
+.stair-mark .ol-2 { stroke: var(--brand-cobalt); fill: color-mix(in oklch, var(--brand-cobalt) 14%, transparent); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .stair-mark .ol-1 { stroke: var(--focus); }
+  :root:not([data-theme="light"]) .stair-mark .ol-2 { stroke: var(--accent); }
+}
+:root[data-theme="dark"] .stair-mark .ol-1 { stroke: var(--focus); }
+:root[data-theme="dark"] .stair-mark .ol-2 { stroke: var(--accent); }
 .ob-option[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .ob-option[aria-checked="true"] b { color: var(--accent); }
 .ob-typing { position: relative; }

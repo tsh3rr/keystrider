@@ -16,11 +16,11 @@ const KEYS = [
 
 let seq = 0;
 
-/** Turns a key's faces into outlines that follow the text colour. */
-function outline(key: string): string {
+/** Turns a key's faces into outlines in that step's colour (see .stair-mark .ol-N). */
+function outline(key: string, step: number): string {
   return key
     .replace(/<line[^>]*\/>/g, '')
-    .replace(/fill="url\(#\{id\}-\w+\)"/g, 'fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"');
+    .replace(/fill="url\(#\{id\}-\w+\)"/g, `class="ol ol-${step}"`);
 }
 
 /** A three-key stair with the first `filled` keys solid; each copy gets its own gradient ids. */
@@ -30,7 +30,7 @@ export function stairMark(filled: 1 | 2 | 3): SVGSVGElement {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('class', 'stair-mark');
   svg.setAttribute('aria-hidden', 'true');
-  const keys = KEYS.map((k, i) => (i < filled ? k : outline(k)));
+  const keys = KEYS.map((k, i) => (i < filled ? k : outline(k, i)));
   svg.innerHTML = (DEFS + keys.join('')).replaceAll('{id}', id);
   return svg;
 }
