@@ -19,8 +19,18 @@ const FLAGS: Record<string, string> = {
   pl: '<rect width="60" height="40" fill="#dc143c"/><rect width="60" height="20" fill="#fff"/>',
 };
 
-/** The flag for a language id, or null when there is none (e.g. "automatic"). */
+/** "Automatic" follows the browser, so it gets a globe (the same one as the language menu button). */
+const GLOBE = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>';
+
+/** The flag for a language id ("auto" gets a globe), or null when there is none. */
 export function flag(language: string): HTMLSpanElement | null {
+  if (language === 'auto') {
+    const span = document.createElement('span');
+    span.className = 'flag flag-globe';
+    span.setAttribute('aria-hidden', 'true');
+    span.innerHTML = GLOBE;
+    return span;
+  }
   const shapes = FLAGS[language];
   if (!shapes) return null;
   const span = document.createElement('span');
