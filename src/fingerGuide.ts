@@ -1,6 +1,6 @@
-import { ROWS, keyLabel } from './layouts';
+import { ROWS, howToType, keyLabel } from './layouts';
 import { HOME_KEYS, HOME_ROW, fingerFor, fingerId, guideFor, type FingerName } from './fingers';
-import { t, type MessageKey } from './i18n';
+import { t, tNodes, type MessageKey } from './i18n';
 
 const svgNS = 'http://www.w3.org/2000/svg';
 
@@ -24,6 +24,8 @@ export class FingerGuide {
   private current: string | undefined;
   private revealed = true;
   private moved: SVGElement[] = [];
+  /** Characters unlocked so far; keys that type none of them are drawn as locked. Null shows every key as open. */
+  private unlocked: ReadonlySet<string> | null = null;
 
   constructor(private readonly root: HTMLElement) {
     this.captionEl = el('p', 'fg-caption');
@@ -63,6 +65,29 @@ export class FingerGuide {
 
     const [left, right] = [HOME_ROW.slice(0, 4), HOME_ROW.slice(4)].map((codes) => codes.map(label).join(' '));
     this.homeEl.textContent = t('guide.home', { left, right, f: label('KeyF'), j: label('KeyJ') });
+    this.markLocked();
+  }
+
+  /** Marks the keys the learner has not unlocked yet. `chars` may include the curriculum's 'Shift' step for capitals. */
+  setUnlocked(chars: ReadonlySet<string>): void {
+    this.unlocked = chars;
+    this.markLocked();
+  }
+
+  private markLocked(): void {
+    const chars = this.unlocked;
+    const open = new Set<string>(['Space']);
+    let shift = chars?.has('Shift') ?? false;
+    for (const ch of chars ?? []) {
+      const how = howToType(this.layout, ch);
+      if (!how) continue;
+      open.add(how.code);
+      if (how.shift) shift = true;
+    }
+    for (const [code, k] of this.keyEls) {
+      const locked = chars !== null && !(code.startsWith('Shift') ? shift : open.has(code));
+      k.classList.toggle('fg-locked', locked);
+    }
   }
 
   /** Redraws the keyboard and caption in the current interface language. */
@@ -86,16 +111,16 @@ export class FingerGuide {
     this.moved = [];
     this.root.classList.toggle('fg-faded', !revealed && ch !== undefined);
     if (ch === undefined) {
-      this.captionEl.textContent = '';
+      this.setCaption();
       return;
     }
     if (!revealed) {
-      this.captionEl.textContent = t('guide.fromMemory');
+      this.setCaption(t('guide.fromMemory'));
       return;
     }
     const g = guideFor(this.layout, ch);
     if (!g) {
-      this.captionEl.textContent = t('guide.noHint', { ch });
+      this.setCaption(t('guide.noHint', { ch }));
       return;
     }
     const light = (code: string | null, cls: string) => {
@@ -119,10 +144,17 @@ export class FingerGuide {
     // A shifted symbol is named by its key too: "Shift + ß for ?" on German QWERTZ.
     const keys = !g.shift ? name : ch.toUpperCase() === name ? t('guide.shift', { key: name }) : t('guide.shiftFor', { key: name, ch });
     const finger = t((g.finger.name === 'thumb' ? 'finger.thumb' : `finger.${fingerId(g.finger)}`) as MessageKey);
-    let text = t('guide.caption', { keys, finger });
-    if (g.home) text += t('guide.reach', { home: keyLabel(this.layout, g.home) });
-    if (g.shift) text += t(g.shift === 'ShiftLeft' ? 'guide.holdShift.left' : 'guide.holdShift.right');
-    this.captionEl.textContent = text + '.';
+    let rest = '';
+    if (g.home) rest += t('guide.reach', { home: keyLabel(this.layout, g.home) });
+    if (g.shift) rest += t(g.shift === 'ShiftLeft' ? 'guide.holdShift.left' : 'guide.holdShift.right');
+    this.setCaption(...tNodes('guide.caption', { keys: el('kbd', 'fg-cap-key', keys), finger }), el('span', 'fg-reach', rest + '.'));
+  }
+
+  /** The caption box keeps its height; the text inside is centred in it. */
+  private setCaption(...parts: (Node | string)[]): void {
+    const inner = el('span', 'fg-caption-text');
+    inner.append(...parts);
+    this.captionEl.replaceChildren(inner);
   }
 
   /** Lights up the guide for the character it is currently dimmed on. */

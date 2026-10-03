@@ -1,3 +1,4 @@
+import '@fontsource-variable/jetbrains-mono';
 import { TypingSession } from './session';
 import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage } from './corpus';
@@ -29,7 +30,7 @@ import {
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
 import {
-  UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, uiLanguage,
+  UI_LANGUAGES, applyTranslations, guessUiLanguage, isUiLanguage, num, onUiLanguageChange, pct, setUiLanguage, t, tMaybe, tNodes, uiLanguage,
 } from './i18n';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -127,17 +128,49 @@ wordFilterToggle.addEventListener('change', () => {
 
 function renderText(): void {
   const frag = document.createDocumentFragment();
+  // The drill's single-key targets are underlined until typed.
+  const focusKeys = new Set(drill?.targets.filter((k) => [...k].length === 1) ?? []);
   // Spread by code point so positions line up with TypingSession.position.
   [...session.text].forEach((ch, i) => {
     const span = document.createElement('span');
     span.textContent = ch;
-    if (i < session.position) span.className = 'typed';
-    else if (i === session.position) span.className = 'current';
+    const cls: string[] = [];
+    if (i < session.position) cls.push('typed');
+    else if (i === session.position) cls.push('current');
+    // A wrong key holds the position, so the slip stays marked until it is fixed.
+    if (i === session.position && slipAt === i) cls.push('error');
+    if (i > session.position && focusKeys.has(ch.toLowerCase())) cls.push('focus');
+    if (ch === ' ') cls.push('sp');
+    span.className = cls.join(' ');
     frag.append(span);
   });
   textEl.replaceChildren(frag);
+  if (centredText !== session.text) centreText();
   updateFingerGuide();
 }
+
+/**
+ * Lines stay left-aligned, but the block shifts so the longest line sits in
+ * the middle; otherwise the empty space after short lines makes it look off-centre.
+ */
+let centredText = '';
+function centreText(): void {
+  centredText = session.text;
+  textEl.style.transform = '';
+  const box = textEl.getBoundingClientRect();
+  let left = Infinity;
+  let right = -Infinity;
+  for (const span of textEl.children) {
+    if (span.classList.contains('sp')) continue;
+    const r = span.getBoundingClientRect();
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+  }
+  if (!Number.isFinite(left) || box.width === 0) return;
+  const shift = (box.right - right - (left - box.left)) / 2;
+  if (shift > 1) textEl.style.transform = `translateX(${shift.toFixed(1)}px)`;
+}
+new ResizeObserver(() => centreText()).observe(textEl.parentElement ?? textEl);
 
 /** Live speed and accuracy for the coach bar's speed chip. */
 function nowData(): CoachData['now'] {
@@ -178,6 +211,11 @@ function flashError(): void {
 let lastCode: string | null = null;
 
 inputEl.addEventListener('keydown', (e) => {
+  // Esc skips the drill, unless it is closing a bubble, menu or the settings first.
+  if (e.key === 'Escape' && !coach.isOpen && menus.every((m) => m.menu.hidden) && drawer.hidden) {
+    if (!session.done && !finishing) startDrill('core').catch((err) => console.error('Failed to start drill', err));
+    return;
+  }
   if (e.key === 'Enter') {
     e.preventDefault();
     if (session.done && !finishing && drill && breakEndsAt === null) {
@@ -223,10 +261,18 @@ inputEl.addEventListener('compositionend', flushInput);
 // Pasted or dropped text would be logged as keystrokes, so refuse it.
 inputEl.addEventListener('paste', (e) => e.preventDefault());
 inputEl.addEventListener('drop', (e) => e.preventDefault());
-const typeHint = $('type-hint');
-inputEl.addEventListener('focus', () => { textEl.classList.add('focused'); typeHint.hidden = true; });
-inputEl.addEventListener('blur', () => { textEl.classList.remove('focused'); typeHint.hidden = false; });
+// Before the first key (or after clicking away) the text is dimmed under a "click or press any key" pill.
+const startPill = $('start-pill');
+inputEl.addEventListener('focus', () => { textEl.classList.add('focused'); startPill.hidden = true; });
+inputEl.addEventListener('blur', () => { textEl.classList.remove('focused'); startPill.hidden = false; });
 textEl.addEventListener('click', () => inputEl.focus());
+startPill.addEventListener('click', () => inputEl.focus());
+// Any printable key starts typing: focusing the field here lets the same key land in it.
+document.addEventListener('keydown', (e) => {
+  if (document.activeElement !== document.body || e.ctrlKey || e.metaKey || e.altKey || [...e.key].length !== 1) return;
+  if (practiceView.hidden || session.done || coach.isOpen || !drawer.hidden || menus.some((m) => !m.menu.hidden)) return;
+  inputEl.focus();
+});
 
 $('new-text').addEventListener('click', () => {
   if (!finishing) startDrill('core').catch((err) => console.error('Failed to start drill', err));
@@ -240,6 +286,7 @@ $('new-text').addEventListener('click', () => {
 
 const drillKeysEl = $('drill-keys');
 const drillCueEl = $('drill-cue');
+const drillFocusEl = $('drill-focus');
 const resultEl = $('result');
 const practiceView = $('practice-view');
 
@@ -302,6 +349,7 @@ function renderDrillBar(): void {
     frag.append(span);
   }
   drillKeysEl.replaceChildren(frag);
+  fingerGuide.setUnlocked(unlocked);
   drillCueEl.hidden = !curriculum.recovery;
   renderCoach();
 }
@@ -376,6 +424,15 @@ function renderCoach(): void {
     stages: path.stages.map((st) => ({ name: stageName(st.id), done: st.done, total: st.total, state: st.state })),
     about: nextTip,
   };
+  // Name the drill's target keys above the text; a finished drill's next targets are not known yet.
+  const leans = session.done || kind === 'warmup' || kind === 'sentence'
+    ? [] : drill.targets.filter((k) => [...k].length === 1).slice(0, 3);
+  // Hidden but kept in the layout, so the text below does not jump between drills.
+  drillFocusEl.classList.toggle('is-empty', leans.length === 0);
+  const keysEl = document.createElement('span');
+  keysEl.className = 'focus-keys';
+  for (const k of leans) keysEl.append(Object.assign(document.createElement('kbd'), { textContent: keyCap(k) }));
+  drillFocusEl.replaceChildren(...tNodes('practice.leansOn', { keys: keysEl }));
   coach.update({
     path: coachPath,
     round: {
@@ -459,6 +516,7 @@ async function finishDrill(): Promise<void> {
         drillName: stepName(typed), wpm: result.wpm, accuracy: result.accuracy, errors, paceWpm: finished.paceWpm,
         recovery, news: changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
         improved: improved.map(itemLabel), slipped: slipped.map(itemLabel), next: next && stepName(next),
+        nextKey: next?.kind === 'focus' && curriculum?.focusKey ? keyCap(curriculum.focusKey) : null,
       }, () => {
         if (!finishing && breakEndsAt === null) startDrill().catch((err) => console.error('Failed to start drill', err));
       });
@@ -660,7 +718,7 @@ const layoutShortName = (id: string) => {
 
 function renderLayout(): void {
   $('layout-name').textContent = layoutShortName(layoutSetting.layout);
-  $('layout-btn').title = t('menu.layoutTitle', { name: layoutName(layoutSetting.layout) });
+  $('context-btn').title = `${t('menu.practiceLanguage')} · ${t('menu.layoutTitle', { name: layoutName(layoutSetting.layout) })}`;
   $('layout-options').replaceChildren(...LAYOUTS.map((l) => menuItem(layoutName(l.id), '', l.id === layoutSetting.layout, () => {
     setLayout(l.id, 'user').catch((err) => console.error('Failed to update layout', err));
   })));
@@ -877,8 +935,7 @@ function menuItem(label: string, detail: string, checked: boolean, pick: () => v
 }
 
 const menus = [
-  { btn: $('language-btn'), menu: $('language-menu') },
-  { btn: $('layout-btn'), menu: $('layout-menu') },
+  { btn: $('context-btn'), menu: $('context-menu') },
 ];
 
 function closeMenus(): void {
