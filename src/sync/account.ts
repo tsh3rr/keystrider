@@ -13,8 +13,7 @@ import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan
  * or talks to Supabase at all.
  */
 
-/** Sign-in providers offered as buttons; each must be enabled in Supabase (docs/accounts-setup.md). */
-// Add 'google' once its provider is set up in Supabase (docs/accounts-setup.md, step 4).
+/** Sign-in providers offered as buttons; add 'google' once it is enabled in Supabase (docs/accounts-setup.md, step 4). */
 export const OAUTH_PROVIDERS: readonly OAuthProvider[] = [];
 /**
  * Sign-in by one-time code or link, and password reset, both send e-mail.
