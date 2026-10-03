@@ -1,4 +1,4 @@
-import { num, t } from './i18n';
+import { num, t, tNodes } from './i18n';
 
 /**
  * The card that pops up when a drill is finished: the headline numbers,
@@ -25,6 +25,8 @@ export interface ResultData {
   slipped: string[];
   /** Name of the drill Enter starts; null if not known (e.g. after a language switch). */
   next: string | null;
+  /** Focus key of the next drill, when it is a focus burst; shown in the focus colour. */
+  nextKey?: string | null;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
@@ -103,7 +105,10 @@ export function renderResult(root: HTMLElement, d: ResultData, onNext: () => voi
   card.append(cols);
 
   const foot = el('div', 'rc-foot');
-  foot.append(el('span', 'rc-next', d.next ? t('result.next', { name: d.next }) : t('result.nextDrill')));
+  const next = el('span', 'rc-next');
+  if (d.next && d.nextKey) next.append(...tNodes('result.nextOn', { name: d.next, key: el('b', 'rc-focus', d.nextKey) }));
+  else next.append(d.next ? t('result.next', { name: d.next }) : t('result.nextDrill'));
+  foot.append(next);
   const go = el('button', 'rc-go');
   go.type = 'button';
   go.append(t('result.continue'), el('kbd', 'rc-enter', t('result.enter')));
