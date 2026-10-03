@@ -33,9 +33,34 @@ Projekt → **Authentication** → **URL Configuration**:
   - Produktion: `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev/**`
   - Staging: `https://*-keystrider.<DEIN-SUBDOMAIN>.workers.dev/**` (Vorschau-Builds) und `http://localhost:5173/**` (lokal)
 
-## 3. Code in die Anmelde-E-Mail
+## 3. E-Mail und Passwort
 
-Die App fragt nach einem Code, damit die Anmeldung auch klappt, wenn du die E-Mail auf einem anderen Gerät öffnest.
+Projekt → **Authentication** → **Sign In / Providers** → **Email**:
+
+- **Enable Email provider**: an
+- **Confirm email**: **aus**, solange es keinen eigenen Mailversand gibt (Schritt 6). Sonst bekommt jeder neue Nutzer eine Bestätigungsmail, die der eingebaute Versand nicht zustellt, und kann sich nie anmelden. Nachteil: Die E-Mail-Adresse wird nicht geprüft. Passwort vergessen geht in dieser Zeit auch nicht (braucht ebenfalls eine Mail), der Link ist in der App ausgeblendet.
+- **Minimum password length**: `8`
+- **Save**
+
+## 4. Google-Anmeldung
+
+Einmal in der Google Cloud Console, dann in beiden Supabase-Projekten:
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → oben Projektauswahl → **Neues Projekt** → Name `Keystrider` → **Erstellen**.
+2. Menü → **APIs & Dienste** → **OAuth-Zustimmungsbildschirm** (heißt auch **Google Auth Platform**) → **Jetzt starten**:
+   - App-Name `Keystrider`, Support-E-Mail: deine Adresse → **Weiter**
+   - Zielgruppe: **Extern** → **Weiter**, Kontakt-E-Mail → **Weiter** → zustimmen → **Erstellen**
+   - **Branding**: Startseite `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev`, Datenschutzerklärung `…/datenschutz`, Nutzungsbedingungen leer lassen; unter **Autorisierte Domains** `supabase.co` und `workers.dev`-Adresse bzw. später deine Domain → **Speichern**
+   - **Zielgruppe** → **App veröffentlichen** (Status „In Produktion“). Für E-Mail und Name braucht es keine Prüfung durch Google.
+3. **Clients** → **Client erstellen** → Anwendungstyp **Webanwendung**, Name `Keystrider`:
+   - **Autorisierte JavaScript-Quellen**: `https://keystrider.<DEIN-SUBDOMAIN>.workers.dev` und `http://localhost:5173`
+   - **Autorisierte Weiterleitungs-URIs**: `https://ubjwlxcawxwrgolszlkz.supabase.co/auth/v1/callback` und `https://dghypouxfnfcdvpylznt.supabase.co/auth/v1/callback`
+   - **Erstellen** → **Client-ID** und **Clientschlüssel** kopieren.
+4. In **jedem** Supabase-Projekt: **Authentication** → **Sign In / Providers** → **Google** → **Enable Sign in with Google** an, Client-ID und Client Secret einfügen → **Save**.
+
+## 5. Code in die Anmelde-E-Mail (später, mit Schritt 6)
+
+Erst nötig, wenn Code-Login und „Passwort vergessen“ freigeschaltet werden (`EMAIL_LINKS` in `src/sync/account.ts`).
 
 Projekt → **Authentication** → **Emails** → **Templates**. In **Magic Link** und in **Confirm signup** den Text ersetzen durch:
 
@@ -49,11 +74,12 @@ Betreff: `Dein Keystrider-Code: {{ .Token }}`
 <p>Wenn du das nicht warst, ignoriere diese E-Mail.</p>
 ```
 
-## 4. E-Mail-Versand für echte Nutzer (später, braucht eine Domain)
+## 6. E-Mail-Versand für echte Nutzer (später, braucht eine Domain)
 
 Der eingebaute Versand von Supabase schickt nur an Mitglieder deines Supabase-Teams und nur wenige Mails pro Stunde. Für alle anderen:
 
 1. Domain registrieren.
 2. Bei [Resend](https://resend.com) (kostenlos bis 3.000 Mails/Monat) die Domain hinzufügen und die angezeigten DNS-Einträge setzen.
 3. Supabase (Produktion) → **Authentication** → **Emails** → **SMTP Settings** → **Enable custom SMTP**: Host `smtp.resend.com`, Port `465`, User `resend`, Passwort = Resend-API-Key, Absender z. B. `login@deine-domain`.
-4. Datenschutzerklärung (`src/legal/content.ts`) um Resend als Auftragsverarbeiter ergänzen, im selben PR.
+4. **Confirm email** (Schritt 3) wieder einschalten, Schritt 5 erledigen und in `src/sync/account.ts` `EMAIL_LINKS = true` setzen.
+5. Datenschutzerklärung (`src/legal/content.ts`) um Resend als Auftragsverarbeiter ergänzen, im selben PR.

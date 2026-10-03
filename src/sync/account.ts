@@ -5,7 +5,7 @@ import { decodeSession, encodeSession, rowSignature, type SessionRow } from './c
 import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan';
 
 /**
- * Optional account: sign in by e-mail code (or Google), and practice rounds
+ * Optional account: sign in with Google or e-mail and password, and practice rounds
  * and curricula are copied between the learner's devices through Supabase.
  *
  * Everything works without an account. The Supabase library is only loaded
@@ -13,8 +13,16 @@ import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan
  * or talks to Supabase at all.
  */
 
-/** Whether the "Continue with Google" button is offered; needs the Google provider set up in Supabase. */
-export const GOOGLE_LOGIN = false;
+/** Sign-in providers offered as buttons; each must be enabled in Supabase (docs/accounts-setup.md). */
+export const OAUTH_PROVIDERS: readonly OAuthProvider[] = ['google'];
+/**
+ * Sign-in by one-time code or link, and password reset, both send e-mail.
+ * Off until the project has its own mail server: Supabase's built-in one
+ * only delivers to the project's team.
+ */
+export const EMAIL_LINKS = false;
+
+export type OAuthProvider = 'google' | 'github';
 
 // Same 'typing-trainer.' prefix as every other key this app stores.
 const AUTH_KEY = 'typing-trainer.auth';
@@ -28,7 +36,7 @@ export type SyncStatus = 'idle' | 'syncing' | 'error';
 
 export type AccountState =
   | { signedIn: false }
-  | { signedIn: true; email: string; sync: SyncStatus; lastSync: number | null };
+  | { signedIn: true; email: string; sync: SyncStatus; lastSync: number | null; choosePassword: boolean };
 
 export interface AccountDeps {
   store: () => KeystrokeStore;
@@ -48,8 +56,11 @@ interface SyncState {
 
 export class Account {
   private client: SupabaseClient | null = null;
+  private connecting: Promise<SupabaseClient> | null = null;
   private session: Session | null = null;
   private status: SyncStatus = 'idle';
+  /** Signed in by a password-reset link: the learner should pick a new password. */
+  private recovery = false;
   private running: Promise<void> = Promise.resolve();
 
   constructor(private readonly deps: AccountDeps) {}
@@ -71,7 +82,7 @@ export class Account {
   get state(): AccountState {
     const email = this.session?.user.email;
     if (!this.session) return { signedIn: false };
-    return { signedIn: true, email: email ?? '', sync: this.status, lastSync: loadSyncState(this.session.user.id).at };
+    return { signedIn: true, email: email ?? '', sync: this.status, lastSync: loadSyncState(this.session.user.id).at, choosePassword: this.recovery };
   }
 
   /** Sends a one-time code (and a sign-in link) to `email`. */
@@ -87,10 +98,39 @@ export class Account {
     if (error) throw error;
   }
 
-  async signInWithGoogle(): Promise<void> {
+  async signInWithProvider(provider: OAuthProvider): Promise<void> {
     const client = await this.connect();
-    const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here() } });
+    const { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo: here() } });
     if (error) throw error;
+  }
+
+  async signInWithPassword(email: string, password: string): Promise<void> {
+    const client = await this.connect();
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }
+
+  /** Creates an account. Returns false when it still has to be confirmed by e-mail. */
+  async signUp(email: string, password: string): Promise<boolean> {
+    const client = await this.connect();
+    const { data, error } = await client.auth.signUp({ email, password, options: { emailRedirectTo: here() } });
+    if (error) throw error;
+    return data.session !== null;
+  }
+
+  /** Sends a link to choose a new password (needs EMAIL_LINKS); the link signs in, then `setPassword`. */
+  async sendPasswordReset(email: string): Promise<void> {
+    const client = await this.connect();
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: here() });
+    if (error) throw error;
+  }
+
+  async setPassword(password: string): Promise<void> {
+    const client = this.requireSignedIn();
+    const { error } = await client.auth.updateUser({ password });
+    if (error) throw error;
+    this.recovery = false;
+    this.emit();
   }
 
   /** Signs out on this device. Practice data stays here. */
@@ -198,24 +238,39 @@ export class Account {
     return this.client;
   }
 
-  private async connect(): Promise<SupabaseClient> {
-    if (this.client) return this.client;
+  private connect(): Promise<SupabaseClient> {
+    this.connecting ??= this.open().catch((err) => {
+      this.connecting = null;
+      throw err;
+    });
+    return this.connecting;
+  }
+
+  private async open(): Promise<SupabaseClient> {
     const { createClient } = await import('@supabase/supabase-js');
     const client = createClient(__SUPABASE_URL__, __SUPABASE_KEY__, {
       auth: { storageKey: AUTH_KEY, flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
     });
     this.client = client;
-    const { data } = await client.auth.getSession();
-    this.session = data.session;
-    cleanLoginParams();
+    let ready = false;
+    // Listening before the first getSession, so a password-reset link's PASSWORD_RECOVERY is not missed.
     client.auth.onAuthStateChange((event, session) => {
       const wasSignedIn = this.session !== null;
       this.session = session;
-      if (!session) clearSyncState();
+      if (event === 'PASSWORD_RECOVERY') this.recovery = true;
+      if (!session) {
+        this.recovery = false;
+        clearSyncState();
+      }
+      if (!ready) return;
       this.emit();
       // Deferred: supabase-js holds a lock while this callback runs.
-      if (session && (event === 'SIGNED_IN' && !wasSignedIn)) setTimeout(() => this.syncNow().catch(logSyncError), 0);
+      if (session && event === 'SIGNED_IN' && !wasSignedIn) setTimeout(() => this.syncNow().catch(logSyncError), 0);
     });
+    const { data } = await client.auth.getSession();
+    this.session = data.session;
+    ready = true;
+    cleanLoginParams();
     this.emit();
     if (this.session) this.syncNow().catch(logSyncError);
     return client;

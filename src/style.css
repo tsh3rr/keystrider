@@ -210,9 +210,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .account-note { color: var(--muted); }
 .account-email { font-weight: 600; overflow-wrap: anywhere; }
 .account-error { color: var(--error); }
-.account-form { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
+.account-form { display: grid; gap: 8px; width: 100%; }
+.account-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.account-provider { width: 100%; font-weight: 600; }
+.account .account-or { color: var(--muted); font-size: 0.8rem; }
 .account-input {
-  flex: 1 1 160px; min-width: 0; font: inherit; padding: 6px 10px; color: var(--fg);
+  width: 100%; min-width: 0; font: inherit; padding: 6px 10px; color: var(--fg);
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
 }
 .account-delete { color: var(--error); }

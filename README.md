@@ -123,7 +123,7 @@ On macOS/Linux use `python3` and `scripts/build-corpus.py`. Another language nee
 
 ## Deployment
 
-Hosting is Cloudflare Workers (static assets only) and Supabase for the optional account (login by e-mail code, sync of practice rounds and curricula between devices; `src/sync/`). Builds of `main` use the production Supabase project, everything else the staging one (`vite.config.ts`). One-time dashboard setup: [docs/accounts-setup.md](docs/accounts-setup.md).
+Hosting is Cloudflare Workers (static assets only) and Supabase for the optional account (Google or e-mail and password; code login behind `EMAIL_LINKS` until there is a mail server; sync of practice rounds and curricula between devices; `src/sync/`). Builds of `main` use the production Supabase project, everything else the staging one (`vite.config.ts`). One-time dashboard setup: [docs/accounts-setup.md](docs/accounts-setup.md).
 
 - `wrangler.jsonc` tells Cloudflare to serve the built `dist` folder. Build command `npm run build`, deploy command `npx wrangler deploy`; other branches upload previews with `npx wrangler versions upload`.
 - Node version: 22 (pinned in `.nvmrc`).
