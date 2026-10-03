@@ -580,8 +580,13 @@ a.brand { color: inherit; text-decoration: none; }
 .ob-layout-name { font-size: 1.1rem; }
 .ob-question { margin: 0; font-size: 0.95rem; }
 .ob-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.ob-unsure { margin-left: auto; font-size: 0.9rem; }
-.ob-switch { justify-self: start; font-size: 0.88rem; }
+.ob-find { padding-top: 12px; border-top: 1px solid var(--border); }
+.ob-find .ob-check { background: var(--panel); }
+.ob-list { font-size: 0.9rem; }
+.ob-list summary { cursor: pointer; color: var(--muted); width: fit-content; }
+.ob-list summary:hover { color: var(--fg); }
+.ob-list[open] summary { margin-bottom: 8px; }
+.ob-list .ob-select { width: 100%; }
 .ob-card { grid-template-columns: minmax(0, 1fr); }
 .ob-layout .ob-kb { font-size: 0.66rem; max-width: 100%; overflow-x: auto; }
 .ob-layout .ob-kb .kb-key { font-size: 0.8rem; width: 2.25em; height: 2.25em; }
