@@ -42,7 +42,9 @@ Projekt → **Authentication** → **Sign In / Providers** → **Email**:
 - **Minimum password length**: `8`
 - **Save**
 
-## 4. Google-Anmeldung
+## 4. Google-Anmeldung (optional, später)
+
+Der Knopf ist ausgeblendet, bis `OAUTH_PROVIDERS` in `src/sync/account.ts` `'google'` enthält.
 
 Einmal in der Google Cloud Console, dann in beiden Supabase-Projekten:
 

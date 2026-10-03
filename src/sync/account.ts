@@ -14,7 +14,8 @@ import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan
  */
 
 /** Sign-in providers offered as buttons; each must be enabled in Supabase (docs/accounts-setup.md). */
-export const OAUTH_PROVIDERS: readonly OAuthProvider[] = ['google'];
+// Add 'google' once its provider is set up in Supabase (docs/accounts-setup.md, step 4).
+export const OAUTH_PROVIDERS: readonly OAuthProvider[] = [];
 /**
  * Sign-in by one-time code or link, and password reset, both send e-mail.
  * Off until the project has its own mail server: Supabase's built-in one
