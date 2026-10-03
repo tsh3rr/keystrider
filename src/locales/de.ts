@@ -362,7 +362,7 @@ export const de: Messages = {
   'week.range': '{from} – {to}',
   'week.noPractice': 'Diese Woche nicht geübt',
   'week.tipTime': { one: '{time} an {n} Tag', other: '{time} an {n} Tagen' },
-  'week.trend': 'Trend: {arrow} {d} pro Woche.',
+  'week.trend': 'Trend: im Schnitt {arrow} {d} pro Woche.',
   'week.caption': 'Durchschnittstempo pro Woche für diese Sprache und dieses Layout. Die Serie zählt Übung in jeder Sprache.',
   'week.vsLast': '{arrow} {d} gegenüber letzter Woche',
 

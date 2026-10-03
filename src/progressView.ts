@@ -1,7 +1,7 @@
 import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
-  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, streak, weakest, weeklyTotals, weeklyTrend,
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, streak, weakest, weeklyTotals, weeklyTrend, smoothedTrend,
   type PeriodTotals, type SessionSummary, type Streak, type WeekTotals,
 } from './progress';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -443,14 +443,11 @@ function weekChart(host: HTMLElement, weeks: readonly WeekTotals[]): void {
     tipOnHover(g, lines);
     root.append(g);
   });
-  const trend = weeklyTrend(weeks);
-  if (trend) {
-    const known = weeks.flatMap((w, i) => (w.wpm === null ? [] : [i]));
-    const [a, b] = [known[0], known[known.length - 1]];
-    const y = (i: number) => m.t + ih - (Math.max(0, trend.intercept + trend.slope * i) / max) * ih;
-    const xAt = (i: number) => m.l + slot * (i + 0.5);
+  const trend = smoothedTrend(weeks);
+  if (trend.length > 0) {
+    const points = trend.map(([i, v]) => `${m.l + slot * (i + 0.5)},${m.t + ih - (v / max) * ih}`).join(' ');
     // Drawn above the columns but never catches the pointer, so tooltips still work.
-    root.append(svg('line', { x1: xAt(a), y1: y(a), x2: xAt(b), y2: y(b), class: 'wk-trend' }));
+    root.append(svg('polyline', { points, class: 'wk-trend' }));
   }
   host.replaceChildren(root);
 }
