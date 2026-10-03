@@ -348,6 +348,23 @@ export const it: Messages = {
   'progress.confusions': 'Spesso scritto al suo posto: {list}',
   'progress.emptyKeys': 'Scrivi ancora un po’ per vedere i tuoi tasti più deboli.',
   'progress.emptyPairs': 'Scrivi ancora un po’ per vedere le tue coppie di lettere più deboli.',
+  // --- Progress: week by week ---
+  'week.title': 'Settimana per settimana',
+  'week.speed': 'Velocità questa settimana',
+  'week.streak': 'Serie',
+  'week.thisWeek': 'Questa settimana',
+  'week.days': { one: 'giorno', other: 'giorni' },
+  'week.best': { one: 'Record: {n} giorno', other: 'Record: {n} giorni' },
+  'week.keepGoing': 'Esercitati oggi per continuarla',
+  'week.practised': 'esercitato',
+  'week.notPractised': 'nessun esercizio',
+  'week.chartLabel': 'Velocità media per settimana',
+  'week.now': 'Questa sett.',
+  'week.range': '{from} – {to}',
+  'week.noPractice': 'Nessun esercizio questa settimana',
+  'week.tipTime': { one: '{time} in {n} giorno', other: '{time} in {n} giorni' },
+  'week.caption': 'Velocità media per settimana per questa lingua e questo layout. La serie conta l’esercizio in qualsiasi lingua.',
+  'week.vsLast': '{arrow} {d} rispetto alla settimana scorsa',
 
   // --- First-run setup (src/onboarding.ts) ---
   'onboarding.aria': 'Configurazione',

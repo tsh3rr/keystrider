@@ -639,6 +639,25 @@ tr.wrong td { color: var(--error); }
 .pg-stages li.done .pg-stage-state { color: var(--accent); }
 .pg-stage-state { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
 
+.wk-top { display: flex; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+.wk-streak { display: grid; gap: 2px; }
+.wk-days-wrap { display: grid; gap: 6px; }
+.wk-days { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; }
+.wk-days li { display: grid; justify-items: center; gap: 4px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.wk-days li i { display: block; width: 22px; height: 22px; border-radius: 6px; background: var(--surface-2); }
+.wk-days li.on i { background: var(--accent); }
+.wk-days li.today i { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--focus); }
+.wk-days li.today span { color: var(--fg); font-weight: 700; }
+.wk-days li.future i { background: transparent; border: 1px dashed var(--border); }
+.wk-chart { margin-top: 4px; }
+.chart-svg .wk-bar { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+.chart-svg .wk-col.current .wk-bar { fill: var(--accent); }
+.chart-svg .wk-none { fill: var(--border); }
+.chart-svg .wk-value { fill: var(--fg); font-family: var(--mono); font-size: 11px; font-weight: 600; }
+.chart-svg .wk-col:focus { outline: none; }
+.chart-svg .wk-col:hover .wk-bar, .chart-svg .wk-col:focus-visible .wk-bar { stroke-width: 2; }
+.wk-caption { margin: 0; }
+
 .good { color: var(--good); }
 .bad { color: var(--error); }
 .muted { color: var(--muted); }
@@ -717,6 +736,8 @@ td.trend .bad { color: var(--error); }
   .kb, .kb-key { font-size: 0.7rem; }
   .kb-space { font-size: 0.6rem; width: 16.3em; }
   .pg-card { padding: 14px; }
+  .wk-top { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+  .wk-days-wrap { grid-column: 1 / -1; }
   .pg-big { font-size: 1.45rem; }
   #progress-view .weak th:nth-child(3), #progress-view .weak td:nth-child(3) { display: none; }
 }

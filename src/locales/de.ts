@@ -347,6 +347,23 @@ export const de: Messages = {
   'progress.confusions': 'Oft stattdessen getippt: {list}',
   'progress.emptyKeys': 'Tipp noch etwas mehr, dann siehst du deine schwächsten Tasten.',
   'progress.emptyPairs': 'Tipp noch etwas mehr, dann siehst du deine schwächsten Buchstabenpaare.',
+  // --- Progress: week by week ---
+  'week.title': 'Woche für Woche',
+  'week.speed': 'Tempo diese Woche',
+  'week.streak': 'Serie',
+  'week.thisWeek': 'Diese Woche',
+  'week.days': { one: 'Tag', other: 'Tage' },
+  'week.best': { one: 'Rekord: {n} Tag', other: 'Rekord: {n} Tage' },
+  'week.keepGoing': 'Üb heute, damit die Serie hält',
+  'week.practised': 'geübt',
+  'week.notPractised': 'nicht geübt',
+  'week.chartLabel': 'Durchschnittstempo pro Woche',
+  'week.now': 'Diese Woche',
+  'week.range': '{from} – {to}',
+  'week.noPractice': 'Diese Woche nicht geübt',
+  'week.tipTime': { one: '{time} an {n} Tag', other: '{time} an {n} Tagen' },
+  'week.caption': 'Durchschnittstempo pro Woche für diese Sprache und dieses Layout. Die Serie zählt Übung in jeder Sprache.',
+  'week.vsLast': '{arrow} {d} gegenüber letzter Woche',
 
   // --- First-run setup (src/onboarding.ts) ---
   'onboarding.aria': 'Einrichtung',

@@ -351,6 +351,23 @@ export const pl: Messages = {
   'progress.confusions': 'Często pisane zamiast niego: {list}',
   'progress.emptyKeys': 'Popisz jeszcze trochę, żeby zobaczyć swoje najsłabsze klawisze.',
   'progress.emptyPairs': 'Popisz jeszcze trochę, żeby zobaczyć swoje najsłabsze pary liter.',
+  // --- Progress: week by week ---
+  'week.title': 'Tydzień po tygodniu',
+  'week.speed': 'Prędkość w tym tygodniu',
+  'week.streak': 'Seria',
+  'week.thisWeek': 'Ten tydzień',
+  'week.days': { one: 'dzień', few: 'dni', many: 'dni', other: 'dnia' },
+  'week.best': { one: 'Rekord: {n} dzień', few: 'Rekord: {n} dni', many: 'Rekord: {n} dni', other: 'Rekord: {n} dnia' },
+  'week.keepGoing': 'Poćwicz dziś, żeby ją utrzymać',
+  'week.practised': 'ćwiczone',
+  'week.notPractised': 'bez ćwiczeń',
+  'week.chartLabel': 'Średnia prędkość w tygodniu',
+  'week.now': 'Ten tydz.',
+  'week.range': '{from} – {to}',
+  'week.noPractice': 'Brak ćwiczeń w tym tygodniu',
+  'week.tipTime': { one: '{time} w {n} dzień', few: '{time} w {n} dni', many: '{time} w {n} dni', other: '{time} w {n} dnia' },
+  'week.caption': 'Średnia prędkość w tygodniu dla tego języka i układu. Seria liczy ćwiczenia w każdym języku.',
+  'week.vsLast': '{arrow} {d} względem zeszłego tygodnia',
 
   // --- First-run setup (src/onboarding.ts) ---
   'onboarding.aria': 'Konfiguracja',

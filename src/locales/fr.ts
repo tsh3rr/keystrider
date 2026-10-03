@@ -350,6 +350,23 @@ export const fr: Messages = {
   'progress.confusions': 'Souvent tapée à la place : {list}',
   'progress.emptyKeys': 'Tape encore un peu pour voir tes touches les plus faibles.',
   'progress.emptyPairs': 'Tape encore un peu pour voir tes paires de lettres les plus faibles.',
+  // --- Progress: week by week ---
+  'week.title': 'Semaine par semaine',
+  'week.speed': 'Vitesse cette semaine',
+  'week.streak': 'Série',
+  'week.thisWeek': 'Cette semaine',
+  'week.days': { one: 'jour', other: 'jours' },
+  'week.best': { one: 'Record : {n} jour', other: 'Record : {n} jours' },
+  'week.keepGoing': 'Entraîne-toi aujourd’hui pour la prolonger',
+  'week.practised': 'entraînement',
+  'week.notPractised': 'pas d’entraînement',
+  'week.chartLabel': 'Vitesse moyenne par semaine',
+  'week.now': 'Cette sem.',
+  'week.range': '{from} – {to}',
+  'week.noPractice': 'Pas d’entraînement cette semaine',
+  'week.tipTime': { one: '{time} sur {n} jour', other: '{time} sur {n} jours' },
+  'week.caption': 'Vitesse moyenne par semaine pour cette langue et cette disposition. La série compte l’entraînement dans toutes les langues.',
+  'week.vsLast': '{arrow} {d} par rapport à la semaine dernière',
 
   // --- First-run setup (src/onboarding.ts) ---
   'onboarding.aria': 'Configuration',

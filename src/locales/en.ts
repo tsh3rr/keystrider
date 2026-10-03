@@ -353,6 +353,23 @@ export const en = {
   'progress.confusions': 'Often typed instead: {list}',
   'progress.emptyKeys': 'Type a bit more to see your weakest keys.',
   'progress.emptyPairs': 'Type a bit more to see your weakest letter pairs.',
+  // --- Progress: week by week ---
+  'week.title': 'Week by week',
+  'week.speed': 'Speed this week',
+  'week.streak': 'Streak',
+  'week.thisWeek': 'This week',
+  'week.days': { one: 'day', other: 'days' },
+  'week.best': { one: 'Best: {n} day', other: 'Best: {n} days' },
+  'week.keepGoing': 'Practise today to keep it going',
+  'week.practised': 'practised',
+  'week.notPractised': 'no practice',
+  'week.chartLabel': 'Average speed per week',
+  'week.now': 'This week',
+  'week.range': '{from} – {to}',
+  'week.noPractice': 'No practice this week',
+  'week.tipTime': { one: '{time} on {n} day', other: '{time} on {n} days' },
+  'week.caption': 'Average speed per week for this language and layout. The streak counts practice in any language.',
+  'week.vsLast': '{arrow} {d} vs last week',
 
   // --- First-run setup (src/onboarding.ts) ---
   'onboarding.aria': 'Setup',

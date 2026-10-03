@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { TypingSession } from './session';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { buildWeaknessModel } from './weakness';
-import { dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, weakest } from './progress';
+import {
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfWeek, streak, weakest, weeklyTotals,
+  type SessionSummary,
+} from './progress';
 
 const EN: PracticeContext = { language: 'en', layout: 'qwerty-us' };
 const DE: PracticeContext = { language: 'en', layout: 'qwertz-de' };
@@ -103,5 +106,36 @@ describe('keyHeat', () => {
     expect(heat.get('KeyZ')?.chars.sort()).toEqual(['Y', 'y']);
     expect(heat.get('KeyZ')?.attempts).toBe(4);
     expect(heat.has('KeyY')).toBe(false);
+  });
+});
+
+describe('week by week', () => {
+  // NOW is Thursday 1 Oct 2026, 18:00.
+  const at = (month: number, day: number, hour = 10): SessionSummary =>
+    ({ sessionId: `${month}-${day}-${hour}`, start: new Date(2026, month, day, hour).getTime(), chars: 100, wpm: 30, accuracy: 0.95, activeMs: 60_000 });
+
+  it('starts weeks on Monday at midnight', () => {
+    expect(startOfWeek(NOW)).toBe(new Date(2026, 8, 28).getTime());
+    expect(startOfWeek(new Date(2026, 8, 27, 23).getTime())).toBe(new Date(2026, 8, 21).getTime());
+  });
+
+  it('counts the current streak through yesterday until today is practised', () => {
+    const days = [at(8, 26), at(8, 28), at(8, 29), at(8, 30), at(8, 30, 20)];
+    expect(streak(days, NOW)).toEqual({ current: 3, best: 3, today: false });
+    expect(streak([...days, at(9, 1)], NOW)).toEqual({ current: 4, best: 4, today: true });
+    expect(streak([at(8, 20), at(8, 21), at(8, 22), at(8, 29)], NOW)).toEqual({ current: 0, best: 3, today: false });
+    expect(streak([], NOW)).toEqual({ current: 0, best: 0, today: false });
+  });
+
+  it('totals calendar weeks, oldest first, with practice days marked', () => {
+    const sessions = [at(8, 22), { ...at(8, 28), wpm: 40, chars: 300 }, at(8, 30), at(8, 30, 21)];
+    const weeks = weeklyTotals(sessions, { weeks: 3, now: NOW });
+    expect(weeks.map((w) => w.start)).toEqual([new Date(2026, 8, 14), new Date(2026, 8, 21), new Date(2026, 8, 28)].map((d) => d.getTime()));
+    expect(weeks[0].sessions).toBe(0);
+    expect(weeks[0].wpm).toBeNull();
+    expect(weeks[1].activeDays).toEqual([false, true, false, false, false, false, false]);
+    expect(weeks[2].sessions).toBe(3);
+    expect(weeks[2].activeDays).toEqual([true, false, true, false, false, false, false]);
+    expect(weeks[2].wpm).toBeCloseTo((40 * 300 + 30 * 200) / 500, 5);
   });
 });
