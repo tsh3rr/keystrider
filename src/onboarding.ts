@@ -1,4 +1,5 @@
 import { availableLanguages, getCorpus } from './corpus';
+import { withFlag } from './flags';
 import { stairMark } from './stairMark';
 import { initialCurriculum, tierWpm, unlockSteps, type CurriculumState } from './drill';
 import { KeyObserver, LAYOUTS, ROWS, charLabel, detectLayout, getLayout, keyLabel } from './layouts';
@@ -245,13 +246,14 @@ export class Onboarding {
       seg.setAttribute('aria-label', T.language);
       seg.style.gridTemplateColumns = `repeat(${langs.length}, 1fr)`;
       for (const c of langs) {
-        const b = button(c.name, '', () => {
+        const b = button('', '', () => {
           this.host.setLanguage(c.language)
             .then(() => this.render())
             .catch((err) => console.error('Failed to switch language', err));
         });
         b.setAttribute('role', 'radio');
         b.setAttribute('aria-checked', String(c.language === ctx.language));
+        b.append(...withFlag(c.language, c.name));
         seg.append(b);
       }
       field.append(seg);
