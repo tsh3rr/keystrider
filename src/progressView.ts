@@ -6,7 +6,7 @@ import {
   type PeriodTotals, type SessionSummary, type WeekTotals,
 } from './progress';
 import {
-  GOAL_DAY_CHOICES, GOAL_MINUTE_CHOICES, PLAN_CUE_MAX, bestDrill, cleanPlan, dailyActiveMs, goalStreak, planIcs, planUid, weekDays,
+  GOAL_DAY_CHOICES, GOAL_MINUTE_CHOICES, PLAN_CUE_MAX, bestDrill, cleanPlan, dailyActiveMs, goalStreak, nextPlanned, planIcs, planUid, weekDays,
   type DayState, type GoalStreak, type PracticePlan, type WeeklyGoal,
 } from './goals';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -422,11 +422,6 @@ const dayName = (d: number, style: 'short' | 'long' = 'short') =>
   // 5 January 2026 was a Monday.
   new Intl.DateTimeFormat(uiLanguage(), { weekday: style }).format(new Date(2026, 0, 5 + d));
 
-export function planSummary(plan: PracticePlan): string {
-  const days = plan.days.map((d) => dayName(d)).join(', ');
-  return t(plan.cue ? 'schedule.summaryCue' : 'schedule.summary', { days, time: plan.time, cue: plan.cue });
-}
-
 function downloadPlan(plan: PracticePlan, goal: WeeklyGoal): void {
   const ics = planIcs(plan, {
     minutes: goal.minutes, title: t('schedule.icsTitle'),
@@ -440,68 +435,101 @@ function downloadPlan(plan: PracticePlan, goal: WeeklyGoal): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-function renderPlan(plan: PracticePlan | null, goal: WeeklyGoal, onPlan: (plan: PracticePlan | null) => void): void {
-  const host = $('week-plan');
-  const btn = (label: string, cls: string, go: () => void) => {
-    const b = el('button', cls, label);
-    b.type = 'button';
-    b.addEventListener('click', go);
-    return b;
-  };
-  if (!planEditing) {
-    if (!plan) {
-      host.replaceChildren(btn(t('schedule.add'), 'link-btn', () => {
-        planEditing = true;
-        renderPlan(plan, goal, onPlan);
-        host.querySelector<HTMLElement>('button[aria-pressed]')?.focus();
-      }));
-      return;
-    }
-    const row = el('div', 'wk-plan-row');
-    row.append(
-      el('span', 'wk-plan-text', planSummary(plan)),
-      btn(t('schedule.calendar'), 'wk-plan-cal', () => downloadPlan(plan, goal)),
-      btn(t('schedule.change'), 'link-btn', () => {
-        planEditing = true;
-        renderPlan(plan, goal, onPlan);
-      }),
+function planButton(label: string, cls: string, go: () => void): HTMLButtonElement {
+  const b = el('button', cls, label);
+  b.type = 'button';
+  b.addEventListener('click', go);
+  return b;
+}
+
+/** "Today at 08:00", "Tomorrow at 08:00" or "Friday at 08:00". */
+function planWhen(at: number, time: string, now: number): string {
+  const days = Math.round((startOfDay(at) - startOfDay(now)) / 86_400_000);
+  if (days === 0) return t('schedule.today', { time });
+  if (days === 1) return t('schedule.tomorrow', { time });
+  return t('schedule.on', { day: dayName((new Date(at).getDay() + 6) % 7, 'long'), time });
+}
+
+/**
+ * The practice plan card: a form until a plan exists, then the week with the
+ * planned days, the next session and the calendar download.
+ */
+function renderPlan(
+  plan: PracticePlan | null, goal: WeeklyGoal, week: readonly DayState[], now: number,
+  onPlan: (plan: PracticePlan | null) => void,
+): void {
+  const body = $('plan-body');
+  const head = $('plan-head-actions');
+  const redraw = () => renderPlan(plan, goal, week, now, onPlan);
+  head.replaceChildren();
+
+  if (plan && !planEditing) {
+    head.append(
+      planButton(t('schedule.change'), 'link-btn', () => { planEditing = true; redraw(); }),
+      planButton(t('schedule.remove'), 'link-btn', () => onPlan(null)),
     );
-    host.replaceChildren(row);
+    const next = nextPlanned(plan, now);
+    const nextBox = el('div', 'pl-next');
+    nextBox.append(el('div', 'pg-label', t('schedule.next')), el('div', 'pg-big', planWhen(next, plan.time, now)));
+    if (plan.cue) nextBox.append(el('div', 'pl-cue', plan.cue));
+
+    const today = (new Date(now).getDay() + 6) % 7;
+    const strip = el('ol', 'pl-week');
+    strip.setAttribute('aria-label', t('schedule.daysAria'));
+    for (let d = 0; d < 7; d++) {
+      const planned = plan.days.includes(d);
+      const met = week[d] === 'met';
+      const li = el('li', [planned && 'planned', met && 'met', d === today && 'today'].filter(Boolean).join(' '));
+      li.title = dayName(d, 'long');
+      li.append(el('b', undefined, dayName(d)), el('span', undefined, met ? '✓' : planned ? plan.time : ''));
+      strip.append(li);
+    }
+
+    const cal = el('div', 'pl-cal');
+    cal.append(planButton(t('schedule.calendar'), 'primary', () => downloadPlan(plan, goal)), el('p', undefined, t('schedule.calendarNote')));
+    body.replaceChildren(nextBox, strip, cal);
+    if (plan.days.length < goal.days) {
+      body.append(el('p', 'pl-hint', t('schedule.fewer', { goal: t('goal.days', { n: goal.days }) })));
+    }
     return;
   }
-  const form = el('form', 'wk-plan-form');
+
+  const form = el('form', 'pl-form');
   const chosen = new Set(plan?.days ?? []);
-  const days = el('div', 'wk-plan-days');
-  days.setAttribute('role', 'group');
-  days.setAttribute('aria-label', t('schedule.daysAria'));
+  const dayField = el('fieldset', 'pl-field');
+  const days = el('div', 'pl-days');
   for (let d = 0; d < 7; d++) {
-    const b = btn(dayName(d), '', () => {
+    const b = planButton(dayName(d), '', () => {
       if (chosen.has(d)) chosen.delete(d);
       else chosen.add(d);
       b.setAttribute('aria-pressed', String(chosen.has(d)));
+      error.textContent = '';
     });
     b.title = dayName(d, 'long');
     b.setAttribute('aria-pressed', String(chosen.has(d)));
     days.append(b);
   }
-  const time = Object.assign(el('input', 'wk-plan-time'), { type: 'time', value: plan?.time ?? '18:00', required: true });
-  time.setAttribute('aria-label', t('schedule.timeAria'));
-  const cue = Object.assign(el('input', 'wk-plan-cue'), { type: 'text', value: plan?.cue ?? '', maxLength: PLAN_CUE_MAX, placeholder: t('schedule.cuePlaceholder') });
-  cue.setAttribute('aria-label', t('schedule.cueAria'));
-  const error = el('p', 'wk-plan-error');
+  dayField.append(el('legend', undefined, t('schedule.daysAria')), days);
+
+  const field = (label: string, input: HTMLInputElement) => {
+    const f = el('label', 'pl-field');
+    f.append(el('span', undefined, label), input);
+    return f;
+  };
+  const time = Object.assign(el('input'), { type: 'time', value: plan?.time ?? '18:00', required: true });
+  const cue = Object.assign(el('input'), { type: 'text', value: plan?.cue ?? '', maxLength: PLAN_CUE_MAX, placeholder: t('schedule.cuePlaceholder') });
+  const row = el('div', 'pl-row');
+  row.append(field(t('schedule.timeAria'), time), field(t('schedule.cueAria'), cue));
+
+  const error = el('p', 'pl-error');
   error.setAttribute('role', 'alert');
-  const actions = el('div', 'wk-plan-actions');
+  const actions = el('div', 'pl-actions');
   const save = el('button', 'primary', t('schedule.save'));
   save.type = 'submit';
-  actions.append(save, btn(t('schedule.cancel'), 'link-btn', () => {
-    planEditing = false;
-    renderPlan(plan, goal, onPlan);
-  }));
-  if (plan) actions.append(btn(t('schedule.remove'), 'link-btn', () => {
-    planEditing = false;
-    onPlan(null);
-  }));
-  form.append(el('p', 'wk-plan-why', t('schedule.why')), days, time, cue, error, actions);
+  actions.append(save);
+  if (plan) actions.append(planButton(t('schedule.cancel'), 'link-btn', () => { planEditing = false; redraw(); }));
+
+  form.append(el('p', 'pl-why', t('schedule.why')), dayField, row, error, actions);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const next = cleanPlan({ days: [...chosen], time: time.value, cue: cue.value });
@@ -512,7 +540,7 @@ function renderPlan(plan: PracticePlan | null, goal: WeeklyGoal, onPlan: (plan: 
     planEditing = false;
     onPlan(next);
   });
-  host.replaceChildren(form);
+  body.replaceChildren(form);
 }
 
 function renderBest(best: SessionSummary | null): void {
@@ -605,8 +633,9 @@ function renderWeeks(
   const st = goalStreak(daily, goal, now);
   renderStreak(st, goal);
   renderGoalPicker(goal, st, onGoal);
-  renderPlan(plan, goal, onPlan);
-  renderWeekDays(weekDays(daily, goal, startOfWeek(now)), startOfWeek(now), now);
+  const week = weekDays(daily, goal, startOfWeek(now));
+  renderPlan(plan, goal, week, now, onPlan);
+  renderWeekDays(week, startOfWeek(now), now);
   renderBest(bestDrill(sessions));
   weekChart($('week-chart'), weeks);
   const [prev, cur] = weeks.slice(-2);

@@ -668,21 +668,50 @@ tr.wrong td { color: var(--error); }
 .chart-svg .wk-col:focus { outline: none; }
 .chart-svg .wk-col:hover .wk-bar, .chart-svg .wk-col:focus-visible .wk-bar { stroke-width: 2; }
 .wk-caption { margin: 0; }
-.wk-plan { font-size: 0.85rem; margin-top: 2px; }
-.wk-plan .link-btn { font-size: inherit; padding: 0; }
-.wk-plan-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.wk-plan-text { color: var(--fg); }
-.wk-plan-cal { font: inherit; padding: 3px 10px; border-radius: 6px; }
-.wk-plan-form { display: grid; gap: 8px; max-width: 360px; }
-.wk-plan-why { margin: 0; color: var(--muted); }
-.wk-plan-days { display: flex; gap: 4px; flex-wrap: wrap; }
-.wk-plan-days button { font: inherit; min-width: 3.1em; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); }
-.wk-plan-days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.wk-plan-time, .wk-plan-cue { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
-.wk-plan-time { justify-self: start; }
-.wk-plan-error { margin: 0; color: var(--error); min-height: 0; }
-.wk-plan-error:empty { display: none; }
-.wk-plan-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.pl-head-actions { display: flex; gap: 14px; }
+.pl-head-actions .link-btn { font-size: 0.85rem; }
+.pl-body { display: grid; gap: 14px; }
+.pl-next { display: grid; gap: 2px; }
+.pl-next .pg-big { font-size: 24px; }
+.pl-cue { color: var(--muted); font-size: 0.9rem; }
+.pl-week { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; max-width: 460px; }
+.pl-week li {
+  display: grid; justify-items: center; gap: 2px; padding: 8px 2px; border-radius: 10px;
+  border: 1px dashed var(--border); color: var(--muted); font-size: 0.8rem;
+}
+.pl-week li b { font-weight: 600; }
+.pl-week li span { font-family: var(--mono); font-size: 11px; min-height: 1.3em; }
+.pl-week li.planned { border: 1px solid var(--accent); background: var(--accent-soft); color: var(--fg); }
+.pl-week li.planned span { color: var(--accent); }
+.pl-week li.met span { font-family: var(--sans); font-weight: 700; }
+.pl-week li.today { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--focus); }
+.pl-cal { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pl-cal p { margin: 0; color: var(--muted); font-size: 0.85rem; max-width: 46ch; }
+.pl-hint { margin: 0; font-size: 0.85rem; color: var(--focus); }
+.pl-form { display: grid; gap: 14px; max-width: 520px; }
+.pl-why { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+.pl-field { display: grid; gap: 6px; min-width: 0; border: 0; margin: 0; padding: 0; }
+.pl-field > span, .pl-field > legend { font-size: 0.78rem; color: var(--muted); padding: 0; }
+.pl-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.pl-days button {
+  font: inherit; font-size: 0.85rem; padding: 9px 2px; border-radius: 10px; color: var(--fg);
+  border: 1px solid var(--border); background: var(--panel); transition: background 0.12s, border-color 0.12s;
+}
+.pl-days button:hover { border-color: var(--accent); }
+.pl-days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.pl-row { display: grid; grid-template-columns: auto 1fr; gap: 12px; }
+.pl-form input {
+  font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; min-width: 0;
+}
+.pl-form input[type="time"] { font-family: var(--mono); }
+.pl-error { margin: 0; color: var(--error); font-size: 0.85rem; }
+.pl-error:empty { display: none; }
+.pl-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 520px) {
+  .pl-row { grid-template-columns: 1fr; }
+  .pl-week, .pl-days { gap: 4px; }
+}
 .bd-card { display: grid; gap: 10px; }
 .bd-card > p, .bd-card .pg-note { margin: 0; }
 .bd-card > button { justify-self: start; }

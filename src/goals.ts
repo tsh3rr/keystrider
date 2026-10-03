@@ -280,6 +280,16 @@ export function planDue(plan: PracticePlan | null, now: number): number | null {
   return at !== null && now >= at - PLAN_EARLY_MS && now <= at + PLAN_LATE_MS ? startOfDay(now) : null;
 }
 
+/** The next planned practice time; today's stays "next" until its reminder window has passed. */
+export function nextPlanned(plan: PracticePlan, now: number): number {
+  const [h, m] = plan.time.split(':').map(Number);
+  const d = new Date(now);
+  for (let i = 0; ; i++) {
+    const at = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i, h, m);
+    if (plan.days.includes((at.getDay() + 6) % 7) && at.getTime() + PLAN_LATE_MS >= now) return at.getTime();
+  }
+}
+
 /** A calendar file (iCalendar) with a weekly repeating event and a reminder at its start. */
 export function planIcs(
   plan: PracticePlan,

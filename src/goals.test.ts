@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cleanPlan, dailyActiveMs, freshStart, goalNews, goalStreak, loadGoal, newBest, newlyMastered, planDue, planIcs, saveGoal, weekDays,
+  cleanPlan, dailyActiveMs, nextPlanned, freshStart, goalNews, goalStreak, loadGoal, newBest, newlyMastered, planDue, planIcs, saveGoal, weekDays,
 } from './goals';
 import { startOfWeek, type SessionSummary } from './progress';
 
@@ -141,6 +141,13 @@ describe('practice plan', () => {
     expect(planDue(plan, new Date(2026, 9, 2, 10, 0).getTime())).toBeNull();
     expect(planDue(plan, at(2026, 9, 1, 8))).toBeNull();
     expect(planDue(null, NOW)).toBeNull();
+  });
+
+  it('finds the next planned time', () => {
+    // Thursday 18:00: next is Friday 08:00; on Friday at 09:00 today's slot still counts.
+    expect(nextPlanned(plan, NOW)).toBe(new Date(2026, 9, 2, 8).getTime());
+    expect(nextPlanned(plan, new Date(2026, 9, 2, 9).getTime())).toBe(new Date(2026, 9, 2, 8).getTime());
+    expect(nextPlanned(plan, new Date(2026, 9, 2, 10).getTime())).toBe(new Date(2026, 9, 5, 8).getTime());
   });
 
   it('writes a weekly calendar event from the next planned day', () => {

@@ -1025,7 +1025,7 @@ async function showProgress(section?: ProgressSection): Promise<void> {
     // With no practice in this language yet the rest of the page is hidden; the buddies card stays.
     const buddiesCard = $('progress-buddies');
     if ($('progress-body').hidden) $('progress-empty').after(buddiesCard);
-    else $('progress-week').after(buddiesCard);
+    else $('progress-plan').after(buddiesCard);
     void buddiesView.refresh();
     if (section) revealSection(section);
   } catch (err) {
