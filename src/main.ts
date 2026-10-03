@@ -16,7 +16,9 @@ import { FingerGuide } from './fingerGuide';
 import { DEFAULT_FATIGUE_PARAMS, FatigueTracker, type FatigueSignal } from './fatigue';
 import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, revealSection, type ProgressSection, type Range } from './progressView';
-import { sessionSummaries, startOfWeek, weakest } from './progress';
+import { periodTotals, sessionSummaries, startOfWeek, weakest } from './progress';
+import { isoDate, loadShareSpeed, pendingInvite, takeInviteFromUrl, type BuddyStats } from './sync/buddies';
+import { BuddiesView, InvitePrompt, type BuddiesDeps } from './sync/buddiesView';
 import {
   dailyActiveMs, freshStart, goalNews, goalStreak, loadFreshSeen, loadGoal, loadMastered, newBest, newlyMastered,
   saveFreshSeen, saveGoal, saveMastered, type FreshStart,
@@ -622,6 +624,7 @@ async function finishDrill(): Promise<void> {
     renderDrillBar();
     show(changes, improved, slipped, roundStep, extra);
     account.push().catch((err) => console.error('Sync failed', err));
+    if (account.inBuddyGroup) buddyDeps.stats().then((st) => account.publishBuddyStats(st)).catch((err) => console.error('Failed to update buddies', err));
     maybeNudge(state.coreDrills);
   } finally {
     finishing = false;
@@ -1014,6 +1017,11 @@ async function showProgress(section?: ProgressSection): Promise<void> {
       },
       mastered: masteredSteps(),
     });
+    // With no practice in this language yet the rest of the page is hidden; the buddies card stays.
+    const buddiesCard = $('progress-buddies');
+    if ($('progress-body').hidden) $('progress-empty').after(buddiesCard);
+    else $('progress-week').after(buddiesCard);
+    void buddiesView.refresh();
     if (section) revealSection(section);
   } catch (err) {
     console.error('Failed to render progress', err);
@@ -1247,6 +1255,8 @@ onUiLanguageChange(() => {
   profileView.render();
   if (!accountNudge.hidden) renderNudge();
   renderFreshStart();
+  buddiesView.render();
+  invitePrompt.retranslate();
   if (!$('progress-view').hidden) void showProgress();
   if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
 });
@@ -1275,8 +1285,38 @@ const account = new Account({
     if (state.signedIn && state.choosePassword && $('profile-view').hidden) showView('profile');
     if (state.signedIn) accountNudge.hidden = true;
     onboarding.accountChanged();
+    buddiesView.update(state);
+    invitePrompt.update(state);
   },
 });
+// --- Training buddies ---
+//
+// Friends in a small group see each other's weekly goal and streak (see
+// sync/buddies.ts). Only with an account, and only for people who joined
+// through an invite link.
+
+takeInviteFromUrl();
+const buddyDeps: BuddiesDeps = {
+  stats: async (): Promise<BuddyStats> => {
+    const now = Date.now();
+    const sessions = sessionSummaries(await store.all());
+    const st = goalStreak(dailyActiveMs(sessions), goal, now);
+    const wpm = periodTotals(sessions, startOfWeek(now), Infinity).wpm;
+    return {
+      week_start: isoDate(startOfWeek(now)), goal_days: goal.days, days_this_week: st.daysThisWeek,
+      week_streak: st.current, met_this_week: st.metThisWeek,
+      wpm: loadShareSpeed() && wpm !== null ? Math.round(wpm * 10) / 10 : null,
+    };
+  },
+  week: () => isoDate(startOfWeek(Date.now())),
+  openSignIn: (kind) => setTimeout(() => openAccount(kind), 0),
+  openProfile: () => openProfile(),
+  openProgress: () => showView('progress', 'buddies'),
+};
+const buddiesView = new BuddiesView($('progress-buddies'), account, buddyDeps);
+buddiesView.render();
+const invitePrompt = new InvitePrompt($('buddy-invite'), account, buddyDeps);
+
 const accountView = new AccountView($('account'), account, $<HTMLButtonElement>('account-btn'), $('account-summary'), () => openProfile());
 accountView.render();
 const profileView = new ProfileView($('profile'), account, () => setTimeout(() => openAccount('signin'), 0));
@@ -1400,6 +1440,7 @@ Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).
     startDrill().catch((err) => console.error('Failed to start drill', err));
     maybeFreshStart().catch((err) => console.error('Failed to check for a fresh start', err));
   }
+  if (pendingInvite()) void invitePrompt.show();
   account.init().catch((err) => console.error('Account setup failed', err));
   detectFromBrowser()
     .then(backfillLegacyLog)

@@ -667,6 +667,38 @@ tr.wrong td { color: var(--error); }
 .chart-svg .wk-col:focus { outline: none; }
 .chart-svg .wk-col:hover .wk-bar, .chart-svg .wk-col:focus-visible .wk-bar { stroke-width: 2; }
 .wk-caption { margin: 0; }
+.bd-card { display: grid; gap: 10px; }
+.bd-card > p, .bd-card .pg-note { margin: 0; }
+.bd-card > button { justify-self: start; }
+.bd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bd-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.bd-row.me { background: var(--surface-2); }
+.bd-avatar {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); font-weight: 700;
+}
+.bd-who { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.bd-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-name small { font-weight: 400; color: var(--muted); }
+.bd-meta { font-size: 0.82rem; color: var(--muted); }
+.bd-meta.good { color: var(--good); }
+.bd-bar { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; max-width: 220px; }
+.bd-row.me .bd-bar { background: var(--panel); }
+.bd-bar i { display: block; height: 100%; background: var(--accent); }
+.bd-cheer {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel); font-variant-numeric: tabular-nums;
+}
+.bd-cheer[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.bd-cheer:disabled { cursor: default; }
+.bd-row.me .bd-cheer:disabled { opacity: 0.8; }
+.bd-invite { display: grid; gap: 8px; margin-top: 6px; }
+.bd-invite h3 { margin: 0; font-size: 0.95rem; }
+.bd-link { width: 100%; font-family: var(--mono); font-size: 0.85rem; }
+.bd-speed { max-width: 420px; }
+.bd-leave { justify-self: start; color: var(--muted); }
+.bd-prompt { flex-wrap: wrap; }
+.bd-prompt-actions { display: flex; gap: 10px; align-items: center; }
 
 .good { color: var(--good); }
 .bad { color: var(--error); }

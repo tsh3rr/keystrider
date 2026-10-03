@@ -80,6 +80,7 @@
     <main>
       <section id="onboarding-view" class="onboarding-view" aria-label="Setup" data-i18n-aria-label="onboarding.aria" hidden></section>
       <section id="practice-view">
+        <div id="buddy-invite" class="fresh-start bd-prompt" role="status" hidden></div>
         <div id="fresh-start" class="fresh-start" role="status" hidden>
           <span id="fresh-start-text"></span>
           <button id="fresh-start-close" class="icon-btn" aria-label="Close" data-i18n-aria-label="restart.close">✕</button>
@@ -173,6 +174,7 @@
             <div id="week-chart" class="chart wk-chart"></div>
             <p id="week-caption" class="pg-sub wk-caption"></p>
           </section>
+          <section id="progress-buddies" class="pg-card bd-card" aria-live="polite"></section>
           <section id="progress-path" class="pg-card" hidden>
             <div class="pg-card-head"><h2 data-i18n="coach.pathTitle">Your path</h2></div>
             <ol id="path-stages" class="pg-stages"></ol>

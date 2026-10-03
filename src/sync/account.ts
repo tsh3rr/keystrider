@@ -3,6 +3,7 @@ import type { KeystrokeStore } from '../store';
 import { allCurricula, saveCurriculum } from '../curriculum-store';
 import { decodeSession, encodeSession, rowSignature, type SessionRow } from './codec';
 import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan';
+import type { BuddyInvite, BuddyRow, BuddyStats } from './buddies';
 
 /**
  * Optional account: sign in with Google or e-mail and password, and practice rounds
@@ -28,6 +29,8 @@ export type OAuthProvider = 'google' | 'github';
 const AUTH_KEY = 'typing-trainer.auth';
 const SYNC_KEY = 'typing-trainer.sync';
 const PROFILE_KEY = 'typing-trainer.profile';
+/** Whether the account is in a buddy group, so finished drills know to update what buddies see. */
+const BUDDY_KEY = 'typing-trainer.buddy-group';
 /** Rows per request, to keep each request well under the API's limits. */
 const UPLOAD_BATCH = 25;
 const DOWNLOAD_BATCH = 50;
@@ -151,6 +154,74 @@ export class Account {
     if (error) throw error.code === '23505' ? usernameTaken() : error;
     saveUsername(user, username);
     this.emit();
+  }
+
+  // --- Training buddies (see supabase/migrations/*_training_buddies.sql) ---
+
+  /** Who sent an invite code, before signing in; null when the code does not work. */
+  async buddyInvite(code: string): Promise<BuddyInvite | null> {
+    const client = await this.connect();
+    const { data, error } = await client.rpc('buddy_invite', { code });
+    if (error) throw error;
+    const row = (data as { owner: string | null; members: number; full_group: boolean }[])[0];
+    return row ? { owner: row.owner, members: row.members, full: row.full_group } : null;
+  }
+
+  /** The caller's group for the week starting `week` (YYYY-MM-DD); empty when in none. */
+  async buddies(week: string): Promise<BuddyRow[]> {
+    const client = this.requireSignedIn();
+    const { data, error } = await client.rpc('my_buddies', { week });
+    if (error) throw error;
+    const rows = data as BuddyRow[];
+    saveBuddyFlag(this.session!.user.id, rows.length > 0);
+    return rows;
+  }
+
+  /** Whether the last look found this account in a group. */
+  get inBuddyGroup(): boolean {
+    return this.session !== null && loadBuddyFlag(this.session.user.id);
+  }
+
+  async createBuddyGroup(): Promise<void> {
+    await this.buddyCall('create_buddy_group', {});
+    saveBuddyFlag(this.session!.user.id, true);
+  }
+
+  async joinBuddyGroup(code: string): Promise<void> {
+    await this.buddyCall('join_buddy_group', { code });
+    saveBuddyFlag(this.session!.user.id, true);
+  }
+
+  async leaveBuddyGroup(): Promise<void> {
+    await this.buddyCall('leave_buddy_group', {});
+    saveBuddyFlag(this.session!.user.id, false);
+  }
+
+  removeBuddy(buddy: string): Promise<void> {
+    return this.buddyCall('remove_buddy', { buddy });
+  }
+
+  newBuddyInvite(): Promise<void> {
+    return this.buddyCall('new_buddy_invite', {});
+  }
+
+  cheerBuddy(buddy: string, week: string): Promise<void> {
+    return this.buddyCall('cheer_buddy', { buddy, week });
+  }
+
+  /** Updates the numbers buddies see; only while in a group (the database refuses it otherwise). */
+  async publishBuddyStats(stats: BuddyStats): Promise<void> {
+    if (!this.inBuddyGroup) return;
+    const client = this.requireSignedIn();
+    const { error } = await client.from('buddy_stats').upsert({ user_id: this.session!.user.id, ...stats });
+    if (error) throw error;
+  }
+
+  /** Runs a buddy function; its own errors (e.g. "group_full") come back as `{ code }`. */
+  private async buddyCall(fn: string, args: Record<string, string>): Promise<void> {
+    const client = this.requireSignedIn();
+    const { error } = await client.rpc(fn, args);
+    if (error) throw error.code === 'P0001' ? Object.assign(new Error(error.message), { code: `buddy:${error.message}` }) : error;
   }
 
   /** Signs out on this device. Practice data stays here. */
@@ -290,6 +361,7 @@ export class Account {
         this.recovery = false;
         clearSyncState();
         clearUsername();
+        clearBuddyFlag();
       }
       if (!ready) return;
       this.emit();
@@ -413,6 +485,31 @@ function saveUsername(user: string, username: string | null): void {
 function clearUsername(): void {
   try {
     localStorage.removeItem(PROFILE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function loadBuddyFlag(user: string): boolean {
+  try {
+    return localStorage.getItem(BUDDY_KEY) === user;
+  } catch {
+    return false;
+  }
+}
+
+function saveBuddyFlag(user: string, inGroup: boolean): void {
+  try {
+    if (inGroup) localStorage.setItem(BUDDY_KEY, user);
+    else localStorage.removeItem(BUDDY_KEY);
+  } catch {
+    // checked again the next time the buddies card loads
+  }
+}
+
+function clearBuddyFlag(): void {
+  try {
+    localStorage.removeItem(BUDDY_KEY);
   } catch {
     // ignore
   }
