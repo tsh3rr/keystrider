@@ -743,6 +743,24 @@ a.brand { color: inherit; text-decoration: none; }
 .legal li { margin-bottom: 6px; }
 .legal-note, .legal-updated { color: var(--muted); font-size: 0.88rem; }
 .legal-updated { margin-top: 32px; }
+.ob-layout { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.ob-layout-head { display: grid; gap: 2px; }
+.ob-layout-name { font-size: 1.1rem; }
+.ob-question { margin: 0; font-size: 0.95rem; }
+.ob-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ob-find { padding-top: 12px; border-top: 1px solid var(--border); }
+.ob-find .ob-check { background: var(--panel); }
+.ob-list { font-size: 0.9rem; }
+.ob-list summary { cursor: pointer; color: var(--muted); width: fit-content; }
+.ob-list summary:hover { color: var(--fg); }
+.ob-list[open] summary { margin-bottom: 8px; }
+.ob-list .ob-select { width: 100%; }
+.ob-card { grid-template-columns: minmax(0, 1fr); }
+.ob-layout .ob-kb { font-size: 0.66rem; max-width: 100%; overflow-x: auto; }
+.ob-layout .ob-kb .kb-key { font-size: 0.8rem; width: 2.25em; height: 2.25em; }
+/* The placement result: numbers and the summary centred under the heading. */
+.ob-nums .rc-tile { justify-items: center; text-align: center; }
+.ob-result { text-align: center; text-wrap: balance; }
 
 /* --- Keycaps: a bottom edge, and a 1px press on :active --- */
 button.primary, .rc-go, .rc-enter, kbd, .kb-key { box-shadow: var(--key-edge); }
