@@ -1,9 +1,13 @@
 import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
-  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, streak, weakest, weeklyTotals,
-  type PeriodTotals, type SessionSummary, type Streak, type WeekTotals,
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, startOfWeek, weakest, weeklyTotals,
+  type PeriodTotals, type SessionSummary, type WeekTotals,
 } from './progress';
+import {
+  GOAL_DAY_CHOICES, GOAL_MINUTE_CHOICES, bestDrill, dailyActiveMs, goalStreak, weekDays,
+  type DayState, type GoalStreak, type WeeklyGoal,
+} from './goals';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import type { BigramStats, KeyStats, WeaknessModel } from './weakness';
 import type { CoachData, ProgressTarget } from './coachView';
@@ -257,19 +261,23 @@ function heatBin(errorRate: number | undefined): number {
   return HEAT_BINS.filter((edge) => errorRate >= edge).length;
 }
 
-function renderKeyboard(model: WeaknessModel): void {
+function renderKeyboard(model: WeaknessModel, mastered: ReadonlySet<string>): void {
   const heat = keyHeat(model);
+  // Physical keys whose character was mastered (lower case, as the curriculum names letters).
+  const masteredCodes = new Set(model.keys.filter((k) => k.code !== null && mastered.has(k.item)).map((k) => k.code!));
   const kb = el('div', 'kb');
   const keyEl = (code: string, label: string, cls = '') => {
     const h = heat.get(code);
     const bin = heatBin(h?.errorRate);
-    const k = el('div', `kb-key heat-${bin < 0 ? 'none' : bin} ${cls}`, label);
+    const star = masteredCodes.has(code);
+    const k = el('div', `kb-key heat-${bin < 0 ? 'none' : bin} ${cls}${star ? ' mastered' : ''}`, label);
     k.tabIndex = 0;
     const lines = () =>
       h
         ? [
           t('progress.keyTitle', { label }), t('progress.keyErrors', { pct: pct(h.errorRate) }),
           t('progress.keyTries', { n: num(h.attempts), chars: h.chars.map(showChars).join(' ') }),
+          ...(star ? [t('progress.keyMastered')] : []),
         ]
         : [t('progress.keyTitle', { label }), t('progress.keyNotTyped')];
     k.setAttribute('aria-label', lines().join(', '));
@@ -366,31 +374,64 @@ function renderWeakTable(
 
 // --- Week by week ---
 
-function renderStreak(st: Streak): void {
+function renderStreak(st: GoalStreak, goal: WeeklyGoal): void {
   const big = $('week-streak');
   big.replaceChildren(num(st.current));
-  big.append(el('small', undefined, t('week.days', { n: st.current })));
+  big.append(el('small', undefined, t('week.weeks', { n: st.current })));
   const note = $('week-streak-note');
   note.className = 'pg-delta';
-  if (st.current > 0 && !st.today) {
-    note.textContent = t('week.keepGoing');
+  const missing = goal.days - st.daysThisWeek;
+  if (st.metThisWeek) {
+    note.textContent = t('week.goalMet');
+    note.classList.add('good');
+  } else if (st.current > 0 && missing <= st.daysLeft) {
+    note.textContent = t('week.toKeep', { n: missing });
     note.classList.add('good');
   } else {
-    note.textContent = t('week.best', { n: st.best });
+    // A missed week is not called out: the best run is shown instead.
+    note.textContent = t('week.bestWeeks', { n: st.best });
   }
 }
 
-function renderWeekDays(week: WeekTotals, now: number): void {
+function renderGoalPicker(goal: WeeklyGoal, st: GoalStreak, onGoal: (goal: WeeklyGoal) => void): void {
+  $('week-goal-count').textContent = t('week.goalCount', { n: st.daysThisWeek, goal: goal.days });
+  const fill = (select: HTMLSelectElement, choices: readonly number[], value: number, label: (n: number) => string) => {
+    select.replaceChildren(...choices.map((n) => {
+      const o = el('option', undefined, label(n));
+      o.value = String(n);
+      o.selected = n === value;
+      return o;
+    }));
+  };
+  const days = $<HTMLSelectElement>('goal-days');
+  const minutes = $<HTMLSelectElement>('goal-minutes');
+  fill(days, GOAL_DAY_CHOICES, goal.days, (n) => t('goal.days', { n }));
+  fill(minutes, GOAL_MINUTE_CHOICES, goal.minutes, (n) => t('goal.minutes', { n }));
+  const change = () => onGoal({ days: Number(days.value), minutes: Number(minutes.value) });
+  days.onchange = change;
+  minutes.onchange = change;
+}
+
+function renderBest(best: SessionSummary | null): void {
+  const big = $('week-best');
+  big.replaceChildren(best ? num(best.wpm) : '–');
+  if (best) big.append(el('small', undefined, t('now.wpm')));
+  $('week-best-note').textContent = best ? fmtDate(best.start) : t('week.bestNone');
+}
+
+function renderWeekDays(days: readonly DayState[], weekStart: number, now: number): void {
   const fmt = new Intl.DateTimeFormat(uiLanguage(), { weekday: 'narrow' });
   const long = new Intl.DateTimeFormat(uiLanguage(), { weekday: 'long' });
-  const todayIdx = Math.round((startOfDay(now) - week.start) / DAY_MS);
+  const todayIdx = Math.round((startOfDay(now) - weekStart) / DAY_MS);
   $('week-days').replaceChildren(
-    ...week.activeDays.map((active, i) => {
-      const day = new Date(week.start);
+    ...days.map((state, i) => {
+      const day = new Date(weekStart);
       day.setDate(day.getDate() + i);
-      const li = el('li', [active ? 'on' : '', i === todayIdx ? 'today' : '', i > todayIdx ? 'future' : ''].join(' ').trim());
+      const cls = state === 'met' ? 'on' : state === 'part' ? 'part' : '';
+      const li = el('li', [cls, i === todayIdx ? 'today' : '', i > todayIdx ? 'future' : ''].join(' ').trim());
       li.append(el('i'), el('span', undefined, fmt.format(day)));
-      li.title = `${long.format(day)}: ${active ? t('week.practised') : t('week.notPractised')}`;
+      const what = state === 'met' ? t('week.goalDay') : state === 'part' ? t('week.practised') : t('week.notPractised');
+      li.title = `${long.format(day)}: ${what}`;
       li.setAttribute('aria-label', li.title);
       return li;
     }),
@@ -446,10 +487,17 @@ function weekChart(host: HTMLElement, weeks: readonly WeekTotals[]): void {
   host.replaceChildren(root);
 }
 
-/** The streak counts practice in any language; speeds are for the current language and layout only. */
-function renderWeeks(weeks: readonly WeekTotals[], allSessions: readonly SessionSummary[], now: number): void {
-  renderStreak(streak(allSessions, now));
-  renderWeekDays(weeks[weeks.length - 1], now);
+/** The goal and streak count practice in any language; speeds are for the current language and layout only. */
+function renderWeeks(
+  weeks: readonly WeekTotals[], sessions: readonly SessionSummary[], allSessions: readonly SessionSummary[],
+  goal: WeeklyGoal, onGoal: (goal: WeeklyGoal) => void, now: number,
+): void {
+  const daily = dailyActiveMs(allSessions);
+  const st = goalStreak(daily, goal, now);
+  renderStreak(st, goal);
+  renderGoalPicker(goal, st, onGoal);
+  renderWeekDays(weekDays(daily, goal, startOfWeek(now)), startOfWeek(now), now);
+  renderBest(bestDrill(sessions));
   weekChart($('week-chart'), weeks);
   const [prev, cur] = weeks.slice(-2);
   const speed = $('week-speed');
@@ -497,13 +545,18 @@ export interface ProgressOptions {
   contextName: string;
   /** The coach's path summary, when practice has loaded one. */
   path?: CoachData['path'] | null;
+  /** The weekly goal, and what to do when the learner changes it on the card. */
+  goal: WeeklyGoal;
+  onGoal: (goal: WeeklyGoal) => void;
+  /** Steps mastered in this language and layout, marked on the keyboard. */
+  mastered?: ReadonlySet<string>;
   now?: number;
 }
 
 export async function renderProgress(
   store: { forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]>; all(): Promise<KeystrokeEvent[]> },
   context: PracticeContext,
-  { range, contextName, path = null, now = Date.now() }: ProgressOptions,
+  { range, contextName, path = null, goal, onGoal, mastered = new Set(), now = Date.now() }: ProgressOptions,
 ): Promise<void> {
   const events = await store.forLanguage(context.language, context.layout);
   $('progress-context').textContent = contextName;
@@ -520,7 +573,7 @@ export async function renderProgress(
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
   renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 0 : range);
   const everywhere = sessionSummaries(await store.all());
-  renderWeeks(weeklyTotals(all, { weeks: WEEKS, now }), everywhere, now);
+  renderWeeks(weeklyTotals(all, { weeks: WEEKS, now }), all, everywhere, goal, onGoal, now);
   renderPath(path);
   $('progress-speed').hidden = sessions.length === 0;
   $('progress-no-sessions').hidden = sessions.length > 0;
@@ -528,7 +581,7 @@ export async function renderProgress(
 
   const models = dailyModels(events, context, { days: TREND_DAYS, now });
   const model = models[models.length - 1];
-  renderKeyboard(model);
+  renderKeyboard(model, mastered);
   renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, t('progress.emptyKeys'));
   renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, t('progress.emptyPairs'));
 }

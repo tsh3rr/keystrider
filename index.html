@@ -80,6 +80,10 @@
     <main>
       <section id="onboarding-view" class="onboarding-view" aria-label="Setup" data-i18n-aria-label="onboarding.aria" hidden></section>
       <section id="practice-view">
+        <div id="fresh-start" class="fresh-start" role="status" hidden>
+          <span id="fresh-start-text"></span>
+          <button id="fresh-start-close" class="icon-btn" aria-label="Close" data-i18n-aria-label="restart.close">✕</button>
+        </div>
         <div id="layout-suggest" class="layout-suggest" hidden>
           <span id="layout-suggest-text"></span>
           <button id="layout-suggest-yes" data-i18n="layout.suggestYes">Switch</button>
@@ -151,9 +155,19 @@
                 <div id="week-speed" class="pg-big"></div>
                 <div id="week-speed-note" class="pg-delta"></div>
               </div>
+              <div class="wk-streak">
+                <div class="pg-label" data-i18n="week.bestDrill">Personal best</div>
+                <div id="week-best" class="pg-big"></div>
+                <div id="week-best-note" class="pg-delta"></div>
+              </div>
               <div class="wk-days-wrap">
-                <div class="pg-label" data-i18n="week.thisWeek">This week</div>
+                <div class="pg-label"><span data-i18n="week.thisWeek">This week</span> · <span id="week-goal-count"></span></div>
                 <ol id="week-days" class="wk-days"></ol>
+                <div class="wk-goal">
+                  <span data-i18n="goal.label">Goal</span>
+                  <select id="goal-days" aria-label="Practice days a week" data-i18n-aria-label="goal.daysAria"></select>
+                  <select id="goal-minutes" aria-label="Minutes of typing a day" data-i18n-aria-label="goal.minutesAria"></select>
+                </div>
               </div>
             </div>
             <div id="week-chart" class="chart wk-chart"></div>
@@ -196,6 +210,7 @@
               <span data-i18n="progress.heat3"><i class="kb-key heat-3"></i>8–12%</span>
               <span data-i18n="progress.heat4"><i class="kb-key heat-4"></i>12% or more</span>
               <span data-i18n="progress.heatNone"><i class="kb-key heat-none"></i>not typed yet</span>
+              <span data-i18n="progress.heatMastered"><i class="kb-key heat-0 mastered"></i>mastered</span>
             </div>
           </section>
           <div id="progress-weak" class="pg-weak-grid">

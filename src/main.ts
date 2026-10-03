@@ -4,7 +4,7 @@ import { KeystrokeStore, toCsv } from './store';
 import { DEFAULT_LANGUAGE, availableLanguages, getCorpus, guessLanguage, loadCorpus } from './corpus';
 import { clearCurriculum, hasAnyCurriculum, loadCurriculum, saveCurriculum } from './curriculum-store';
 import {
-  CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, drillFeedback, drillResult, initialCurriculum, isNewSession, meetsBar, modelOptions, needsShift,
+  CAPITALS, DEFAULT_DRILL_PARAMS, afterDrill, blockingKeys, drillFeedback, drillResult, initialCurriculum, isNewSession, meetsBar, modelOptions, needsShift,
   nextDrill, nextKind, sentencesReady, tierTargetMs, tierWpm, unlockSteps,
   type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
 } from './drill';
@@ -16,7 +16,11 @@ import { FingerGuide } from './fingerGuide';
 import { DEFAULT_FATIGUE_PARAMS, FatigueTracker, type FatigueSignal } from './fatigue';
 import { learningPath, sessionPlan, type StageId } from './path';
 import { renderProgress, revealSection, type ProgressSection, type Range } from './progressView';
-import { weakest } from './progress';
+import { sessionSummaries, startOfWeek, weakest } from './progress';
+import {
+  dailyActiveMs, freshStart, goalNews, goalStreak, loadFreshSeen, loadGoal, loadMastered, newBest, newlyMastered,
+  saveFreshSeen, saveGoal, saveMastered, type FreshStart,
+} from './goals';
 import { CoachBar, type CoachData } from './coachView';
 import { renderResult, type Tone } from './resultCard';
 import { Onboarding } from './onboarding';
@@ -343,12 +347,14 @@ async function buildModel(state: CurriculumState): Promise<WeaknessModel> {
 function renderDrillBar(): void {
   if (!curriculum) return;
   const unlocked = new Set(curriculum.unlocked);
+  const mastered = masteredSteps();
   const frag = document.createDocumentFragment();
   for (const ch of unlockSteps(corpus(), context.layout)) {
     const span = document.createElement('span');
     span.textContent = keyCap(ch);
-    span.className = 'key' + (unlocked.has(ch) ? '' : ' locked') + (ch === curriculum.focusKey ? ' focus' : '');
-    span.title = t(ch === curriculum.focusKey ? 'keys.focus' : unlocked.has(ch) ? 'keys.unlocked' : 'keys.locked');
+    const star = unlocked.has(ch) && mastered.has(ch) && ch !== curriculum.focusKey;
+    span.className = 'key' + (unlocked.has(ch) ? '' : ' locked') + (ch === curriculum.focusKey ? ' focus' : '') + (star ? ' mastered' : '');
+    span.title = t(ch === curriculum.focusKey ? 'keys.focus' : star ? 'keys.mastered' : unlocked.has(ch) ? 'keys.unlocked' : 'keys.locked');
     frag.append(span);
   }
   drillKeysEl.replaceChildren(frag);
@@ -504,22 +510,87 @@ function changeTone(c: CurriculumChange): Tone {
 
 const itemLabel = (it: ItemChange) => (it.kind === 'key' ? keyCap(it.item) : showItem(it.item));
 
+// --- Milestones: goal reached, personal best, key mastered ---
+//
+// Feedback about the learner's own progress, added to the drill summary.
+// No points: each line says what was achieved (see goals.ts).
+
+interface Milestone { tone: Tone; text: () => string }
+
+/** Steps that meet the unlock bar in `m`. */
+const knownSteps = (m: WeaknessModel, state: CurriculumState) => {
+  const blocking = new Set(blockingKeys(m, state));
+  return state.unlocked.filter((k) => !blocking.has(k));
+};
+
+function masteredSteps(): Set<string> {
+  return loadMastered(context.language, context.layout) ?? new Set();
+}
+
+async function milestones(
+  before: WeaknessModel | null, after: WeaknessModel, state: CurriculumState, changes: CurriculumChange[], sessionId: string | undefined,
+): Promise<Milestone[]> {
+  const out: Milestone[] = [];
+  try {
+    const now = Date.now();
+    // The weekly goal counts every language; only this week's typing is needed to see it reached.
+    const week = sessionSummaries(await store.since(startOfWeek(now)));
+    const g = goalNews(dailyActiveMs(week.filter((x) => x.sessionId !== sessionId)), dailyActiveMs(week), goal, now);
+    if (g.weekMet) {
+      const streak = goalStreak(dailyActiveMs(sessionSummaries(await store.all())), goal, now).current;
+      out.push({ tone: 'win', text: () => t('goal.weekDone', { days: goal.days }) + ' ' + t('goal.streak', { n: streak }) });
+    } else if (g.dayMet) {
+      const st = goalStreak(dailyActiveMs(week), goal, now);
+      out.push({ tone: 'good', text: () => t('goal.dayDone', { min: goal.minutes, n: st.daysThisWeek, goal: goal.days }) });
+    }
+
+    if (sessionId) {
+      const best = newBest(sessionSummaries(await store.forLanguage(context.language, context.layout)), sessionId);
+      if (best) {
+        out.push({ tone: 'win', text: () => t('best.new', { wpm: Math.round(best.wpm), previous: Math.round(best.previous) }) });
+      }
+    }
+
+    // Keys meeting the bar for the first time. The first check only records (see newlyMastered).
+    let stored = loadMastered(context.language, context.layout);
+    if (!stored && before) stored = newlyMastered(knownSteps(before, state), null).all;
+    const { added, all } = newlyMastered(knownSteps(after, state), stored);
+    saveMastered(context.language, context.layout, all);
+    // The focus key already gets its own line.
+    const focusMet = new Set(changes.flatMap((c) => (c.type === 'focus-met' ? [c.key] : [])));
+    const shown = added.filter((k) => !focusMet.has(k));
+    if (shown.length) {
+      const keys = shown.slice(0, 8).map(keyCap).join(' ') + (shown.length > 8 ? ` +${shown.length - 8}` : '');
+      out.push({ tone: 'win', text: () => t('milestone.mastered', { n: shown.length, keys }) });
+    }
+  } catch (err) {
+    console.error('Failed to check milestones', err);
+  }
+  return out;
+}
+
 async function finishDrill(): Promise<void> {
   if (!drill || !curriculum) return;
   finishing = true;
   try {
     await Promise.all(pendingWrites);
     lastDrillAt = Date.now();
+    hideFreshStart();
     const result = drillResult(drillEvents);
     const finished = drill;
     const typed: RoundStep = roundStep ?? { kind: finished.kind, n: 0 };
     const errors = session.errors;
     const recovery = curriculum.recovery;
     // Kept so a switch of interface language can redraw the card in the new language.
-    const show = (changes: CurriculumChange[], improved: ItemChange[], slipped: ItemChange[], next: RoundStep | null) => {
+    const show = (
+      changes: CurriculumChange[], improved: ItemChange[], slipped: ItemChange[], next: RoundStep | null, extra: Milestone[] = [],
+    ) => {
       redrawResult = () => renderResult(resultEl, {
         drillName: stepName(typed), wpm: result.wpm, accuracy: result.accuracy, errors, paceWpm: finished.paceWpm,
-        recovery, news: changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
+        recovery, news: [
+          ...changes.map((c) => ({ tone: changeTone(c), text: describeChange(c) })),
+          ...extra.map((m) => ({ tone: m.tone, text: m.text() })),
+        ],
         improved: improved.map(itemLabel), slipped: slipped.map(itemLabel), next: next && stepName(next),
         nextKey: next?.kind === 'focus' && curriculum?.focusKey ? keyCap(curriculum.focusKey) : null,
       }, () => {
@@ -547,8 +618,9 @@ async function finishDrill(): Promise<void> {
     model = after;
 
     const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
+    const extra = await milestones(before, after, state, changes, drillEvents[0]?.sessionId);
     renderDrillBar();
-    show(changes, improved, slipped, roundStep);
+    show(changes, improved, slipped, roundStep, extra);
     account.push().catch((err) => console.error('Sync failed', err));
     maybeNudge(state.coreDrills);
   } finally {
@@ -918,6 +990,9 @@ $('clear-log').addEventListener('click', async () => {
 
 // --- Progress ---
 
+/** Practice days a week and minutes a day; per device, like the other settings. */
+let goal = loadGoal();
+
 const RANGE_KEY = 'typing-trainer.progressRange';
 let progressRange: Range = 30;
 try {
@@ -930,7 +1005,15 @@ try {
 async function showProgress(section?: ProgressSection): Promise<void> {
   try {
     const lang = availableLanguages().find((c) => c.language === context.language)?.name ?? context.language;
-    await renderProgress(store, context, { range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}`, path: coachPath });
+    await renderProgress(store, context, {
+      range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}`, path: coachPath,
+      goal, onGoal: (g) => {
+        goal = g;
+        saveGoal(g);
+        void showProgress();
+      },
+      mastered: masteredSteps(),
+    });
     if (section) revealSection(section);
   } catch (err) {
     console.error('Failed to render progress', err);
@@ -1163,6 +1246,7 @@ onUiLanguageChange(() => {
   accountView.render();
   profileView.render();
   if (!accountNudge.hidden) renderNudge();
+  renderFreshStart();
   if (!$('progress-view').hidden) void showProgress();
   if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
 });
@@ -1265,6 +1349,39 @@ document.addEventListener('visibilitychange', () => {
     Date.now() - (state.lastSync ?? 0) > RESYNC_MS) account.syncNow().catch((err) => console.error('Sync failed', err));
 });
 
+// --- Fresh start ---
+//
+// A new week, a new month or coming back after a break are natural moments
+// to begin again (the "fresh start effect"). One line on the practice page
+// says so, with the weekly goal; it never mentions a broken streak.
+
+const freshEl = $('fresh-start');
+let fresh: FreshStart | null = null;
+
+function renderFreshStart(): void {
+  if (!fresh) return;
+  $('fresh-start-text').textContent = t(`restart.${fresh}`) + ' ' + t('restart.goal', { n: goal.days, min: goal.minutes });
+}
+
+function hideFreshStart(): void {
+  freshEl.hidden = true;
+  fresh = null;
+}
+
+async function maybeFreshStart(): Promise<void> {
+  const pick = freshStart(await store.latest(), Date.now(), loadFreshSeen());
+  if (!pick) return;
+  saveFreshSeen(pick.id);
+  fresh = pick.reason;
+  renderFreshStart();
+  freshEl.hidden = false;
+}
+
+$('fresh-start-close').addEventListener('click', () => {
+  hideFreshStart();
+  inputEl.focus();
+});
+
 // Console access for ad-hoc inspection: `await typingLog.all()`
 declare global {
   interface Window {
@@ -1279,7 +1396,10 @@ Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).
   renderLanguage();
   // A browser that practised before the setup existed goes straight to practice.
   if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
-  else startDrill().catch((err) => console.error('Failed to start drill', err));
+  else {
+    startDrill().catch((err) => console.error('Failed to start drill', err));
+    maybeFreshStart().catch((err) => console.error('Failed to check for a fresh start', err));
+  }
   account.init().catch((err) => console.error('Account setup failed', err));
   detectFromBrowser()
     .then(backfillLegacyLog)

@@ -439,6 +439,12 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
   padding: 8px 12px; border: 1px solid var(--accent); border-radius: 10px; font-size: 0.9rem; background: var(--panel);
 }
 .layout-suggest span { margin-right: auto; }
+.fresh-start {
+  display: flex; gap: 8px; align-items: center;
+  padding: 8px 8px 8px 14px; border: 1px solid var(--accent); border-radius: 10px; font-size: 0.9rem;
+  background: var(--accent-soft); color: var(--fg);
+}
+.fresh-start span { margin-right: auto; }
 
 .drill-keys { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; font-size: 0.85rem; }
 .drill-keys .key {
@@ -447,6 +453,7 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 }
 .drill-keys .key.locked { color: var(--typed); border-style: dashed; }
 .drill-keys .key.focus { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.drill-keys .key.mastered { border-color: var(--accent); background: var(--accent-soft); }
 .drill-cue { margin: 0; padding: 8px 12px; border: 1px solid var(--error); border-radius: 10px; font-size: 0.9rem; text-align: center; }
 /* --- Drill results card: replaces the text and guide until Enter starts the next drill --- */
 .showing-result .text-wrap, .showing-result #drill-focus, .showing-result #type-hint, .showing-result .finger-guide, .showing-result .practice-foot { display: none; }
@@ -646,6 +653,9 @@ tr.wrong td { color: var(--error); }
 .wk-days li { display: grid; justify-items: center; gap: 4px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .wk-days li i { display: block; width: 22px; height: 22px; border-radius: 6px; background: var(--surface-2); }
 .wk-days li.on i { background: var(--accent); }
+.wk-days li.part i { background: linear-gradient(to top, var(--accent) 45%, var(--surface-2) 45%); }
+.wk-goal { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+.wk-goal select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 2px 4px; }
 .wk-days li.today i { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--focus); }
 .wk-days li.today span { color: var(--fg); font-weight: 700; }
 .wk-days li.future i { background: transparent; border: 1px dashed var(--border); }
@@ -705,6 +715,11 @@ tr.wrong td { color: var(--error); }
 .heat-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 0.8rem; color: var(--muted); }
 .heat-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .heat-legend .kb-key { width: 14px; height: 14px; }
+.kb-key.mastered { position: relative; }
+.kb-key.mastered::after {
+  content: '★'; position: absolute; top: 1px; right: 2px; font-size: 0.6em; line-height: 1; color: var(--accent);
+}
+.heat-legend .kb-key.mastered::after { top: 50%; left: 50%; right: auto; transform: translate(-50%, -50%); font-size: 10px; }
 
 .pg-weak-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .pg-weak-grid .pg-card { overflow-x: auto; }
