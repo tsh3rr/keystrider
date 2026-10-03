@@ -1,7 +1,8 @@
 import { num, pct as fmtPct, t, uiLanguage, type MessageKey } from './i18n';
 import { ROWS, keyLabel } from './layouts';
 import {
-  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfDay, startOfWeek, weakest, weeklyTotals,
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, smoothedTrend, startOfDay, startOfWeek, weakest,
+  weeklyTotals, weeklyTrend,
   type PeriodTotals, type SessionSummary, type WeekTotals,
 } from './progress';
 import {
@@ -484,6 +485,12 @@ function weekChart(host: HTMLElement, weeks: readonly WeekTotals[]): void {
     tipOnHover(g, lines);
     root.append(g);
   });
+  const trend = smoothedTrend(weeks);
+  if (trend.length > 0) {
+    const points = trend.map(([i, v]) => `${m.l + slot * (i + 0.5)},${m.t + ih - (v / max) * ih}`).join(' ');
+    // Drawn above the columns but never catches the pointer, so tooltips still work.
+    root.append(svg('polyline', { points, class: 'wk-trend' }));
+  }
   host.replaceChildren(root);
 }
 
@@ -512,7 +519,11 @@ function renderWeeks(
   } else {
     note.textContent = cur.wpm === null ? t('week.noPractice') : '\u00a0';
   }
-  $('week-caption').textContent = t('week.caption');
+  const trend = weeklyTrend(weeks);
+  const trendText = trend
+    ? `${t('week.trend', { arrow: trend.slope >= 0 ? '▲' : '▼', d: t('progress.wpm', { n: num(Math.abs(trend.slope), 1) }) })} `
+    : '';
+  $('week-caption').textContent = trendText + t('week.caption');
 }
 
 // --- Path ---

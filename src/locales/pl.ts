@@ -366,6 +366,7 @@ export const pl: Messages = {
   'week.range': '{from} – {to}',
   'week.noPractice': 'Brak ćwiczeń w tym tygodniu',
   'week.tipTime': { one: '{time} w {n} dzień', few: '{time} w {n} dni', many: '{time} w {n} dni', other: '{time} w {n} dnia' },
+  'week.trend': 'Trend: średnio {arrow} {d} na tydzień.',
   'week.caption': 'Prędkości dla tego języka i układu. Tydzień liczy się do serii, gdy osiągniesz cel; liczą się ćwiczenia w każdym języku.',
   'week.vsLast': '{arrow} {d} względem zeszłego tygodnia',
   'week.weeks': { one: 'tydzień', few: 'tygodnie', many: 'tygodni', other: 'tygodnia' },

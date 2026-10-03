@@ -241,3 +241,38 @@ export function weeklyTotals(sessions: readonly SessionSummary[], { weeks = 8, n
   }
   return out;
 }
+
+/**
+ * Least-squares line through the weekly speeds, as WPM at week index `i`
+ * = `intercept + slope * i`. Null with fewer than three weeks of practice:
+ * two points always make a "trend".
+ */
+export function weeklyTrend(weeks: readonly { wpm: number | null }[]): { slope: number; intercept: number } | null {
+  const pts = weeks.flatMap((w, i) => (w.wpm === null ? [] : [[i, w.wpm] as const]));
+  if (pts.length < 3) return null;
+  const mx = pts.reduce((s, [x]) => s + x, 0) / pts.length;
+  const my = pts.reduce((s, [, y]) => s + y, 0) / pts.length;
+  const sxx = pts.reduce((s, [x]) => s + (x - mx) ** 2, 0);
+  const slope = pts.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / sxx;
+  return { slope, intercept: my - slope * mx };
+}
+
+/**
+ * The weekly speeds smoothed with 1-2-1 weights over each practised week and
+ * its practised neighbours, as [week index, WPM] points. A lasting jump bends
+ * the line; a single odd week only nudges it. Empty with fewer than three
+ * practised weeks, like `weeklyTrend`.
+ */
+export function smoothedTrend(weeks: readonly { wpm: number | null }[]): [number, number][] {
+  const pts = weeks.flatMap((w, i) => (w.wpm === null ? [] : [[i, w.wpm] as const]));
+  if (pts.length < 3) return [];
+  return pts.map(([i, y], k) => {
+    const prev = pts[k - 1];
+    const next = pts[k + 1];
+    let sum = 2 * y;
+    let weight = 2;
+    if (prev) { sum += prev[1]; weight += 1; }
+    if (next) { sum += next[1]; weight += 1; }
+    return [i, sum / weight];
+  });
+}

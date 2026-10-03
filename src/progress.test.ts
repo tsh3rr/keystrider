@@ -3,7 +3,7 @@ import { TypingSession } from './session';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { buildWeaknessModel } from './weakness';
 import {
-  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfWeek, streak, weakest, weeklyTotals,
+  dailyModels, errorRateTrend, keyHeat, periodTotals, sessionSummaries, startOfWeek, streak, weakest, weeklyTotals, weeklyTrend, smoothedTrend,
   type SessionSummary,
 } from './progress';
 
@@ -137,5 +137,29 @@ describe('week by week', () => {
     expect(weeks[2].sessions).toBe(3);
     expect(weeks[2].activeDays).toEqual([true, false, true, false, false, false, false]);
     expect(weeks[2].wpm).toBeCloseTo((40 * 300 + 30 * 200) / 500, 5);
+  });
+});
+
+describe('weeklyTrend', () => {
+  it('fits a line through practised weeks only', () => {
+    const tr = weeklyTrend([{ wpm: 20 }, { wpm: null }, { wpm: 24 }, { wpm: 26 }]);
+    expect(tr!.slope).toBeCloseTo(2, 5);
+    expect(tr!.intercept).toBeCloseTo(20, 5);
+  });
+
+  it('needs three practised weeks', () => {
+    expect(weeklyTrend([{ wpm: 20 }, { wpm: null }, { wpm: 24 }])).toBeNull();
+  });
+});
+
+describe('smoothedTrend', () => {
+  it('bends at a lasting jump and skips weeks without practice', () => {
+    const line = smoothedTrend([{ wpm: 20 }, { wpm: 20 }, { wpm: null }, { wpm: 40 }, { wpm: 40 }]);
+    expect(line.map(([i]) => i)).toEqual([0, 1, 3, 4]);
+    expect(line.map(([, v]) => v)).toEqual([20, 25, 35, 40]);
+  });
+
+  it('needs three practised weeks', () => {
+    expect(smoothedTrend([{ wpm: 20 }, { wpm: 24 }])).toEqual([]);
   });
 });

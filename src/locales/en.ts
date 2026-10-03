@@ -368,6 +368,7 @@ export const en = {
   'week.range': '{from} – {to}',
   'week.noPractice': 'No practice this week',
   'week.tipTime': { one: '{time} on {n} day', other: '{time} on {n} days' },
+  'week.trend': 'Trend: {arrow} {d} per week on average.',
   'week.caption': 'Speeds are for this language and layout. A week adds to the streak when you reach your goal; practice in any language counts.',
   'week.vsLast': '{arrow} {d} vs last week',
   'week.weeks': { one: 'week', other: 'weeks' },
