@@ -111,16 +111,16 @@ export class FingerGuide {
     this.moved = [];
     this.root.classList.toggle('fg-faded', !revealed && ch !== undefined);
     if (ch === undefined) {
-      this.captionEl.textContent = '';
+      this.setCaption();
       return;
     }
     if (!revealed) {
-      this.captionEl.textContent = t('guide.fromMemory');
+      this.setCaption(t('guide.fromMemory'));
       return;
     }
     const g = guideFor(this.layout, ch);
     if (!g) {
-      this.captionEl.textContent = t('guide.noHint', { ch });
+      this.setCaption(t('guide.noHint', { ch }));
       return;
     }
     const light = (code: string | null, cls: string) => {
@@ -147,7 +147,14 @@ export class FingerGuide {
     let rest = '';
     if (g.home) rest += t('guide.reach', { home: keyLabel(this.layout, g.home) });
     if (g.shift) rest += t(g.shift === 'ShiftLeft' ? 'guide.holdShift.left' : 'guide.holdShift.right');
-    this.captionEl.replaceChildren(...tNodes('guide.caption', { keys: el('kbd', 'fg-cap-key', keys), finger }), el('span', 'fg-reach', rest + '.'));
+    this.setCaption(...tNodes('guide.caption', { keys: el('kbd', 'fg-cap-key', keys), finger }), el('span', 'fg-reach', rest + '.'));
+  }
+
+  /** The caption box keeps its height; the text inside is centred in it. */
+  private setCaption(...parts: (Node | string)[]): void {
+    const inner = el('span', 'fg-caption-text');
+    inner.append(...parts);
+    this.captionEl.replaceChildren(inner);
   }
 
   /** Lights up the guide for the character it is currently dimmed on. */

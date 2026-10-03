@@ -145,8 +145,32 @@ function renderText(): void {
     frag.append(span);
   });
   textEl.replaceChildren(frag);
+  if (centredText !== session.text) centreText();
   updateFingerGuide();
 }
+
+/**
+ * Lines stay left-aligned, but the block shifts so the longest line sits in
+ * the middle; otherwise the empty space after short lines makes it look off-centre.
+ */
+let centredText = '';
+function centreText(): void {
+  centredText = session.text;
+  textEl.style.transform = '';
+  const box = textEl.getBoundingClientRect();
+  let left = Infinity;
+  let right = -Infinity;
+  for (const span of textEl.children) {
+    if (span.classList.contains('sp')) continue;
+    const r = span.getBoundingClientRect();
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+  }
+  if (!Number.isFinite(left) || box.width === 0) return;
+  const shift = (box.right - right - (left - box.left)) / 2;
+  if (shift > 1) textEl.style.transform = `translateX(${shift.toFixed(1)}px)`;
+}
+new ResizeObserver(() => centreText()).observe(textEl.parentElement ?? textEl);
 
 /** Live speed and accuracy for the coach bar's speed chip. */
 function nowData(): CoachData['now'] {
@@ -403,7 +427,8 @@ function renderCoach(): void {
   // Name the drill's target keys above the text; a finished drill's next targets are not known yet.
   const leans = session.done || kind === 'warmup' || kind === 'sentence'
     ? [] : drill.targets.filter((k) => [...k].length === 1).slice(0, 3);
-  drillFocusEl.hidden = leans.length === 0;
+  // Hidden but kept in the layout, so the text below does not jump between drills.
+  drillFocusEl.classList.toggle('is-empty', leans.length === 0);
   const keysEl = document.createElement('span');
   keysEl.className = 'focus-keys';
   for (const k of leans) keysEl.append(Object.assign(document.createElement('kbd'), { textContent: keyCap(k) }));
