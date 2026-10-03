@@ -1,9 +1,9 @@
 import { pct, t, tNodes } from './i18n';
 
 /**
- * The slim coach bar above the practice text: four chips (path, round, speed,
- * break check) that each show a one-line summary and open a bubble with only
- * their own details. Pure display; main.ts gathers the numbers.
+ * The status bar above the practice text: one pill split into four segments
+ * (path, round, speed, break check) that each show a one-line summary and open
+ * a bubble with only their own details. Pure display; main.ts gathers the numbers.
  */
 
 export type ChipId = 'path' | 'round' | 'now' | 'fresh';
@@ -150,21 +150,15 @@ export class CoachBar {
   private renderChips(): void {
     const d = this.data!;
     const path = this.chips.get('path')!.querySelector('#chip-path')!;
-    const meter = el('span', 'meter');
-    meter.append(el('i'));
-    (meter.firstChild as HTMLElement).style.width = width(d.path.total ? d.path.done / d.path.total : 1);
-    const parts: (Node | string)[] = [d.path.stage + ' '];
-    if (d.path.total > 1) parts.push(el('b', '', `${d.path.done}/${d.path.total}`));
-    parts.push(meter);
-    if (d.path.next) parts.push(...tNodes('chip.next', { key: el('b', '', d.path.next) }));
+    const parts: (Node | string)[] = [stairIcon(d.path.stages.findIndex((st) => st.state === 'current')), el('b', 'seg-name', d.path.stage)];
+    if (d.path.total > 1) parts.push(el('span', 'seg-num', `${d.path.done}/${d.path.total}`));
+    if (d.path.next) parts.push(...tNodes('chip.next', { key: el('kbd', '', d.path.next) }));
     path.replaceChildren(...parts);
 
     const round = this.chips.get('round')!.querySelector('#chip-round')!;
     const dots = el('span', 'dots');
     for (const s of d.round.steps) dots.append(el('i', s.state));
-    const keys = el('span', 'keys');
-    for (const f of d.round.focus.slice(0, 3)) keys.append(el('kbd', '', f));
-    round.replaceChildren(dots, d.round.focus.length ? keys : el('b', '', d.round.current));
+    round.replaceChildren(dots, el('span', 'seg-name', d.round.current));
 
     this.chipNow();
 
@@ -279,4 +273,26 @@ export class CoachBar {
     }
     this.pop.replaceChildren(sec);
   }
+}
+
+/** The path segment's icon: a three-step stair with the current stage's step in the focus colour. */
+function stairIcon(current: number): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'seg-stair');
+  svg.setAttribute('viewBox', '0 0 16 14');
+  svg.setAttribute('aria-hidden', 'true');
+  // Four stages share three steps: the last step stands for everything after Letters and Capitals.
+  const at = Math.min(Math.max(current, 0), 2);
+  [[0, 9, 5], [5.5, 5, 9], [11, 0, 14]].forEach(([x, y, h], i) => {
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', String(x));
+    r.setAttribute('y', String(y));
+    r.setAttribute('width', '4.5');
+    r.setAttribute('height', String(h));
+    r.setAttribute('rx', '1');
+    if (i === at) r.setAttribute('class', 'on');
+    svg.append(r);
+  });
+  return svg;
 }
