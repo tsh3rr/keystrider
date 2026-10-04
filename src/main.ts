@@ -56,7 +56,9 @@ const locales = navigator.languages?.length ? navigator.languages : [navigator.l
 
 // Interface language: the learner's pick, else the browser's language if we have it, else English.
 const savedUiLanguage = loadUiLanguageSetting();
-setUiLanguage(isUiLanguage(savedUiLanguage) ? savedUiLanguage : guessUiLanguage(locales));
+// Waits for the interface language before anything is drawn; English if it cannot be loaded.
+await setUiLanguage(isUiLanguage(savedUiLanguage) ? savedUiLanguage : guessUiLanguage(locales))
+  .catch((err) => console.error('Failed to load interface language', err));
 document.documentElement.lang = uiLanguage();
 applyTranslations();
 // Until a key is pressed or the browser reports the layout, guess from the browser language.
@@ -1236,7 +1238,8 @@ function renderUiLanguagePicker(): void {
     b.addEventListener('click', () => {
       uiChoice = l.id;
       saveUiLanguageSetting(l.id);
-      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(locales));
+      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(locales))
+        .catch((err) => console.error('Failed to load interface language', err));
       // The language may not change (e.g. Automatic picks the one already shown); the choice did.
       renderUiLanguagePicker();
     });

@@ -19,8 +19,8 @@ describe('i18n', () => {
     expect(t('result.done')).toBe('{name} done');
   });
 
-  it('switches language', () => {
-    setUiLanguage('de');
+  it('switches language', async () => {
+    await setUiLanguage('de');
     expect(t('nav.practice')).toBe('Üben');
     expect(t('plan.coreN', { n: 3 })).toBe('Übung 3');
   });
@@ -31,22 +31,29 @@ describe('i18n', () => {
     expect(t('fresh.ok', { n: 1, long: 40 })).toMatch(/^1 minute of/);
   });
 
-  it('formats numbers the way each language writes them', () => {
+  it('formats numbers the way each language writes them', async () => {
     expect(num(96.5, 1)).toBe('96.5');
     expect(pct(0.965, 1)).toBe('96.5%');
-    setUiLanguage('de');
+    await setUiLanguage('de');
     expect(num(96.5, 1)).toBe('96,5');
     expect(pct(0.92).replace(/\s/u, ' ')).toBe('92 %');
   });
 
-  it('splits around node placeholders, keeping word order', () => {
-    setUiLanguage('de');
+  it('splits around node placeholders, keeping word order', async () => {
+    await setUiLanguage('de');
     expect(tNodes('chip.usual', { wpm: '42' })).toEqual(['im Schnitt 42 WpM']);
   });
 
   it('only knows keys from the English source', () => {
     expect(tMaybe('layout.qwertz-de')).toBe('German QWERTZ');
     expect(tMaybe('layout.nope')).toBeUndefined();
+  });
+
+  it('keeps the language picked last when an earlier one finishes loading later', async () => {
+    const first = setUiLanguage('fr');
+    await setUiLanguage('de');
+    await first;
+    expect(t('nav.practice')).toBe('Üben');
   });
 
   it('guesses from the browser languages', () => {
@@ -64,8 +71,8 @@ describe('i18n', () => {
     }
   });
 
-  it('uses Polish few and many forms', () => {
-    setUiLanguage('pl');
+  it('uses Polish few and many forms', async () => {
+    await setUiLanguage('pl');
     expect(t('result.slips', { n: 1 })).toBe('pomyłka');
     expect(t('result.slips', { n: 3 })).toBe('pomyłki');
     expect(t('result.slips', { n: 5 })).toBe('pomyłek');

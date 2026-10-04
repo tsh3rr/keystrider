@@ -1,9 +1,4 @@
 import { en, type Message } from './locales/en';
-import { de } from './locales/de';
-import { es } from './locales/es';
-import { fr } from './locales/fr';
-import { it } from './locales/it';
-import { pl } from './locales/pl';
 
 /**
  * Interface text in the learner's language. Every string on screen comes from
@@ -21,14 +16,27 @@ import { pl } from './locales/pl';
  *
  * The interface language is separate from the practice language: you can
  * practise English with German menus.
+ *
+ * Only English ships with the app; the other languages are loaded when they
+ * are picked (`setUiLanguage` waits for that), so nobody downloads five sets
+ * of menus they never see.
  */
 
 export type MessageKey = keyof typeof en;
 export type Messages = Record<MessageKey, Message>;
 export type Params = Record<string, string | number>;
 
-const LOCALES = { en, de, fr, es, it, pl } satisfies Record<string, Messages>;
-export type UiLanguage = keyof typeof LOCALES;
+const LOADERS = {
+  en: async () => en,
+  de: async () => (await import('./locales/de')).de,
+  fr: async () => (await import('./locales/fr')).fr,
+  es: async () => (await import('./locales/es')).es,
+  it: async () => (await import('./locales/it')).it,
+  pl: async () => (await import('./locales/pl')).pl,
+} satisfies Record<string, () => Promise<Messages>>;
+export type UiLanguage = keyof typeof LOADERS;
+
+const loaded: Partial<Record<UiLanguage, Messages>> = { en };
 
 /** The interface languages, each named in its own language for the picker. */
 export const UI_LANGUAGES: readonly { id: UiLanguage; name: string }[] = [
@@ -46,7 +54,7 @@ const listeners = new Set<() => void>();
 export const uiLanguage = (): UiLanguage => current;
 
 export function isUiLanguage(id: string | null | undefined): id is UiLanguage {
-  return id != null && Object.hasOwn(LOCALES, id);
+  return id != null && Object.hasOwn(LOADERS, id);
 }
 
 /** The first browser language we have a translation for, else English. */
@@ -58,9 +66,17 @@ export function guessUiLanguage(locales: readonly string[]): UiLanguage {
   return 'en';
 }
 
-/** Switches the interface language and tells every listener to redraw. */
-export function setUiLanguage(lang: UiLanguage): void {
-  if (lang === current) return;
+let requested: UiLanguage = 'en';
+
+/**
+ * Switches the interface language, once its messages are loaded, and tells
+ * every listener to redraw. If another language is picked while this one is
+ * loading, the later choice wins. If loading fails, the language stays as it was.
+ */
+export async function setUiLanguage(lang: UiLanguage): Promise<void> {
+  requested = lang;
+  loaded[lang] ??= await LOADERS[lang]();
+  if (lang !== requested || lang === current) return;
   current = lang;
   if (typeof document !== 'undefined') document.documentElement.lang = lang;
   for (const fn of listeners) fn();
@@ -76,7 +92,7 @@ const pluralRules = new Map<string, Intl.PluralRules>();
 
 /** The message for `key` in the current language, with `{placeholders}` filled from `params`. */
 export function t(key: MessageKey, params: Params = {}): string {
-  let msg: Message = LOCALES[current][key] ?? en[key];
+  let msg: Message = loaded[current]?.[key] ?? en[key];
   if (typeof msg !== 'string') {
     const n = Number(params.n ?? 0);
     let rules = pluralRules.get(current);
