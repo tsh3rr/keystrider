@@ -394,6 +394,8 @@ export const de: Messages = {
   'restart.month': 'Ein neuer Monat: ein guter Moment für einen Neustart.',
   'restart.week': 'Neue Woche, neuer Start.',
   'restart.goal': { one: 'Dein Ziel: {n} Tag pro Woche, {min} Min. pro Tag.', other: 'Dein Ziel: {n} Tage pro Woche, {min} Min. pro Tag.' },
+  'phone.note': 'Keystrider ist für eine echte Tastatur gemacht und nicht fürs Handy optimiert. Du kannst es hier aber trotzdem gern benutzen.',
+  'phone.ok': 'Verstanden',
   'restart.close': 'Schließen',
   // --- Practice plan (src/progressView.ts) ---
   'schedule.title': 'Übungsplan',
