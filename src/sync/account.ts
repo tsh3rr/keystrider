@@ -90,9 +90,9 @@ export class Account {
   }
 
   /** Sends a one-time code (and a sign-in link) to `email`. */
-  async sendCode(email: string): Promise<void> {
+  async sendCode(email: string, captchaToken?: string): Promise<void> {
     const client = await this.connect();
-    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: here() } });
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: here(), captchaToken } });
     if (error) throw error;
   }
 
@@ -108,9 +108,9 @@ export class Account {
     if (error) throw error;
   }
 
-  async signInWithPassword(email: string, password: string): Promise<void> {
+  async signInWithPassword(email: string, password: string, captchaToken?: string): Promise<void> {
     const client = await this.connect();
-    const { error } = await client.auth.signInWithPassword({ email, password });
+    const { error } = await client.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) throw error;
   }
 
@@ -119,12 +119,12 @@ export class Account {
    * in the same step, see the usernames migrations). Returns false when it
    * still has to be confirmed by e-mail. Throws `{ code: 'username_taken' }`.
    */
-  async signUp(email: string, password: string, username: string): Promise<boolean> {
+  async signUp(email: string, password: string, username: string, captchaToken?: string): Promise<boolean> {
     const client = await this.connect();
     const { data: free, error: checkError } = await client.rpc('username_available', { name: username });
     if (checkError) throw checkError;
     if (free === false) throw usernameTaken();
-    const { data, error } = await client.auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: here() } });
+    const { data, error } = await client.auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: here(), captchaToken } });
     if (error) throw error;
     if (data.user) saveUsername(data.user.id, username);
     this.emit();
@@ -132,9 +132,9 @@ export class Account {
   }
 
   /** Sends a link to choose a new password (needs EMAIL_LINKS); the link signs in, then `setPassword`. */
-  async sendPasswordReset(email: string): Promise<void> {
+  async sendPasswordReset(email: string, captchaToken?: string): Promise<void> {
     const client = await this.connect();
-    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: here() });
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: here(), captchaToken });
     if (error) throw error;
   }
 

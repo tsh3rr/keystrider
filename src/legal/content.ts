@@ -6,7 +6,8 @@ import { LEGAL_UPDATED, OWNER } from './owner';
  * Written for a private, non-commercial site run from Austria: no ads, no
  * payment, no tracking. Practice data stays in the browser unless the
  * learner signs in to the optional account, which syncs it through Supabase
- * (EU, Frankfurt). Cloudflare delivers the files. If any of that changes
+ * (EU, Frankfurt). Cloudflare delivers the files and, once its site key is
+ * set, Turnstile guards e-mail sign-in (the paragraph appears with it). If any of that changes
  * (analytics, ads, a donation button, another processor such as a mail
  * service), these texts have to change first.
  *
@@ -22,6 +23,22 @@ const esc = (s: string) =>
 const name = esc(OWNER.name);
 const town = esc(OWNER.town);
 const mail = `<a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a>`;
+
+/** Whether e-mail sign-in is behind Cloudflare Turnstile (see src/sync/captcha.ts). */
+const CAPTCHA = __TURNSTILE_SITE_KEY__ !== '';
+
+const captcha = {
+  short: {
+    de: CAPTCHA ? ' Einzige Ausnahme: Beim Anmelden und Registrieren mit E-Mail prüft Cloudflare Turnstile, dass ein Mensch das Formular abschickt (siehe <em>Schutz vor automatisierten Anmeldungen</em>).' : '',
+    en: CAPTCHA ? ' The one exception: when you sign in or sign up with e-mail, Cloudflare Turnstile checks that a person is sending the form (see <em>Protection against automated sign-ups</em>).' : '',
+  },
+  section: {
+    de: CAPTCHA ? `
+    <p><strong>Schutz vor automatisierten Anmeldungen:</strong> Schickst du das Formular zum Anmelden, Registrieren, für einen Anmeldecode oder ein neues Passwort ab, prüft Cloudflare Turnstile (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA), ob ein Mensch es abschickt. Erst in diesem Moment lädt dein Browser ein Skript von Cloudflare. Es wertet technische Merkmale deines Browsers und Geräts sowie deine IP-Adresse aus; meist merkst du davon nichts, manchmal erscheint ein Kästchen zum Anklicken. Das Ergebnis, ein nur einmal gültiger Code, geht an Supabase, das ihn bei Cloudflare prüft. Laut Cloudflare werden diese Daten nicht für Werbung oder zum Wiedererkennen über Websites hinweg verwendet. Rechtsgrundlage ist unser berechtigtes Interesse, Konten und Datenbank vor Missbrauch durch automatisch angelegte Konten zu schützen (Art. 6 Abs. 1 lit. f DSGVO). Cloudflare ist nach dem EU-US Data Privacy Framework zertifiziert (Art. 45 DSGVO). Mehr dazu in der <a href="https://www.cloudflare.com/turnstile-privacy-policy/">Datenschutzerklärung zu Turnstile</a>. Mit Google angemeldet läuft diese Prüfung nicht.</p>` : '',
+    en: CAPTCHA ? `
+    <p><strong>Protection against automated sign-ups:</strong> when you send the form to sign in, sign up, get a sign-in code or a new password, Cloudflare Turnstile (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA) checks whether a person is sending it. Only at that moment does your browser load a script from Cloudflare. It looks at technical features of your browser and device and at your IP address; usually you notice nothing, sometimes a box to tick appears. The result, a code that is valid only once, goes to Supabase, which checks it with Cloudflare. According to Cloudflare, this data is not used for advertising or to recognise you across websites. The legal basis is our legitimate interest in protecting accounts and the database from abuse by automatically created accounts (Art. 6(1)(f) GDPR). Cloudflare is certified under the EU-US Data Privacy Framework (Art. 45 GDPR). See the <a href="https://www.cloudflare.com/turnstile-privacy-policy/">Turnstile privacy policy</a> for more. Signing in with Google does not use this check.</p>` : '',
+  },
+};
 
 /** Page chrome: titles, the back link and the language switch. */
 export const LEGAL_UI = {
@@ -76,7 +93,7 @@ const imprint: Record<LegalLanguage, string> = {
 const privacy: Record<LegalLanguage, string> = {
   de: `
     <h2>Kurz gesagt</h2>
-    <p>Keystrider braucht kein Konto und setzt keine Cookies. Es gibt keine Werbung, keine Analyse- oder Tracking-Dienste und keine eingebundenen Inhalte von Dritten, auch keine externen Schriftarten. Was du übst, bleibt in deinem Browser. Nur wenn du dich freiwillig anmeldest, um deinen Fortschritt zwischen Geräten abzugleichen, werden deine Übungsdaten auf einem Server in der EU gespeichert (siehe <em>Freiwilliges Konto</em>).</p>
+    <p>Keystrider braucht kein Konto und setzt keine Cookies. Es gibt keine Werbung, keine Analyse- oder Tracking-Dienste und keine eingebundenen Inhalte von Dritten, auch keine externen Schriftarten.${captcha.short.de} Was du übst, bleibt in deinem Browser. Nur wenn du dich freiwillig anmeldest, um deinen Fortschritt zwischen Geräten abzugleichen, werden deine Übungsdaten auf einem Server in der EU gespeichert (siehe <em>Freiwilliges Konto</em>).</p>
 
     <h2>Verantwortlicher</h2>
     <p>${name}<br>${town}, Österreich<br>${mail}</p>
@@ -102,7 +119,7 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Konto und Daten werden bei Supabase gespeichert (Supabase, Inc., USA), auf Servern in Frankfurt am Main (EU). Supabase verarbeitet die Daten als unser Auftragsverarbeiter auf Grundlage seines Auftragsverarbeitungsvertrags und verschickt auch E-Mails rund um dein Konto, etwa zum Zurücksetzen des Passworts. Soweit dabei ein Zugriff aus Ländern außerhalb der EU möglich ist, etwa durch Supabase selbst oder dessen Unterauftragsverarbeiter, ist er durch die EU-Standardvertragsklauseln abgesichert (Art. 46 Abs. 2 lit. c DSGVO). Mehr dazu in der <a href="https://supabase.com/privacy">Datenschutzerklärung von Supabase</a>.</p>
     <p>Wir speichern deine Daten, solange du dein Konto hast. Unter <em>Einstellungen → Konto → Konto löschen</em> löschst du dein Konto samt allen dort gespeicherten Übungsdaten sofort; die Daten auf deinem Gerät bleiben, bis du sie selbst löschst. Löschst du unter <em>Tastenprotokoll und Export</em> das Protokoll, während du angemeldet bist, wird es auch im Konto gelöscht. Anmeldeprotokolle löscht Supabase automatisch nach kurzer Zeit.</p>
     <p><strong>Trainingspartner (freiwillig):</strong> Mit Konto kannst du eine kleine Gruppe gründen (bis zu 8 Personen) und Freunde per Einladungslink dazuholen. Die Mitglieder einer Gruppe sehen gegenseitig ihren Benutzernamen, ihr Wochenziel, an wie vielen Tagen sie in der laufenden Woche geübt haben, ihre Serie in Wochen und die Anfeuerungen (👏) der Woche; die durchschnittliche Tippgeschwindigkeit nur, wenn das jeweilige Mitglied sie freigibt. Dafür speichern wir die Gruppe, wer dazugehört, diese Wochenzahlen und die Anfeuerungen. Wer den Einladungslink hat, sieht vor dem Beitritt den Benutzernamen der Person, die die Gruppe gegründet hat, und wie viele Mitglieder sie hat. Dein Tastenprotokoll und deine E-Mail-Adresse sehen andere nie. Rechtsgrundlage ist die Erfüllung des Nutzungsverhältnisses, weil du diese Funktion ausdrücklich nutzt (Art. 6 Abs. 1 lit. b DSGVO). Wenn du die Gruppe verlässt, daraus entfernt wirst oder dein Konto löschst, werden deine Wochenzahlen und Anfeuerungen in dieser Gruppe sofort gelöscht.</p>
-    <p><strong>Anmeldung mit Google:</strong> Wählst du „Weiter mit Google“, wirst du zu Google weitergeleitet (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland) und meldest dich dort an. Google teilt uns danach deine E-Mail-Adresse, deinen Namen und die Adresse deines Profilbilds mit; wir verwenden nur die E-Mail-Adresse und speichern die übrigen Angaben nur, weil Supabase sie mit der Anmeldung ablegt. Für die Anmeldung bei Google ist Google selbst verantwortlich, siehe <a href="https://policies.google.com/privacy?hl=de">Datenschutzerklärung von Google</a>. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
+    <p><strong>Anmeldung mit Google:</strong> Wählst du „Weiter mit Google“, wirst du zu Google weitergeleitet (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland) und meldest dich dort an. Google teilt uns danach deine E-Mail-Adresse, deinen Namen und die Adresse deines Profilbilds mit; wir verwenden nur die E-Mail-Adresse und speichern die übrigen Angaben nur, weil Supabase sie mit der Anmeldung ablegt. Für die Anmeldung bei Google ist Google selbst verantwortlich, siehe <a href="https://policies.google.com/privacy?hl=de">Datenschutzerklärung von Google</a>. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>${captcha.section.de}
 
     <h2>Hosting</h2>
     <p>Die Website wird über Cloudflare ausgeliefert (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA). Beim Aufruf verarbeitet Cloudflare technisch notwendige Daten, damit die Seite bei dir ankommt und vor Angriffen geschützt ist: deine IP-Adresse, Datum und Uhrzeit, die aufgerufene Adresse sowie Angaben deines Browsers wie Browsertyp und Betriebssystem. Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und funktionierenden Website (Art. 6 Abs. 1 lit. f DSGVO).</p>
@@ -118,7 +135,7 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Wenn Keystrider neue Funktionen bekommt, die Daten verarbeiten, oder einen weiteren Dienstleister einsetzt, passen wir diese Erklärung vorher an.</p>`,
   en: `
     <h2>In short</h2>
-    <p>Keystrider needs no account and sets no cookies. There are no ads, no analytics or tracking services and no embedded third-party content, not even external fonts. What you practise stays in your browser. Only if you choose to sign in, to keep your progress in sync between devices, is your practice data stored on a server in the EU (see <em>Optional account</em>).</p>
+    <p>Keystrider needs no account and sets no cookies. There are no ads, no analytics or tracking services and no embedded third-party content, not even external fonts.${captcha.short.en} What you practise stays in your browser. Only if you choose to sign in, to keep your progress in sync between devices, is your practice data stored on a server in the EU (see <em>Optional account</em>).</p>
 
     <h2>Controller</h2>
     <p>${name}<br>${town}, Austria<br>${mail}</p>
@@ -144,7 +161,7 @@ const privacy: Record<LegalLanguage, string> = {
     <p>Accounts and data are stored with Supabase (Supabase, Inc., USA), on servers in Frankfurt am Main (EU). Supabase processes the data as our processor under its data processing agreement and also sends e-mails about your account, such as for resetting your password. Where access from outside the EU is possible, for example by Supabase itself or its sub-processors, it is covered by the EU Standard Contractual Clauses (Art. 46(2)(c) GDPR). See <a href="https://supabase.com/privacy">Supabase's privacy policy</a> for more.</p>
     <p>We keep your data for as long as you have your account. Under <em>Settings → Account → Delete account</em> you delete your account and all practice data stored with it at once; the data on your device stays until you delete it yourself. If you clear the log under <em>Keystroke log and export</em> while signed in, it is deleted from your account too. Supabase deletes sign-in logs automatically after a short time.</p>
     <p><strong>Training buddies (optional):</strong> with an account you can start a small group (up to 8 people) and bring friends in with an invite link. Members of a group see each other's username, weekly goal, how many days they practised in the current week, their streak in weeks, and the week's cheers (👏); average typing speed only if that member chooses to share it. For this we store the group, who is in it, these weekly numbers and the cheers. Anyone with the invite link can see, before joining, the username of the person who started the group and how many members it has. Others never see your keystroke log or your e-mail address. The legal basis is performing the service, since you use this feature explicitly (Art. 6(1)(b) GDPR). When you leave the group, are removed from it or delete your account, your weekly numbers and cheers in that group are deleted at once.</p>
-    <p><strong>Signing in with Google:</strong> if you choose "Continue with Google", you are sent to Google (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland) to sign in there. Google then gives us your e-mail address, your name and the address of your profile picture; we only use the e-mail address and keep the rest only because Supabase stores it with the sign-in. Google is responsible for signing you in on its side, see <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The legal basis is Art. 6(1)(b) GDPR.</p>
+    <p><strong>Signing in with Google:</strong> if you choose "Continue with Google", you are sent to Google (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland) to sign in there. Google then gives us your e-mail address, your name and the address of your profile picture; we only use the e-mail address and keep the rest only because Supabase stores it with the sign-in. Google is responsible for signing you in on its side, see <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The legal basis is Art. 6(1)(b) GDPR.</p>${captcha.section.en}
 
     <h2>Hosting</h2>
     <p>The website is delivered through Cloudflare (Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA). When you open it, Cloudflare processes the technical data needed to get the page to you and to protect it from attacks: your IP address, the date and time, the address requested, and details your browser sends such as browser type and operating system. The legal basis is our legitimate interest in a secure, working website (Art. 6(1)(f) GDPR).</p>

@@ -120,6 +120,7 @@ export const de: Messages = {
   'account.privacy': 'Wie wir mit deinen Daten umgehen',
   'account.errorCode': 'Der Code ist falsch oder abgelaufen.',
   'account.errorRateLimit': 'Zu viele Versuche. Bitte warte ein paar Minuten und versuch es dann noch einmal.',
+  'account.errorCaptcha': 'Die Prüfung, dass du kein Bot bist, hat nicht geklappt. Bitte lade die Seite neu und versuch es noch einmal.',
   'account.errorOffline': 'Keine Verbindung zum Server. Prüf deine Internetverbindung.',
   'account.errorGeneric': 'Etwas ist schiefgegangen: {message}',
   'settings.openLog': 'Tastenprotokoll und Export',

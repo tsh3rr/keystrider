@@ -24,6 +24,7 @@ export function errorMessage(err: unknown): string {
     case 'otp_expired': return t('account.errorCode');
     case 'validation_failed': case 'email_address_invalid': return t('account.errorEmail');
     case 'username_taken': return t('account.usernameTaken');
+    case 'captcha_failed': return t('account.errorCaptcha');
     case 'over_email_send_rate_limit': case 'over_request_rate_limit': return t('account.errorRateLimit');
   }
   if (e?.status === 429) return t('account.errorRateLimit');

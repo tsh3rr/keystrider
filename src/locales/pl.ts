@@ -121,6 +121,7 @@ export const pl: Messages = {
   'account.privacy': 'Jak przetwarzamy Twoje dane',
   'account.errorCode': 'Kod jest nieprawidłowy lub wygasł.',
   'account.errorRateLimit': 'Zbyt wiele prób. Odczekaj kilka minut i spróbuj ponownie.',
+  'account.errorCaptcha': 'Sprawdzenie, czy nie jesteś botem, nie powiodło się. Odśwież stronę i spróbuj ponownie.',
   'account.errorOffline': 'Brak połączenia z serwerem. Sprawdź połączenie z internetem.',
   'account.errorGeneric': 'Coś poszło nie tak: {message}',
   'settings.openLog': 'Dziennik naciśnięć i eksport',

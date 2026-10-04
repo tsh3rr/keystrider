@@ -85,3 +85,26 @@ Der eingebaute Versand von Supabase schickt nur an Mitglieder deines Supabase-Te
 3. Supabase (Produktion) → **Authentication** → **Emails** → **SMTP Settings** → **Enable custom SMTP**: Host `smtp.resend.com`, Port `465`, User `resend`, Passwort = Resend-API-Key, Absender z. B. `login@deine-domain`.
 4. **Confirm email** (Schritt 3) wieder einschalten, Schritt 5 erledigen und in `src/sync/account.ts` `EMAIL_LINKS = true` setzen.
 5. Datenschutzerklärung (`src/legal/content.ts`) um Resend als Auftragsverarbeiter ergänzen, im selben PR.
+
+## 7. Sicherheit vor dem öffentlichen Start
+
+Einmal in **beiden** Projekten prüfen (die Datenbank selbst ist über `supabase/migrations/` abgesichert):
+
+- **Authentication** → **Sign In / Providers**: **Allow anonymous sign-ins** aus, **Minimum password length** `8` (Schritt 3). Die App verlangt 8 Zeichen, Supabase sonst nur 6, und wer die App umgeht, spricht direkt mit Supabase.
+- **Authentication** → **URL Configuration**: nur die Adressen aus Schritt 2, keine weiteren Platzhalter. Kommt eine eigene Domain dazu, die alte workers.dev-Adresse erst entfernen, wenn niemand sie mehr nutzt.
+- **Authentication** → **Rate Limits**: Standardwerte lassen (Anmelden und Registrieren 30 je 5 Minuten und IP-Adresse).
+- **Advisors** → **Security Advisor**: sollte keine Fehler (rot) zeigen. Warnungen zu `username_available` und `buddy_invite` sind gewollt, die dürfen auch Abgemeldete aufrufen.
+- **Project Settings** → **API Keys**: nur der *Publishable key* steht im Code. *Secret keys* und das Datenbank-Passwort nie in Code, Chat oder Screenshots; falls doch passiert: neu erzeugen.
+- **Organization** → **Billing**: *Spend cap* bleibt an, damit keine Überraschungsrechnung kommt.
+- Sobald es eigenen Mailversand gibt (Schritt 6): **Confirm email** einschalten. Bis dahin kann jemand ein Konto mit fremder E-Mail-Adresse anlegen, und meldet sich der echte Besitzer später mit Google an, kann Supabase ihn in dieses Konto führen.
+
+## 8. Captcha gegen Massen-Registrierungen (Cloudflare Turnstile)
+
+Anmelden, Registrieren, Anmeldecode und Passwort-Link mit E-Mail laufen dann über eine meist unsichtbare Prüfung. Google-Anmeldung ist nicht betroffen. Solange in `vite.config.ts` kein Site Key steht, ist alles aus. Die Reihenfolge ist wichtig, sonst kann sich niemand mehr mit E-Mail anmelden:
+
+1. Cloudflare-Dashboard → **Turnstile** → **Add widget**: Name `keystrider`, **Hostname** `jeremiasz-kapek.workers.dev` (deckt auch die Vorschau-Adressen ab), später zusätzlich deine Domain. Für lokale Tests zusätzlich `localhost`. **Widget Mode**: *Managed*. **Pre-clearance**: *No*. **Create**.
+2. Den **Site Key** in `vite.config.ts` bei `TURNSTILE` für `production` und `staging` eintragen (oder Claude schicken). Er ist öffentlich. Mergen und warten, bis Cloudflare neu gebaut hat. Erst dann erscheint auch der Turnstile-Absatz in der Datenschutzerklärung.
+3. Den **Secret Key** in Supabase eintragen, zuerst Staging, nach einem Test Produktion: Projekt → **Authentication** → **Attack Protection** → **Enable Captcha protection** an → Provider **Turnstile by Cloudflare** → Secret Key → **Save**. Der Secret Key ist geheim: nicht in Code, Chat oder Screenshots.
+4. Testen: abmelden, mit E-Mail und Passwort anmelden. Klappt es nicht, Schritt 3 wieder ausschalten.
+
+Die Sicherheits-Header der Seite (Content-Security-Policy usw.) stehen in `public/_headers`. Kommt ein neuer Dienst dazu (z. B. Analytics oder Captcha), muss er dort und in der Datenschutzerklärung ergänzt werden.

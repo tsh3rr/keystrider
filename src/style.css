@@ -332,6 +332,10 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 .account-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .account-provider { width: 100%; font-weight: 600; }
 .account .account-or { color: var(--muted); font-size: 0.8rem; }
+/* Turnstile's checkbox, only when it is unsure whether a person is signing in. */
+.account-captcha { display: flex; justify-content: center; margin-top: 8px; }
+.account-captcha:empty { display: none; }
+
 .account-input {
   width: 100%; min-width: 0; font: inherit; padding: 6px 10px; color: var(--fg);
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;

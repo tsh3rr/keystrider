@@ -1,5 +1,6 @@
 import { t, type MessageKey } from '../i18n';
 import { EMAIL_LINKS, OAUTH_PROVIDERS, type Account, type AccountState, type OAuthProvider } from './account';
+import { captchaEnabled, captchaToken } from './captcha';
 import {
   MIN_PASSWORD, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus,
   userIcon, usernameError, usernameField, usernameHint, type SignedIn,
@@ -26,6 +27,7 @@ export class AccountView {
   private state: AccountState = { signedIn: false };
   private step: SignedOutStep = { kind: 'signin' };
   private busy = false;
+  private readonly captchaHost = Object.assign(document.createElement('div'), { className: 'account-captcha' });
   private error = '';
   private notice = '';
   private email = '';
@@ -114,8 +116,8 @@ export class AccountView {
         const email = this.emailField();
         const password = this.passwordField('current-password');
         nodes.push(form([email, password], [
-          { label: t('account.signIn'), primary: true, go: () => this.run(() => this.account.signInWithPassword(email.value.trim(), password.value)) },
-        ]));
+          { label: t('account.signIn'), primary: true, go: () => this.run(async () => this.account.signInWithPassword(email.value.trim(), password.value, await this.captcha())) },
+        ]), ...this.captchaBox());
         if (EMAIL_LINKS) {
           nodes.push(button(t('account.useCode'), 'link-btn', () => this.go({ kind: 'code' })));
           nodes.push(button(t('account.forgot'), 'link-btn', () => this.go({ kind: 'reset' })));
@@ -134,21 +136,21 @@ export class AccountView {
           const problem = usernameError(name);
           if (problem) return this.fail(problem);
           void this.run(async () => {
-            const signedIn = await this.account.signUp(email.value.trim(), password.value, name);
+            const signedIn = await this.account.signUp(email.value.trim(), password.value, name, await this.captcha());
             if (!signedIn) {
               this.notice = t('account.confirmSent', { email: email.value.trim() });
               this.step = { kind: 'signin' };
             }
           });
-        } }]), usernameHint(), p(t('account.optional'), 'account-note'));
+        } }]), ...this.captchaBox(), usernameHint(), p(t('account.optional'), 'account-note'));
         break;
       }
       case 'code': {
         const email = this.emailField();
         nodes.push(form([email], [{ label: t('account.sendCode'), primary: true, go: () => this.run(async () => {
-          await this.account.sendCode(email.value.trim());
+          await this.account.sendCode(email.value.trim(), await this.captcha());
           this.step = { kind: 'code-sent', email: email.value.trim() };
-        }) }]));
+        }) }]), ...this.captchaBox());
         nodes.push(this.back());
         break;
       }
@@ -165,16 +167,27 @@ export class AccountView {
       case 'reset': {
         const email = this.emailField();
         nodes.push(form([email], [{ label: t('account.sendReset'), primary: true, go: () => this.run(async () => {
-          await this.account.sendPasswordReset(email.value.trim());
+          await this.account.sendPasswordReset(email.value.trim(), await this.captcha());
           this.step = { kind: 'signin' };
           this.notice = t('account.resetSent', { email: email.value.trim() });
-        }) }]));
+        }) }]), ...this.captchaBox());
         nodes.push(this.back());
         break;
       }
     }
     nodes.push(...this.errorLine(), privacyLink());
     return nodes;
+  }
+
+  /** Where Turnstile shows its checkbox if it needs one; nothing when the captcha is off. */
+  private captchaBox(): Node[] {
+    if (!captchaEnabled) return [];
+    this.captchaHost.replaceChildren();
+    return [this.captchaHost];
+  }
+
+  private captcha(): Promise<string | undefined> {
+    return captchaToken(this.captchaHost);
   }
 
   /** "Sign in | Create account" switch at the top of the signed-out panel. */
