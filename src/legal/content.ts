@@ -84,7 +84,7 @@ const privacy: Record<LegalLanguage, string> = {
     <h2>Daten in deinem Browser</h2>
     <p>Damit das Training funktioniert und dein Fortschritt erhalten bleibt, speichert Keystrider auf deinem Gerät im lokalen Speicher deines Browsers (localStorage und IndexedDB):</p>
     <ul>
-      <li><strong>Einstellungen:</strong> Tastaturlayout, Übungs- und Oberflächensprache, Farbschema, Hilfen beim Tippen, ob die Einrichtung abgeschlossen ist, dein Wochenziel.</li>
+      <li><strong>Einstellungen:</strong> Tastaturlayout, Übungs- und Oberflächensprache, Farbschema, Hilfen beim Tippen, ob die Einrichtung abgeschlossen ist und ob du einen Hinweis weggeklickt hast, dein Wochenziel.</li>
       <li><strong>Lernstand:</strong> welche Tasten freigeschaltet sind und welche du schon beherrschst, und wie weit du im Lernpfad bist, je Sprache und Layout.</li>
       <li><strong>Tastenprotokoll:</strong> für jeden Anschlag im Übungstext das erwartete und das getippte Zeichen, die Taste, die Zeit seit dem vorigen Anschlag, Datum und Uhrzeit sowie die Übungsrunde. Daraus berechnet Keystrider deine schwachen Tasten und die nächsten Übungen. Erfasst wird nur, was du in das Übungsfeld tippst.</li>
     </ul>
@@ -126,7 +126,7 @@ const privacy: Record<LegalLanguage, string> = {
     <h2>Data in your browser</h2>
     <p>So that training works and your progress is kept, Keystrider stores the following on your device, in your browser's local storage (localStorage and IndexedDB):</p>
     <ul>
-      <li><strong>Settings:</strong> keyboard layout, practice and interface language, colour theme, typing aids, whether setup is finished, and your weekly goal.</li>
+      <li><strong>Settings:</strong> keyboard layout, practice and interface language, colour theme, typing aids, whether setup is finished or a notice was dismissed, and your weekly goal.</li>
       <li><strong>Learning state:</strong> which keys are unlocked and which you have mastered, and how far along the learning path you are, per language and layout.</li>
       <li><strong>Keystroke log:</strong> for each keystroke in the practice text, the expected and the typed character, the key, the time since the previous keystroke, the date and time, and the practice round. Keystrider uses it to work out your weak keys and your next drills. Only what you type into the practice field is recorded.</li>
     </ul>
