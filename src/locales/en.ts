@@ -269,6 +269,13 @@ export const en = {
   'guide.noHint': 'No finger hint for {ch} yet.',
   'guide.home':
     'Home row: rest your fingers on {left} and {right}, thumbs on Space. Feel for the bumps on {f} and {j}, and return there after each key.',
+  'guide.legend.pinky': 'Pinky',
+  'guide.legend.ring': 'Ring',
+  'guide.legend.middle': 'Middle',
+  'guide.legend.index': 'Index',
+  'guide.legend.thumb': 'Thumb',
+  'guide.legend.next': 'Next key',
+  'guide.legend.locked': 'Locked',
   'guide.shiftKey': 'Shift',
   'guide.shift': 'Shift + {key}',
   'guide.shiftFor': 'Shift + {key} for {ch}',

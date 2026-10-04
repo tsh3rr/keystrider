@@ -266,6 +266,13 @@ export const fr: Messages = {
   'guide.noHint': 'Pas encore d’indication de doigt pour {ch}.',
   'guide.home':
     'Rangée de repos : pose tes doigts sur {left} et {right}, les pouces sur Espace. Repère les petites bosses sur {f} et {j} et reviens-y après chaque touche.',
+  'guide.legend.pinky': 'Auriculaire',
+  'guide.legend.ring': 'Annulaire',
+  'guide.legend.middle': 'Majeur',
+  'guide.legend.index': 'Index',
+  'guide.legend.thumb': 'Pouce',
+  'guide.legend.next': 'Touche suivante',
+  'guide.legend.locked': 'Verrouillée',
   'guide.shiftKey': 'Maj',
   'guide.shift': 'Maj + {key}',
   'guide.shiftFor': 'Maj + {key} pour {ch}',

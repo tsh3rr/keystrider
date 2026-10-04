@@ -267,6 +267,13 @@ export const pl: Messages = {
   'guide.noHint': 'Na razie brak podpowiedzi palca dla {ch}.',
   'guide.home':
     'Rząd podstawowy: połóż palce na {left} i {right}, kciuki na spacji. Wyczuj wypustki na {f} i {j} i wracaj tam po każdym klawiszu.',
+  'guide.legend.pinky': 'Mały palec',
+  'guide.legend.ring': 'Serdeczny',
+  'guide.legend.middle': 'Środkowy',
+  'guide.legend.index': 'Wskazujący',
+  'guide.legend.thumb': 'Kciuk',
+  'guide.legend.next': 'Następny klawisz',
+  'guide.legend.locked': 'Zablokowany',
   'guide.shiftKey': 'Shift',
   'guide.shift': 'Shift + {key}',
   'guide.shiftFor': 'Shift + {key} dla {ch}',

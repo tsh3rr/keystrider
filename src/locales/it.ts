@@ -264,6 +264,13 @@ export const it: Messages = {
   'guide.noHint': 'Ancora nessuna indicazione del dito per {ch}.',
   'guide.home':
     'Riga base: appoggia le dita su {left} e {right}, i pollici sulla barra spaziatrice. Cerca i rilievi su {f} e {j} e torna lì dopo ogni tasto.',
+  'guide.legend.pinky': 'Mignolo',
+  'guide.legend.ring': 'Anulare',
+  'guide.legend.middle': 'Medio',
+  'guide.legend.index': 'Indice',
+  'guide.legend.thumb': 'Pollice',
+  'guide.legend.next': 'Tasto successivo',
+  'guide.legend.locked': 'Bloccato',
   'guide.shiftKey': 'Maiusc',
   'guide.shift': 'Maiusc + {key}',
   'guide.shiftFor': 'Maiusc + {key} per {ch}',

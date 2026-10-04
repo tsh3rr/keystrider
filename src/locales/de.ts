@@ -263,6 +263,13 @@ export const de: Messages = {
   'guide.noHint': 'Für {ch} gibt es noch keinen Fingertipp.',
   'guide.home':
     'Grundstellung: Leg die Finger auf {left} und {right}, die Daumen auf die Leertaste. Ertaste die Rillen auf {f} und {j} und kehr nach jeder Taste dorthin zurück.',
+  'guide.legend.pinky': 'Kleiner Finger',
+  'guide.legend.ring': 'Ringfinger',
+  'guide.legend.middle': 'Mittelfinger',
+  'guide.legend.index': 'Zeigefinger',
+  'guide.legend.thumb': 'Daumen',
+  'guide.legend.next': 'Nächste Taste',
+  'guide.legend.locked': 'Gesperrt',
   'guide.shiftKey': '⇧',
   'guide.shift': 'Umschalt + {key}',
   'guide.shiftFor': 'Umschalt + {key} für {ch}',

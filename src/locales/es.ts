@@ -264,6 +264,13 @@ export const es: Messages = {
   'guide.noHint': 'Todavía no hay indicación de dedo para {ch}.',
   'guide.home':
     'Fila guía: apoya los dedos en {left} y {right}, los pulgares en Espacio. Busca los relieves de {f} y {j} y vuelve ahí después de cada tecla.',
+  'guide.legend.pinky': 'Meñique',
+  'guide.legend.ring': 'Anular',
+  'guide.legend.middle': 'Corazón',
+  'guide.legend.index': 'Índice',
+  'guide.legend.thumb': 'Pulgar',
+  'guide.legend.next': 'Tecla siguiente',
+  'guide.legend.locked': 'Bloqueada',
   'guide.shiftKey': 'Mayús',
   'guide.shift': 'Mayús + {key}',
   'guide.shiftFor': 'Mayús + {key} para {ch}',

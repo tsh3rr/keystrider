@@ -17,6 +17,7 @@ export class FingerGuide {
   private readonly keysEl: HTMLElement;
   private readonly captionEl: HTMLElement;
   private readonly homeEl: HTMLElement;
+  private readonly legendEl: HTMLElement;
   private layout = '';
   private keyEls = new Map<string, HTMLElement>();
   private lit: Element[] = [];
@@ -33,7 +34,9 @@ export class FingerGuide {
     this.keysEl = el('div', 'kb fg-kb');
     this.keysEl.setAttribute('aria-hidden', 'true');
     this.homeEl = el('p', 'fg-home');
-    root.replaceChildren(this.captionEl, this.keysEl, this.hands(), this.homeEl);
+    // What the key colours mean, so the tints are not the only cue.
+    this.legendEl = el('ul', 'fg-legend');
+    root.replaceChildren(this.captionEl, this.keysEl, this.legendEl, this.hands(), this.homeEl);
   }
 
   set hidden(v: boolean) {
@@ -71,6 +74,13 @@ export class FingerGuide {
 
     const [left, right] = [HOME_ROW.slice(0, 4), HOME_ROW.slice(4)].map((codes) => codes.map(label).join(' '));
     this.homeEl.textContent = t('guide.home', { left, right, f: label('KeyF'), j: label('KeyJ') });
+    this.legendEl.replaceChildren(
+      ...LEGEND.map(([cls, key]) => {
+        const item = el('li', `fg-legend-${cls}`);
+        item.append(el('i', `fg-swatch fg-${cls}`), t(key));
+        return item;
+      }),
+    );
     this.markLocked();
   }
 
@@ -91,10 +101,13 @@ export class FingerGuide {
       if (how.shift) shift = true;
       if (how.altGr) open.add('AltRight');
     }
+    let anyLocked = false;
     for (const [code, k] of this.keyEls) {
       const locked = chars !== null && !(code.startsWith('Shift') ? shift : open.has(code));
       k.classList.toggle('fg-locked', locked);
+      anyLocked ||= locked;
     }
+    this.legendEl.querySelector<HTMLElement>('.fg-legend-locked')?.toggleAttribute('hidden', !anyLocked);
   }
 
   /** Redraws the keyboard and caption in the current interface language. */
@@ -257,6 +270,17 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   if (text !== undefined) e.textContent = text;
   return e;
 }
+
+/** Legend entries: swatch class and label. */
+const LEGEND: [string, MessageKey][] = [
+  ['left-pinky', 'guide.legend.pinky'],
+  ['left-ring', 'guide.legend.ring'],
+  ['left-middle', 'guide.legend.middle'],
+  ['left-index', 'guide.legend.index'],
+  ['right-thumb', 'guide.legend.thumb'],
+  ['next', 'guide.legend.next'],
+  ['locked', 'guide.legend.locked'],
+];
 
 // Horizontal start of each row in key widths, matching the .kb-row offsets.
 const ROW_STAGGER = [0, 0.62, 0.73, 0.52];
