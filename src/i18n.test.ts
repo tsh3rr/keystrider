@@ -41,7 +41,7 @@ describe('i18n', () => {
 
   it('splits around node placeholders, keeping word order', () => {
     setUiLanguage('de');
-    expect(tNodes('chip.usual', { wpm: '42' })).toEqual(['sonst 42 WpM']);
+    expect(tNodes('chip.usual', { wpm: '42' })).toEqual(['im Schnitt 42 WpM']);
   });
 
   it('only knows keys from the English source', () => {
