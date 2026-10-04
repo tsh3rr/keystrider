@@ -244,7 +244,6 @@ export class Onboarding {
       const seg = el('div', 'segmented ob-seg');
       seg.setAttribute('role', 'radiogroup');
       seg.setAttribute('aria-label', T.language);
-      seg.style.gridTemplateColumns = `repeat(${langs.length}, 1fr)`;
       for (const c of langs) {
         const b = button('', '', () => {
           this.host.setLanguage(c.language)

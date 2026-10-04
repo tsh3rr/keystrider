@@ -935,7 +935,9 @@ body.onboarding .tabs, body.onboarding .menu-wrap, body.onboarding .settings-btn
 .ob-field { display: grid; gap: 6px; }
 .ob-label { font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .ob-label-plain { font-size: 0.92rem; }
-.ob-seg { max-width: 18rem; }
+/* Six languages in two rows of three (three of two on phones), so none spills out of the tray. */
+.ob-seg { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 420px) { .ob-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .ob-select, .ob-check {
   font: inherit; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--fg);
 }
