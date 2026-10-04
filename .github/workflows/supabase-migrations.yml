@@ -12,6 +12,10 @@ on:
     paths: ["supabase/migrations/**"]
   workflow_dispatch:
 
+# The jobs only read the repository.
+permissions:
+  contents: read
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
