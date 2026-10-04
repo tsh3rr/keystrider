@@ -401,6 +401,8 @@ export const en = {
   'restart.month': 'A new month: a good moment for a fresh start.',
   'restart.week': 'New week, fresh start.',
   'restart.goal': { one: 'Your goal: {n} day a week, {min} min a day.', other: 'Your goal: {n} days a week, {min} min a day.' },
+  'phone.note': 'Keystrider is made for a real keyboard and isn\'t optimised for phones. You\'re welcome to use it here anyway.',
+  'phone.ok': 'Got it',
   'restart.close': 'Close',
   // --- Practice plan (src/progressView.ts) ---
   'schedule.title': 'Practice plan',

@@ -1449,6 +1449,19 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && store) maybePlanned().catch((err) => console.error('Failed to check the plan', err));
 });
 
+// Touch screens without a mouse are usually phones or tablets: say once that the app is built for a keyboard.
+const phoneNote = $('phone-note');
+const PHONE_NOTE_KEY = 'typing-trainer.phone-note';
+try {
+  phoneNote.hidden = !matchMedia('(pointer: coarse) and (hover: none)').matches || localStorage.getItem(PHONE_NOTE_KEY) === 'dismissed';
+} catch {
+  phoneNote.hidden = true;
+}
+$('phone-note-close').addEventListener('click', () => {
+  phoneNote.hidden = true;
+  try { localStorage.setItem(PHONE_NOTE_KEY, 'dismissed'); } catch { /* storage blocked: it only hides for this visit */ }
+});
+
 $('fresh-start-close').addEventListener('click', () => {
   hideFreshStart();
   inputEl.focus();

@@ -259,6 +259,14 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
   .account-pop { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 72px); }
 }
 
+/* Shown once on touch screens: the app is built for a physical keyboard. */
+.phone-note {
+  display: flex; gap: 8px 14px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
+  padding: 10px 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); font-size: 0.9rem; line-height: 1.45;
+}
+.phone-note span { flex: 1 1 16rem; }
+.phone-note .link-btn { font-weight: 600; }
+
 /* --- Settings drawer --- */
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; width: min(360px, 100%); overflow-y: auto;
@@ -1030,8 +1038,14 @@ a.brand { color: inherit; text-decoration: none; }
 .ob-list[open] summary { margin-bottom: 8px; }
 .ob-list .ob-select { width: 100%; }
 .ob-card { grid-template-columns: minmax(0, 1fr); }
-.ob-layout .ob-kb { font-size: 0.66rem; max-width: 100%; overflow-x: auto; }
-.ob-layout .ob-kb .kb-key { font-size: 0.8rem; width: 2.25em; height: 2.25em; }
+.ob-layout .ob-kb { --k: 28.8px; font-size: 0.66rem; max-width: 100%; overflow-x: auto; }
+.ob-layout .ob-kb .kb-key { font-size: 0.8rem; width: var(--k); height: var(--k); }
+/* Phones: keys shrink so the widest row (13 keys) fits the card instead of scrolling sideways. */
+@media (max-width: 560px) {
+  .ob-layout .ob-kb, .ob-layout .ob-kb .kb-row { gap: 3px; }
+  .ob-layout .ob-kb { --k: min(28.8px, calc((100vw - 142px) / 13)); }
+  .ob-layout .ob-kb .kb-key { font-size: 0.68rem; }
+}
 /* The placement result: numbers and the summary centred under the heading. */
 .ob-nums .rc-tile { justify-items: center; text-align: center; }
 .ob-result { text-align: center; text-wrap: balance; }
