@@ -98,4 +98,13 @@ Einmal in **beiden** Projekten prüfen (die Datenbank selbst ist über `supabase
 - **Organization** → **Billing**: *Spend cap* bleibt an, damit keine Überraschungsrechnung kommt.
 - Sobald es eigenen Mailversand gibt (Schritt 6): **Confirm email** einschalten. Bis dahin kann jemand ein Konto mit fremder E-Mail-Adresse anlegen, und meldet sich der echte Besitzer später mit Google an, kann Supabase ihn in dieses Konto führen.
 
+## 8. Captcha gegen Massen-Registrierungen (Cloudflare Turnstile)
+
+Anmelden, Registrieren, Anmeldecode und Passwort-Link mit E-Mail laufen dann über eine meist unsichtbare Prüfung. Google-Anmeldung ist nicht betroffen. Solange in `vite.config.ts` kein Site Key steht, ist alles aus. Die Reihenfolge ist wichtig, sonst kann sich niemand mehr mit E-Mail anmelden:
+
+1. Cloudflare-Dashboard → **Turnstile** → **Add widget**: Name `keystrider`, **Hostname** `jeremiasz-kapek.workers.dev` (deckt auch die Vorschau-Adressen ab), später zusätzlich deine Domain. Für lokale Tests zusätzlich `localhost`. **Widget Mode**: *Managed*. **Pre-clearance**: *No*. **Create**.
+2. Den **Site Key** in `vite.config.ts` bei `TURNSTILE` für `production` und `staging` eintragen (oder Claude schicken). Er ist öffentlich. Mergen und warten, bis Cloudflare neu gebaut hat. Erst dann erscheint auch der Turnstile-Absatz in der Datenschutzerklärung.
+3. Den **Secret Key** in Supabase eintragen, zuerst Staging, nach einem Test Produktion: Projekt → **Authentication** → **Attack Protection** → **Enable Captcha protection** an → Provider **Turnstile by Cloudflare** → Secret Key → **Save**. Der Secret Key ist geheim: nicht in Code, Chat oder Screenshots.
+4. Testen: abmelden, mit E-Mail und Passwort anmelden. Klappt es nicht, Schritt 3 wieder ausschalten.
+
 Die Sicherheits-Header der Seite (Content-Security-Policy usw.) stehen in `public/_headers`. Kommt ein neuer Dienst dazu (z. B. Analytics oder Captcha), muss er dort und in der Datenschutzerklärung ergänzt werden.

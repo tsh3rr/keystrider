@@ -3,10 +3,11 @@
 #
 # Content-Security-Policy: the app loads only its own scripts, styles, fonts
 # and images; the only other server it talks to is Supabase (production and
-# staging, for preview builds). Adding a third-party service means adding it
-# here, and to the privacy policy.
+# staging, for preview builds) and, when the captcha is switched on, Cloudflare
+# Turnstile. Adding a third-party service means adding it here, and to the
+# privacy policy.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://ubjwlxcawxwrgolszlkz.supabase.co https://dghypouxfnfcdvpylznt.supabase.co; manifest-src 'self'; worker-src 'none'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://ubjwlxcawxwrgolszlkz.supabase.co https://dghypouxfnfcdvpylznt.supabase.co; manifest-src 'self'; worker-src 'none'; object-src 'none'; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

@@ -120,6 +120,7 @@ export const es: Messages = {
   'account.privacy': 'Cómo se tratan tus datos',
   'account.errorCode': 'El código es incorrecto o ha caducado.',
   'account.errorRateLimit': 'Demasiados intentos. Espera unos minutos y vuelve a intentarlo.',
+  'account.errorCaptcha': 'La comprobación de que no eres un bot ha fallado. Recarga la página y vuelve a intentarlo.',
   'account.errorOffline': 'No hay conexión con el servidor. Comprueba tu conexión a internet.',
   'account.errorGeneric': 'Algo salió mal: {message}',
   'settings.openLog': 'Registro de pulsaciones y exportación',

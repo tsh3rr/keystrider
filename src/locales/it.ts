@@ -120,6 +120,7 @@ export const it: Messages = {
   'account.privacy': 'Come vengono trattati i tuoi dati',
   'account.errorCode': 'Il codice è errato o scaduto.',
   'account.errorRateLimit': 'Troppi tentativi. Attendi qualche minuto e riprova.',
+  'account.errorCaptcha': 'Il controllo che non sei un bot non è riuscito. Ricarica la pagina e riprova.',
   'account.errorOffline': 'Nessuna connessione al server. Controlla la connessione a internet.',
   'account.errorGeneric': 'Qualcosa è andato storto: {message}',
   'settings.openLog': 'Registro dei tasti ed esportazione',

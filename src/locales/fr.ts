@@ -122,6 +122,7 @@ export const fr: Messages = {
   'account.privacy': 'Comment tes données sont traitées',
   'account.errorCode': 'Ce code est incorrect ou a expiré.',
   'account.errorRateLimit': 'Trop de tentatives. Patiente quelques minutes puis réessaie.',
+  'account.errorCaptcha': 'La vérification anti-robot a échoué. Recharge la page et réessaie.',
   'account.errorOffline': 'Pas de connexion au serveur. Vérifie ta connexion Internet.',
   'account.errorGeneric': 'Une erreur s’est produite : {message}',
   'settings.openLog': 'Journal des frappes et export',

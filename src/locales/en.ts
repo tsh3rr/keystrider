@@ -125,6 +125,7 @@ export const en = {
   'account.privacy': 'How your data is handled',
   'account.errorCode': 'That code is wrong or has expired.',
   'account.errorRateLimit': 'Too many attempts. Please wait a few minutes and try again.',
+  'account.errorCaptcha': 'The check that you are not a bot did not work. Please reload the page and try again.',
   'account.errorOffline': 'No connection to the server. Check your internet connection.',
   'account.errorGeneric': 'Something went wrong: {message}',
   'settings.openLog': 'Keystroke log and export',
