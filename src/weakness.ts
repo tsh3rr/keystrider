@@ -55,7 +55,7 @@ export interface WeaknessParams {
 
 export const DEFAULT_WEAKNESS_PARAMS: Readonly<WeaknessParams> = Object.freeze({
   evidenceHalfLifeDays: 14,
-  evidenceHalfLifeAttempts: 200,
+  evidenceHalfLifeAttempts: 100,
   keyPriorAttempts: 20,
   bigramPriorAttempts: 10,
   latencyPriorSamples: 10,
