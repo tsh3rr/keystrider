@@ -60,7 +60,7 @@ export const it: Messages = {
   'account.button': 'Accedi',
   'account.manage': 'Account e sincronizzazione',
   'account.signedOutStatus': 'Accesso non eseguito: i tuoi progressi sono salvati solo su questo dispositivo.',
-  'account.optional': 'Facoltativo. Puoi esercitarti anche senza account, ma lezioni e cronologia restano solo in questo browser.',
+  'account.optional': 'Facoltativo. Senza account, lezioni e cronologia restano solo in questo browser. Se ne crei uno più tardi, tutto viene portato con te.',
   'account.benefitsTitle': 'Proteggi i tuoi progressi con un account gratuito',
   'account.benefit1': 'Riprendi da dove avevi lasciato su qualsiasi computer, portatile o tablet.',
   'account.benefit2': 'Lezioni e cronologia restano salvate anche se i dati di questo browser vengono cancellati.',

@@ -60,7 +60,7 @@ export const de: Messages = {
   'account.button': 'Anmelden',
   'account.manage': 'Konto und Abgleich',
   'account.signedOutStatus': 'Nicht angemeldet: Dein Fortschritt ist nur auf diesem Gerät gespeichert.',
-  'account.optional': 'Freiwillig. Du kannst auch ohne Konto üben, deine Lektionen und dein Verlauf bleiben dann aber nur in diesem Browser.',
+  'account.optional': 'Freiwillig. Ohne Konto bleiben deine Lektionen und dein Verlauf nur in diesem Browser. Legst du später ein Konto an, kommt alles mit.',
   'account.benefitsTitle': 'Sichere deinen Fortschritt mit einem kostenlosen Konto',
   'account.benefit1': 'Mach auf jedem Computer, Laptop oder Tablet genau dort weiter, wo du aufgehört hast.',
   'account.benefit2': 'Lektionen und Verlauf sind gesichert, auch wenn die Daten dieses Browsers gelöscht werden.',

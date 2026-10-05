@@ -62,7 +62,7 @@ export const fr: Messages = {
   'account.button': 'Se connecter',
   'account.manage': 'Compte et synchronisation',
   'account.signedOutStatus': 'Non connecté : ta progression est enregistrée uniquement sur cet appareil.',
-  'account.optional': 'Facultatif. Tu peux t’entraîner sans compte, mais tes leçons et ton historique restent alors uniquement dans ce navigateur.',
+  'account.optional': 'Facultatif. Sans compte, tes leçons et ton historique restent uniquement dans ce navigateur. Si tu en crées un plus tard, tout est repris.',
   'account.benefitsTitle': 'Protège ta progression avec un compte gratuit',
   'account.benefit1': 'Reprends là où tu t’es arrêté, sur n’importe quel ordinateur ou tablette.',
   'account.benefit2': 'Tes leçons et ton historique sont sauvegardés, même si les données de ce navigateur sont effacées.',

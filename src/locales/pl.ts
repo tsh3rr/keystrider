@@ -61,7 +61,7 @@ export const pl: Messages = {
   'account.button': 'Zaloguj się',
   'account.manage': 'Konto i synchronizacja',
   'account.signedOutStatus': 'Nie zalogowano: postępy są zapisane tylko na tym urządzeniu.',
-  'account.optional': 'Opcjonalnie. Możesz ćwiczyć bez konta, ale twoje lekcje i historia zostaną wtedy tylko w tej przeglądarce.',
+  'account.optional': 'Opcjonalnie. Bez konta twoje lekcje i historia zostają tylko w tej przeglądarce. Jeśli później założysz konto, wszystko zostanie przeniesione.',
   'account.benefitsTitle': 'Zabezpiecz postępy dzięki darmowemu kontu',
   'account.benefit1': 'Kontynuuj od miejsca, w którym przerwano, na dowolnym komputerze, laptopie lub tablecie.',
   'account.benefit2': 'Lekcje i historia są zabezpieczone, nawet jeśli dane tej przeglądarki zostaną usunięte.',

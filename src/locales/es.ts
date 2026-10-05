@@ -60,7 +60,7 @@ export const es: Messages = {
   'account.button': 'Iniciar sesión',
   'account.manage': 'Cuenta y sincronización',
   'account.signedOutStatus': 'Sin sesión: tu progreso solo se guarda en este dispositivo.',
-  'account.optional': 'Opcional. Puedes practicar sin cuenta, pero tus lecciones e historial se quedan solo en este navegador.',
+  'account.optional': 'Opcional. Sin cuenta, tus lecciones e historial se quedan solo en este navegador. Si creas una más tarde, todo se conserva.',
   'account.benefitsTitle': 'Protege tu progreso con una cuenta gratuita',
   'account.benefit1': 'Sigue donde lo dejaste en cualquier ordenador, portátil o tableta.',
   'account.benefit2': 'Tus lecciones y tu historial quedan guardados aunque se borren los datos de este navegador.',

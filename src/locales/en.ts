@@ -65,7 +65,7 @@ export const en = {
   'account.button': 'Sign in',
   'account.manage': 'Account and sync',
   'account.signedOutStatus': 'Not signed in: your progress is saved on this device only.',
-  'account.optional': 'Optional. You can practise without an account, but your lessons and history then stay only in this browser.',
+  'account.optional': 'Optional. Without an account your lessons and history stay only in this browser. Create one later and everything comes along.',
   'account.benefitsTitle': 'Keep your progress safe with a free account',
   'account.benefit1': 'Pick up where you left off on any computer, laptop or tablet.',
   'account.benefit2': 'Your lessons and history are backed up if this browser’s data is deleted.',
