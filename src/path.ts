@@ -1,6 +1,6 @@
 import type { Corpus } from './corpus';
 import {
-  CAPITALS, DEFAULT_DRILL_PARAMS, blockingKeys, sentencesReady, unlockSteps,
+  CAPITALS, DEFAULT_DRILL_PARAMS, barGap, blockingKeys, sentencesReady, stepStats, unlockSteps,
   type CurriculumState, type DrillKind, type DrillParams,
 } from './drill';
 import type { WeaknessModel } from './weakness';
@@ -30,10 +30,39 @@ export interface PathSummary {
   unlocked: number;
   /** Unlocked steps still below the bar, in unlock order. */
   blocking: string[];
+  /** Why each blocking step is below the bar, worst first; empty without a model. */
+  gaps: StepGap[];
   /** Letters unlocked, and how many sentence drills need. */
   letters: number;
   sentenceLetters: number;
   sentencesOpen: boolean;
+}
+
+/**
+ * Why a step holds up the next unlock. One reason per step, the one to work on
+ * first: errors before speed, since speed only counts once a key is accurate.
+ */
+export interface StepGap {
+  step: string;
+  reason: 'errors' | 'slow' | 'few';
+  errorRate: number;
+  latencyMs: number;
+  targetMs: number;
+}
+
+/** The blocking steps with their reason, errors first (most errors first), then slowest, then least practised. */
+export function stepGaps(model: WeaknessModel, state: CurriculumState, blocking: readonly string[], p: DrillParams = DEFAULT_DRILL_PARAMS): StepGap[] {
+  const order = { errors: 0, slow: 1, few: 2 };
+  return blocking
+    .map((step): StepGap => {
+      const stats = stepStats(model, step, state);
+      const gap = barGap(stats, state, p);
+      const reason = gap.errors ? 'errors' : gap.slow ? 'slow' : 'few';
+      return { step, reason, errorRate: stats?.errorRate ?? 0, latencyMs: stats?.latencyMs ?? 0, targetMs: gap.targetMs };
+    })
+    .sort((a, b) =>
+      order[a.reason] - order[b.reason]
+      || (a.reason === 'errors' ? b.errorRate - a.errorRate : a.reason === 'slow' ? b.latencyMs / b.targetMs - a.latencyMs / a.targetMs : 0));
 }
 
 const isLetter = (c: string) => /^\p{L}$/u.test(c);
@@ -76,6 +105,7 @@ export function learningPath(
     ready: state.unlocked.length - blocking.length,
     unlocked: state.unlocked.length,
     blocking,
+    gaps: model ? stepGaps(model, state, blocking, p) : [],
     letters,
     sentenceLetters: p.sentenceMinLetters,
     sentencesOpen: sentencesReady(state, corpus, p),
