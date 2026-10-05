@@ -544,8 +544,6 @@ export const en = {
   'onboarding.start': 'Start practising',
   'onboarding.haveAccount': 'Already have an account?',
   'onboarding.haveAccountText': 'Sign in and your lessons and history come along to this device.',
-  'onboarding.accountTitle': 'Optional: a free account',
-  'onboarding.accountText': 'Keeps your progress safe and lets you continue on your other devices. You can also create one later from the top bar.',
   'onboarding.accountCreate': 'Create account',
   'nudge.create': 'Create account',
   'nudge.later': 'Not now',

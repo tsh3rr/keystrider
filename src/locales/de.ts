@@ -540,8 +540,6 @@ export const de: Messages = {
   'onboarding.start': 'Jetzt üben',
   'onboarding.haveAccount': 'Schon ein Konto?',
   'onboarding.haveAccountText': 'Melde dich an, dann kommen deine Lektionen und dein Verlauf auf dieses Gerät.',
-  'onboarding.accountTitle': 'Freiwillig: ein kostenloses Konto',
-  'onboarding.accountText': 'Sichert deinen Fortschritt und du übst auf deinen anderen Geräten einfach weiter. Du kannst es auch später oben rechts anlegen.',
   'onboarding.accountCreate': 'Konto erstellen',
   'nudge.create': 'Konto erstellen',
   'nudge.later': 'Nicht jetzt',

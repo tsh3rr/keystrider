@@ -8,6 +8,7 @@ import { TypingSession } from './session';
 import type { LayoutSetting } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { num, pct, t, tMaybe } from './i18n';
+import { benefits } from './sync/ui';
 
 /**
  * First-run setup, three short steps before the first drill:
@@ -64,8 +65,6 @@ const T = {
   get haveAccountQuestion() { return t('onboarding.haveAccount'); },
   get haveAccountText() { return t('onboarding.haveAccountText'); },
   get haveAccountAction() { return t('account.signIn'); },
-  get accountTitle() { return t('onboarding.accountTitle'); },
-  get accountText() { return t('onboarding.accountText'); },
   get accountCreate() { return t('onboarding.accountCreate'); },
 
   get testTitleRun() { return t('onboarding.testTitleRun'); },
@@ -213,7 +212,9 @@ export class Onboarding {
     card.append(head);
     if (this.step === 0 && !this.host.signedIn()) {
       // Same box as the offer to create an account in the last step, so both read as one thing.
-      card.append(this.accountBox(T.haveAccountQuestion, T.haveAccountText, T.haveAccountAction, () => this.host.openAccount('signin')));
+      const words = el('div');
+      words.append(el('b', '', T.haveAccountQuestion), el('p', '', T.haveAccountText));
+      card.append(this.accountBox(words, T.haveAccountAction, () => this.host.openAccount('signin')));
     }
     if (this.step === 0) this.renderKeyboard(card);
     else if (this.step === 1) this.renderStart(card);
@@ -541,7 +542,8 @@ export class Onboarding {
     });
     card.append(list, el('p', 'ob-note', T.methodTip));
     if (!this.host.signedIn()) {
-      card.append(this.accountBox(T.accountTitle, T.accountText, T.accountCreate, () => {
+      // The same points as in the account dialog, so the offer reads the same everywhere.
+      card.append(this.accountBox(benefits(), T.accountCreate, () => {
         this.close(this.lessons());
         this.host.openAccount('signup');
       }));
@@ -549,12 +551,10 @@ export class Onboarding {
     card.append(this.footer(button(T.start, '', () => this.close(this.lessons())), () => this.go(1)));
   }
 
-  /** A tinted box offering the account: a heading, a line and a button. */
-  private accountBox(title: string, text: string, action: string, go: () => void): HTMLElement {
+  /** A tinted box offering the account: what it is for and a button. */
+  private accountBox(content: HTMLElement, action: string, go: () => void): HTMLElement {
     const box = el('div', 'ob-account');
-    const words = el('div');
-    words.append(el('b', '', title), el('p', '', text));
-    box.append(words, button(action, 'ob-account-btn', go));
+    box.append(content, button(action, 'ob-account-btn', go));
     return box;
   }
 

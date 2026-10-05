@@ -541,8 +541,6 @@ export const it: Messages = {
   'onboarding.start': 'Inizia a esercitarti',
   'onboarding.haveAccount': 'Hai già un account?',
   'onboarding.haveAccountText': 'Accedi e le tue lezioni e la tua cronologia arrivano su questo dispositivo.',
-  'onboarding.accountTitle': 'Facoltativo: un account gratuito',
-  'onboarding.accountText': 'Protegge i tuoi progressi e ti permette di continuare sugli altri dispositivi. Puoi crearlo anche più tardi dalla barra in alto.',
   'onboarding.accountCreate': 'Crea account',
   'nudge.create': 'Crea account',
   'nudge.later': 'Non ora',
