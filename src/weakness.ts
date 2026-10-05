@@ -11,7 +11,8 @@ import type { KeystrokeEvent, PracticeContext } from './types';
  * or use `loadWeaknessModel`, which does that for you.
  *
  * Design: "Weakness Model Design" doc. In short, per item:
- * - error rate p̂: recency-weighted first-attempt errors, shrunk toward a prior
+ * - error rate p̂: recency-weighted first-attempt errors (by age and by newer
+ *   tries of the same item), shrunk toward a prior
  *   (user's overall rate for keys, the second key's p̂ for bigrams);
  * - latency μ̂: recency-weighted mean log inter-key interval, shrunk the same way;
  * - review half-life h: doubles after a session that met criterion, halves after a miss;
@@ -22,6 +23,12 @@ import type { KeystrokeEvent, PracticeContext } from './types';
 export interface WeaknessParams {
   /** Half-life in days of the recency weight on old evidence. */
   evidenceHalfLifeDays: number;
+  /**
+   * Half-life in attempts of the same key or bigram: each item's evidence also
+   * fades with newer tries of it, so a key typed thousands of times recovers
+   * after a few clean drills, not only after weeks.
+   */
+  evidenceHalfLifeAttempts: number;
   /** Beta prior strength α, in attempts, for key and bigram error rates. */
   keyPriorAttempts: number;
   bigramPriorAttempts: number;
@@ -48,6 +55,7 @@ export interface WeaknessParams {
 
 export const DEFAULT_WEAKNESS_PARAMS: Readonly<WeaknessParams> = Object.freeze({
   evidenceHalfLifeDays: 14,
+  evidenceHalfLifeAttempts: 200,
   keyPriorAttempts: 20,
   bigramPriorAttempts: 10,
   latencyPriorSamples: 10,
@@ -296,13 +304,21 @@ export function buildWeaknessModel(
     if (!a) m.set(k, (a = new Acc()));
     return a;
   };
-  for (const a of attempts) {
+  // Newest first, so each attempt knows how many newer tries of its key and bigram there are.
+  const newer = new Map<string, number>();
+  const byCount = (item: string) => {
+    const n = newer.get(item) ?? 0;
+    newer.set(item, n + 1);
+    return Math.pow(2, -n / p.evidenceHalfLifeAttempts);
+  };
+  for (const a of [...attempts].sort((x, y) => y.timestamp - x.timestamp)) {
     const w = Math.pow(2, -(now - a.timestamp) / DAY_MS / p.evidenceHalfLifeDays);
     total.add(a, w);
     const key = get(keys, a.expected);
-    key.add(a, w);
-    if (a.error) key.confuse(a.typed, w);
-    if (a.prev !== null) get(bigrams, a.prev + a.expected).add(a, w);
+    const wk = w * byCount('k' + a.expected);
+    key.add(a, wk);
+    if (a.error) key.confuse(a.typed, wk);
+    if (a.prev !== null) get(bigrams, a.prev + a.expected).add(a, w * byCount('b' + a.prev + a.expected));
   }
   for (const k of options.includeKeys ?? []) get(keys, k);
   for (const b of options.includeBigrams ?? []) if ([...b].length === 2) get(bigrams, b);
