@@ -62,6 +62,7 @@ const T = {
   replaceNote: (lang: string, layout: string) => t('onboarding.replaceNote', { lang, layout }),
 
   get haveAccountQuestion() { return t('onboarding.haveAccount'); },
+  get haveAccountText() { return t('onboarding.haveAccountText'); },
   get haveAccountAction() { return t('account.signIn'); },
   get accountTitle() { return t('onboarding.accountTitle'); },
   get accountText() { return t('onboarding.accountText'); },
@@ -211,9 +212,8 @@ export class Onboarding {
     head.append(dots, button(T.skip, 'link-btn ob-skip', () => this.skip()));
     card.append(head);
     if (this.step === 0 && !this.host.signedIn()) {
-      const line = el('p', 'ob-signin', T.haveAccountQuestion + ' ');
-      line.append(button(T.haveAccountAction, 'link-btn', () => this.host.openAccount('signin')));
-      card.append(line);
+      // Same box as the offer to create an account in the last step, so both read as one thing.
+      card.append(this.accountBox(T.haveAccountQuestion, T.haveAccountText, T.haveAccountAction, () => this.host.openAccount('signin')));
     }
     if (this.step === 0) this.renderKeyboard(card);
     else if (this.step === 1) this.renderStart(card);
@@ -541,17 +541,21 @@ export class Onboarding {
     });
     card.append(list, el('p', 'ob-note', T.methodTip));
     if (!this.host.signedIn()) {
-      const box = el('div', 'ob-account');
-      const text = el('div');
-      text.append(el('b', '', T.accountTitle), el('p', '', T.accountText));
-      const create = button(T.accountCreate, 'ob-account-btn', () => {
+      card.append(this.accountBox(T.accountTitle, T.accountText, T.accountCreate, () => {
         this.close(this.lessons());
         this.host.openAccount('signup');
-      });
-      box.append(text, create);
-      card.append(box);
+      }));
     }
     card.append(this.footer(button(T.start, '', () => this.close(this.lessons())), () => this.go(1)));
+  }
+
+  /** A tinted box offering the account: a heading, a line and a button. */
+  private accountBox(title: string, text: string, action: string, go: () => void): HTMLElement {
+    const box = el('div', 'ob-account');
+    const words = el('div');
+    words.append(el('b', '', title), el('p', '', text));
+    box.append(words, button(action, 'ob-account-btn', go));
+    return box;
   }
 
   /** The lessons to start with, from the choice in step 2. */

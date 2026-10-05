@@ -1,5 +1,5 @@
 import { t, uiLanguage } from '../i18n';
-import type { AccountState } from './account';
+import { EMAIL_LINKS, type AccountState } from './account';
 import { USERNAME_MAX, USERNAME_MIN, usernameProblem } from './username';
 
 /** Building blocks shared by the account panel and the profile page. */
@@ -20,7 +20,9 @@ export function errorMessage(err: unknown): string {
     case 'user_already_exists': case 'email_exists': return t('account.errorExists');
     case 'weak_password': return t('account.errorWeak', { n: MIN_PASSWORD });
     case 'same_password': return t('account.errorSamePassword');
-    case 'email_not_confirmed': return t('account.errorNotConfirmed');
+    // Without our own mail server no confirmation e-mail arrives, so asking for the link would only confuse.
+    case 'email_not_confirmed': return t(EMAIL_LINKS ? 'account.errorNotConfirmed' : 'account.errorNotActivated');
+    case 'not_activated': return t('account.errorNotActivated');
     case 'otp_expired': return t('account.errorCode');
     case 'validation_failed': case 'email_address_invalid': return t('account.errorEmail');
     case 'username_taken': return t('account.usernameTaken');
@@ -30,6 +32,16 @@ export function errorMessage(err: unknown): string {
   if (e?.status === 429) return t('account.errorRateLimit');
   if (e?.name === 'AuthRetryableFetchError' || err instanceof TypeError || (typeof navigator !== 'undefined' && !navigator.onLine)) return t('account.errorOffline');
   return t('account.errorGeneric', { message: e?.message ?? String(err) });
+}
+
+/**
+ * Supabase wants the e-mail address confirmed, but there is no mail server
+ * yet to send the link (EMAIL_LINKS is off): "Confirm email" must be switched
+ * off in the Supabase project, see docs/accounts-setup.md, step 3.
+ */
+export function accountNotActivated(): Error {
+  console.error('Supabase asks for e-mail confirmation, but EMAIL_LINKS is off. Switch off "Confirm email" (docs/accounts-setup.md, step 3).');
+  return Object.assign(new Error('Account not activated'), { code: 'not_activated' });
 }
 
 /** The translated problem with a username, or '' if it can be used. */
@@ -78,7 +90,7 @@ export interface Action { label: string; primary?: boolean; go: () => void; /** 
  * other action checks the fields first (unless told not to), so the browser
  * points at what is missing.
  */
-export function form(inputs: HTMLInputElement[], actions: Action[]): HTMLFormElement {
+export function form(inputs: HTMLElement[], actions: Action[]): HTMLFormElement {
   const f = Object.assign(document.createElement('form'), { className: 'account-form' });
   f.append(...inputs);
   const row = Object.assign(document.createElement('div'), { className: 'account-actions' });

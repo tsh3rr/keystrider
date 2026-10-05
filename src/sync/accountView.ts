@@ -2,7 +2,7 @@ import { t, type MessageKey } from '../i18n';
 import { EMAIL_LINKS, OAUTH_PROVIDERS, type Account, type AccountState, type OAuthProvider } from './account';
 import { captchaEnabled, captchaToken } from './captcha';
 import {
-  MIN_PASSWORD, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus,
+  MIN_PASSWORD, accountNotActivated, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus,
   userIcon, usernameError, usernameField, usernameHint, type SignedIn,
 } from './ui';
 
@@ -34,6 +34,7 @@ export class AccountView {
   private username = '';
   /** Kept while the panel redraws (a wrong password, a taken username), dropped once signed in. */
   private password = '';
+  private repeat = '';
 
   constructor(
     private readonly root: HTMLElement,
@@ -43,12 +44,15 @@ export class AccountView {
     /** One line about the account in Settings. */
     private readonly summary: HTMLElement,
     private readonly openProfile: () => void,
+    /** Closes the panel (the × in the signed-out dialog). */
+    private readonly close: () => void,
   ) {}
 
   update(state: AccountState): void {
     if (state.signedIn && !this.state.signedIn) {
       this.step = { kind: 'signin' };
       this.password = '';
+      this.repeat = '';
     }
     this.state = state;
     this.render();
@@ -126,23 +130,27 @@ export class AccountView {
         break;
       }
       case 'signup': {
-        nodes.push(benefits(), ...this.providers());
-        const username = usernameField(this.username);
-        username.addEventListener('input', () => (this.username = username.value));
+        // E-mail and password sit where they sit when signing in, so switching tabs keeps them in place.
+        nodes.push(...this.providers());
         const email = this.emailField();
         const password = this.passwordField('new-password');
-        nodes.push(form([username, email, password], [{ label: t('account.signUp'), primary: true, go: () => {
+        const repeat = field('password', t('account.passwordRepeat'), { autocomplete: 'new-password', minlength: String(MIN_PASSWORD) });
+        repeat.value = this.repeat;
+        repeat.addEventListener('input', () => (this.repeat = repeat.value));
+        const username = usernameField(this.username);
+        username.addEventListener('input', () => (this.username = username.value));
+        nodes.push(form([email, password, repeat, username, usernameHint()], [{ label: t('account.signUp'), primary: true, go: () => {
           const name = username.value.trim();
-          const problem = usernameError(name);
+          const problem = password.value !== repeat.value ? t('account.passwordMismatch') : usernameError(name);
           if (problem) return this.fail(problem);
           void this.run(async () => {
             const signedIn = await this.account.signUp(email.value.trim(), password.value, name, await this.captcha());
-            if (!signedIn) {
-              this.notice = t('account.confirmSent', { email: email.value.trim() });
-              this.step = { kind: 'signin' };
-            }
+            if (signedIn) return;
+            if (!EMAIL_LINKS) throw accountNotActivated();
+            this.notice = t('account.confirmSent', { email: email.value.trim() });
+            this.step = { kind: 'signin' };
           });
-        } }]), ...this.captchaBox(), usernameHint(), p(t('account.optional'), 'account-note'));
+        } }]), ...this.captchaBox(), benefits());
         break;
       }
       case 'code': {
@@ -175,7 +183,10 @@ export class AccountView {
         break;
       }
     }
-    nodes.push(...this.errorLine(), privacyLink());
+    // The error goes right under the form's button, where the eye already is.
+    const after = nodes.findIndex((n) => n instanceof HTMLFormElement) + 1 || nodes.length;
+    nodes.splice(after, 0, ...this.errorLine());
+    nodes.push(privacyLink());
     return nodes;
   }
 
@@ -192,6 +203,7 @@ export class AccountView {
 
   /** "Sign in | Create account" switch at the top of the signed-out panel. */
   private tabs(current: 'signin' | 'signup'): HTMLElement {
+    const head = Object.assign(document.createElement('div'), { className: 'account-tabs-row' });
     const row = Object.assign(document.createElement('div'), { className: 'account-tabs' });
     row.setAttribute('role', 'tablist');
     for (const kind of ['signin', 'signup'] as const) {
@@ -202,8 +214,13 @@ export class AccountView {
       b.setAttribute('aria-selected', String(kind === current));
       row.append(b);
     }
-    return row;
+    const close = button('×', 'account-close', this.close);
+    close.setAttribute('aria-label', t('account.close'));
+    close.title = t('account.close');
+    head.append(row, close);
+    return head;
   }
+
 
   private providers(): Node[] {
     const nodes: Node[] = OAUTH_PROVIDERS.map((provider) => button(t(PROVIDER_LABEL[provider]), 'account-provider', () =>

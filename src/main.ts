@@ -1112,7 +1112,7 @@ for (const m of menus) {
     coach.close(false);
     m.menu.hidden = !open;
     m.btn.setAttribute('aria-expanded', String(open));
-    if (open && m.menu.id === 'account-pop') accountView.focus();
+    if (open && m.menu.id === 'account-pop') openAccount();
     else if (open) m.menu.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
   });
   m.menu.addEventListener('click', (e) => e.stopPropagation());
@@ -1289,6 +1289,8 @@ const account = new Account({
     if (!$('log-view').hidden) renderLog().catch((err) => console.error('Failed to render log', err));
   },
   stateChanged: (state) => {
+    // Signed in from the dialog: close it, the top-bar button now shows who is signed in.
+    if (state.signedIn && $('account-pop').classList.contains('as-dialog') && !$('account-pop').hidden) closeMenus();
     accountView.update(state);
     profileView.update(state);
     // Came in through a password-reset link: the new password is chosen there.
@@ -1327,17 +1329,29 @@ const buddiesView = new BuddiesView($('progress-buddies'), account, buddyDeps);
 buddiesView.render();
 const invitePrompt = new InvitePrompt($('buddy-invite'), account, buddyDeps);
 
-const accountView = new AccountView($('account'), account, $<HTMLButtonElement>('account-btn'), $('account-summary'), () => openProfile());
+const accountView = new AccountView($('account'), account, $<HTMLButtonElement>('account-btn'), $('account-summary'), () => openProfile(), () => {
+  closeMenus();
+  inputEl.focus();
+});
 accountView.render();
 const profileView = new ProfileView($('profile'), account, () => setTimeout(() => openAccount('signin'), 0));
 
-/** Opens the account panel under the top-bar button; signed out, on signing in or creating an account. */
+/**
+ * Opens the account panel. Signed in, it is the small menu under the
+ * top-bar button. Signed out, signing in and creating an account open as
+ * one centred dialog, wherever they were asked for (top bar, setup,
+ * reminder, buddies), so it always looks and sits the same.
+ */
 function openAccount(kind?: 'signin' | 'signup'): void {
   if (kind) accountView.show(kind);
   closeSettings(false);
   closeMenus();
   coach.close(false);
-  $('account-pop').hidden = false;
+  const pop = $('account-pop');
+  const dialog = !account.state.signedIn;
+  pop.classList.toggle('as-dialog', dialog);
+  pop.setAttribute('aria-modal', String(dialog));
+  pop.hidden = false;
   $('account-btn').setAttribute('aria-expanded', 'true');
   accountView.focus();
 }
