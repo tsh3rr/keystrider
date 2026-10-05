@@ -9,7 +9,7 @@ import type { BuddyInvite, BuddyRow, BuddyStats } from './buddies';
  * Optional account: sign in with Google or e-mail and password, and practice rounds
  * and curricula are copied between the learner's devices through Supabase.
  *
- * Everything works without an account. The Supabase library is only loaded
+ * Everything works without an account (data then stays in this browser). The Supabase library is only loaded
  * for someone who is signed in or is signing in, so nobody else downloads it
  * or talks to Supabase at all.
  */
