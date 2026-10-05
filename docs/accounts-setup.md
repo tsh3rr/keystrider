@@ -42,6 +42,14 @@ Projekt → **Authentication** → **Sign In / Providers** → **Email**:
 - **Minimum password length**: `8`
 - **Save**
 
+War **Confirm email** schon an, als sich jemand registriert hat, bleibt dieses Konto auch nach dem Ausschalten unbestätigt und kann sich nicht anmelden (die App sagt dann, das Konto sei noch nicht freigeschaltet). Freischalten: Projekt → **SQL Editor** → **New query**:
+
+```sql
+update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
+```
+
+→ **Run**. Oder das Konto unter **Authentication** → **Users** löschen und neu registrieren.
+
 ## 4. Google-Anmeldung (optional, später)
 
 Der Knopf ist ausgeblendet, bis `OAUTH_PROVIDERS` in `src/sync/account.ts` `'google'` enthält.

@@ -52,6 +52,11 @@ describe('planSync', () => {
     expect(plan).toEqual({ upload: ['a'], download: ['b', 'c'], deleteLocal: [] });
   });
 
+  it('uploads everything practised before the account existed on its first sync', () => {
+    const plan = planSync(m({ a: '5|x', b: '3|x' }), m({}), m({}));
+    expect(plan).toEqual({ upload: ['a', 'b'], download: [], deleteLocal: [] });
+  });
+
   it('pushes only rounds new or changed since the last sync', () => {
     expect(pendingUploads(m({ a: '5|x', b: '6|x', c: '1|x' }), m({ a: '5|x', b: '5|x' }))).toEqual(['b', 'c']);
   });
@@ -68,6 +73,11 @@ describe('mergeCurricula', () => {
     expect(merged).toEqual({ 'en.a': local['en.a'], 'en.b': remote['en.b'], 'en.c': local['en.c'], 'en.d': remote['en.d'] });
     expect(takeRemote.sort()).toEqual(['en.b', 'en.d']);
     expect(pushRemote).toBe(true);
+  });
+
+  it('takes this browser\'s lessons into a new account', () => {
+    const local = { 'en.a': cur('a', 5) };
+    expect(mergeCurricula(local, {})).toEqual({ merged: local, takeRemote: [], pushRemote: true });
   });
 
   it('has nothing to do when both sides agree', () => {

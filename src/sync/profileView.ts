@@ -73,8 +73,11 @@ export class ProfileView {
     password.id = 'profile-password';
     if (state.choosePassword) password.append(p(t('account.choosePassword'), 'account-note'));
     const pw = field('password', t('account.newPassword'), { autocomplete: 'new-password', minlength: String(MIN_PASSWORD) });
-    password.append(form([pw], [{ label: t('account.savePassword'), primary: true, go: () =>
-      this.run('password', () => this.account.setPassword(pw.value), t('account.passwordSaved')) }]));
+    const repeat = field('password', t('account.passwordRepeat'), { autocomplete: 'new-password', minlength: String(MIN_PASSWORD) });
+    password.append(form([pw, repeat], [{ label: t('account.savePassword'), primary: true, go: () => {
+      if (pw.value !== repeat.value) return this.show('password', t('account.passwordMismatch'), true);
+      void this.run('password', () => this.account.setPassword(pw.value), t('account.passwordSaved'));
+    } }]));
 
     const sync = this.card('sync', t('account.syncTitle'));
     sync.append(

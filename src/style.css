@@ -239,6 +239,18 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .account-avatar.huge { width: 64px; height: 64px; font-size: 1.7rem; }
 .account-avatar.huge .account-dot { width: 14px; height: 14px; right: 0; bottom: 0; }
 .account-pop { width: min(340px, calc(100vw - 32px)); padding: 16px; }
+/* Signed out: signing in and creating an account are one centred dialog over a dimmed page. */
+.account-pop.as-dialog {
+  position: fixed; top: max(16px, 10vh); left: 0; right: 0; margin: 0 auto; z-index: 40;
+  width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - max(16px, 10vh) - 16px); padding: 20px;
+  border-radius: 16px; box-shadow: var(--shadow), 0 0 0 100vmax oklch(0.2 0.02 270 / 0.45);
+  animation: rc-pop 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) { .account-pop.as-dialog { animation: none; } }
+.account-tabs-row { display: flex; gap: 8px; align-items: center; width: 100%; }
+.account-close { flex: none; width: 36px; height: 36px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.account-close:hover { color: var(--fg); background: var(--surface-2); }
+.account-pop:not(.as-dialog) .account-close { display: none; }
 body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 @media (max-width: 420px) {
   .menu-sep, .menu-layout { display: none; }
@@ -256,7 +268,7 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
   .account-btn.signed-in:has(.account-name) { padding-right: 4px; }
 }
 @media (max-width: 620px) {
-  .account-pop { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 72px); }
+  .account-pop:not(.as-dialog) { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 72px); }
 }
 
 /* Shown once on touch screens: the app is built for a physical keyboard. */
@@ -936,8 +948,6 @@ body.onboarding .tabs, body.onboarding .menu-wrap, body.onboarding .settings-btn
 .ob-steps li.done::before { content: "✓ "; }
 .ob-steps li.current { background: var(--accent); color: var(--accent-ink); font-weight: 500; }
 .ob-skip { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
-.ob-signin { margin: -4px 0 0; font-size: 0.88rem; color: var(--muted); }
-.ob-signin .link-btn { font-size: inherit; font-weight: 600; }
 .ob-account {
   display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
   padding: 12px 14px; border-radius: 10px; background: var(--accent-soft);
