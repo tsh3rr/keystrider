@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { en } from './corpora/en';
-import { CAPITALS, DEFAULT_DRILL_PARAMS, initialCurriculum, unlockSteps, type CurriculumState } from './drill';
+import { CAPITALS, DEFAULT_DRILL_PARAMS, initialCurriculum, tierTargetMs, unlockSteps, type CurriculumState } from './drill';
 import { learningPath, sessionPlan } from './path';
+import type { WeaknessModel } from './weakness';
 
 const CTX = { language: 'en', layout: 'qwerty-us' };
 const base = initialCurriculum(en, CTX);
@@ -33,6 +34,33 @@ describe('learningPath', () => {
     const path = learningPath({ ...base, unlocked: steps }, en, null);
     expect(path.next).toBeNull();
     expect(path.stages.every((s) => s.state === 'done')).toBe(true);
+  });
+});
+
+describe('learningPath gaps', () => {
+  const fast = tierTargetMs(base.tier) * 0.5;
+  const model = (over: Record<string, { weight?: number; errorRate?: number; latencyMs?: number }>) => ({
+    keys: base.unlocked.map((item) => ({ item, weight: 100, errorRate: 0.01, latencyMs: fast, ...over[item] })),
+  }) as unknown as WeaknessModel;
+
+  it('names why each blocking key holds up the unlock, errors first', () => {
+    const [a, b, c, d] = base.unlocked;
+    const path = learningPath(base, en, model({
+      [a]: { latencyMs: tierTargetMs(base.tier) * 2 },
+      [b]: { errorRate: 0.05 },
+      [c]: { weight: 5 },
+      [d]: { errorRate: 0.12 },
+    }));
+    expect(path.blocking).toHaveLength(4);
+    expect(path.gaps.map((g) => [g.step, g.reason])).toEqual([[d, 'errors'], [b, 'errors'], [a, 'slow'], [c, 'few']]);
+    expect(path.gaps[0].errorRate).toBe(0.12);
+    expect(path.gaps[2].targetMs).toBe(tierTargetMs(base.tier));
+  });
+
+  it('has no gaps when every key meets the bar', () => {
+    const path = learningPath(base, en, model({}));
+    expect(path.blocking).toEqual([]);
+    expect(path.gaps).toEqual([]);
   });
 });
 

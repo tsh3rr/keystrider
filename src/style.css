@@ -534,9 +534,23 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 .drill-keys .key.locked { color: var(--typed); border-style: dashed; }
 .drill-keys .key.focus { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .drill-keys .key.mastered { border-color: var(--accent); background: var(--accent-soft); }
+/* What the next unlock waits on: keys with their error rate or speed. */
+.drill-gate { margin: 0; font-size: 13px; line-height: 24px; color: var(--muted); text-align: center; text-wrap: balance; }
+.gate-lead { color: var(--fg); font-weight: 600; }
+.drill-gate .gate-part { display: inline-block; margin: 0 6px; }
+.gate-keys { display: inline-flex; flex-wrap: wrap; gap: 4px; margin: 0 2px; vertical-align: middle; }
+.gate-key { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px 0 0; border-radius: var(--r-xs); background: var(--bg); }
+.gate-key kbd {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; padding: 0 6px; border-radius: var(--r-xs);
+  background: var(--panel); color: var(--fg); box-shadow: inset 0 -2px 0 oklch(0.25 0.05 264 / .14); border: 1px solid var(--border);
+}
+.gate-key small { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--fg); }
+.gate-part.errors .gate-key { background: var(--error-soft); }
+.gate-part.errors .gate-key small { color: var(--error); }
+.gate-more { font-size: 12px; color: var(--muted); align-self: center; }
 .drill-cue { margin: 0; padding: 8px 12px; border: 1px solid var(--error); border-radius: 10px; font-size: 0.9rem; text-align: center; }
 /* --- Drill results card: replaces the text and guide until Enter starts the next drill --- */
-.showing-result .text-wrap, .showing-result #drill-focus, .showing-result #type-hint, .showing-result .finger-guide, .showing-result .practice-foot { display: none; }
+.showing-result .text-wrap, .showing-result #drill-focus, .showing-result #drill-gate, .showing-result #type-hint, .showing-result .finger-guide, .showing-result .practice-foot { display: none; }
 .rc {
   background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
   padding: 20px 22px; display: grid; gap: 18px; animation: rc-pop 0.22s ease-out;
@@ -566,6 +580,14 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
 .rc-news li.good .rc-icon { background: var(--accent); }
 .rc-news li.warn { background: var(--error-soft); }
 .rc-news li.warn .rc-icon { background: var(--error); }
+.rc-why { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 0.92rem; line-height: 1.45; }
+.rc-precise { margin: 0; padding: 9px 12px; border-radius: 8px; background: var(--error-soft); }
+.rc-precise b { color: var(--error); }
+.rc-why-row { display: grid; gap: 6px; }
+.rc-why-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.rc-why-parts { display: grid; gap: 4px; }
+.rc-why-parts .gate-part { display: block; }
+.rc-why-row .gate-keys { margin: 0; }
 .rc-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .rc-col { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; align-content: start; }
 .rc-col h3 { margin: 0; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }

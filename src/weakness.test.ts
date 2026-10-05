@@ -207,3 +207,31 @@ describe('loadWeaknessModel', () => {
     store.close();
   });
 });
+
+describe('evidence fades with newer tries', () => {
+  // One session of single-key attempts at "e", every tenth one wrong first.
+  const tries = (n: number, start: number, wrongEvery: number, id: string): KeystrokeEvent[] => {
+    const out: KeystrokeEvent[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = start + i * 300;
+      const base = { ...EN, sessionId: id, position: i, expected: 'e', code: null, prevExpected: null, prevActual: null, latencyMs: 200 };
+      if (wrongEvery > 0 && i % wrongEvery === 0) {
+        out.push({ ...base, timestamp: t, actual: 'r', correct: false });
+        out.push({ ...base, timestamp: t + 100, actual: 'e', correct: true });
+      } else {
+        out.push({ ...base, timestamp: t, actual: 'e', correct: true });
+      }
+    }
+    return out;
+  };
+  const events = [...tries(2000, NOW - 3 * 3_600_000, 10, 'old'), ...tries(400, NOW - 3_600_000, 0, 'new')];
+  const rate = (opts: WeaknessOptions) => buildWeaknessModel(events, EN, opts).keys.find((k) => k.item === 'e')!.errorRate;
+
+  it('lets a key with many old errors get under 4 % after a few hundred clean tries', () => {
+    expect(rate(NEUTRAL)).toBeLessThan(0.04);
+  });
+
+  it('would stay above 4 % if only age counted', () => {
+    expect(rate({ ...NEUTRAL, params: { evidenceHalfLifeAttempts: Infinity } })).toBeGreaterThan(0.04);
+  });
+});

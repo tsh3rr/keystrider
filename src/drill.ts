@@ -332,20 +332,41 @@ export function needsShift(step: string, layoutId: string): boolean {
   });
 }
 
+/** Where a step falls short of the unlock bar: too few tries, too many errors, too slow. */
+export interface BarGap {
+  few: boolean;
+  errors: boolean;
+  slow: boolean;
+  /** The step's latency target in ms, with its slack. */
+  targetMs: number;
+}
+
+/** How a key (or a step's pooled stats) compares with the unlock bar at the given tier. */
+export function barGap(
+  key: StepStats | undefined,
+  state: Pick<CurriculumState, 'tier' | 'relaxedKeys'> & Partial<Pick<CurriculumState, 'layout'>>,
+  p: DrillParams = DEFAULT_DRILL_PARAMS,
+): BarGap {
+  let slack = key && state.relaxedKeys.includes(key.item) ? p.stuckLatencySlack : 1;
+  if (key && state.layout !== undefined && needsShift(key.item, state.layout)) slack *= p.shiftLatencySlack;
+  const targetMs = tierTargetMs(state.tier) * slack;
+  if (!key) return { few: true, errors: false, slow: false, targetMs };
+  return {
+    few: key.weight < p.unlockMinWeight,
+    errors: key.errorRate > p.unlockMaxErrorRate,
+    slow: key.latencyMs > targetMs,
+    targetMs,
+  };
+}
+
 /** Whether a key (or a step's pooled stats) meets the unlock bar at the given tier. */
 export function meetsBar(
   key: StepStats | undefined,
   state: Pick<CurriculumState, 'tier' | 'relaxedKeys'> & Partial<Pick<CurriculumState, 'layout'>>,
   p: DrillParams = DEFAULT_DRILL_PARAMS,
 ): boolean {
-  if (!key) return false;
-  let slack = state.relaxedKeys.includes(key.item) ? p.stuckLatencySlack : 1;
-  if (state.layout !== undefined && needsShift(key.item, state.layout)) slack *= p.shiftLatencySlack;
-  return (
-    key.weight >= p.unlockMinWeight &&
-    key.errorRate <= p.unlockMaxErrorRate &&
-    key.latencyMs <= tierTargetMs(state.tier) * slack
-  );
+  const gap = barGap(key, state, p);
+  return !gap.few && !gap.errors && !gap.slow;
 }
 
 /** Unlocked steps that do not meet the bar yet, in unlock order. */

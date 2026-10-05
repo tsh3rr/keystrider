@@ -1,8 +1,10 @@
-import { num, t, tNodes } from './i18n';
+import { gateEmpty, gateParts, type GateData } from './gateView';
+import { num, pct, t, tNodes } from './i18n';
 
 /**
  * The card that pops up when a drill is finished: the headline numbers,
- * what changed in the curriculum (unlocks, level, accuracy recovery), which
+ * what changed in the curriculum (unlocks, level, accuracy recovery), where
+ * this drill's errors were and what still holds up the next unlock, which
  * keys got better or worse, and an Enter key to go on. Pure display.
  */
 
@@ -27,6 +29,12 @@ export interface ResultData {
   next: string | null;
   /** Focus key of the next drill, when it is a focus burst; shown in the focus colour. */
   nextKey?: string | null;
+  /** Keys typed wrong on the first try in this drill, most first. */
+  misses?: { label: string; count: number }[];
+  /** What holds up the next unlock; null when nothing does or everything is unlocked. */
+  gate?: GateData | null;
+  /** Highest error rate per key the unlock bar allows, 0–1; a drill with more errors gets a hint to slow down. */
+  maxError?: number;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
@@ -85,6 +93,9 @@ export function renderResult(root: HTMLElement, d: ResultData, onNext: () => voi
     card.append(news);
   }
 
+  const why = errorBox(d);
+  if (why) card.append(why);
+
   const cols = el('div', 'rc-cols');
   const col = (heading: string, items: string[], cls: 'up' | 'down', empty: string) => {
     const c = el('div', `rc-col ${cls}`);
@@ -118,4 +129,45 @@ export function renderResult(root: HTMLElement, d: ResultData, onNext: () => voi
 
   root.replaceChildren(card);
   root.hidden = false;
+}
+
+/**
+ * Why progress may stall: a hint when the drill had more errors than the
+ * unlock bar allows, the keys missed in this drill, and what the next unlock
+ * waits on. Null when there is nothing to say.
+ */
+function errorBox(d: ResultData): HTMLElement | null {
+  const misses = d.misses ?? [];
+  const gate = d.gate && !gateEmpty(d.gate) ? d.gate : null;
+  const tooMany = d.maxError !== undefined && 1 - d.accuracy > d.maxError;
+  if (!tooMany && !misses.length && !gate) return null;
+  const box = el('div', 'rc-why');
+  if (tooMany) {
+    const p = el('p', 'rc-precise');
+    p.append(el('b', '', t('result.preciseLead')), ' ', t('result.precise', {
+      err: pct(1 - d.accuracy, 1), max: pct(d.maxError!), need: pct(1 - d.maxError!),
+    }));
+    box.append(p);
+  }
+  if (misses.length) {
+    const row = el('div', 'rc-why-row');
+    row.append(el('span', 'rc-why-label', t('result.misses')));
+    const list = el('span', 'gate-keys');
+    for (const m of misses.slice(0, 8)) {
+      const c = el('span', 'gate-key');
+      c.append(el('kbd', '', m.label), el('small', '', `×${m.count}`));
+      list.append(c);
+    }
+    row.append(list);
+    box.append(row);
+  }
+  if (gate) {
+    const row = el('div', 'rc-why-row');
+    row.append(el('span', 'rc-why-label', t('gate.lead', { next: gate.next })));
+    const parts = el('div', 'rc-why-parts');
+    parts.append(...gateParts(gate, 6));
+    row.append(parts);
+    box.append(row);
+  }
+  return box;
 }

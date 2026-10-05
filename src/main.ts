@@ -9,13 +9,14 @@ import {
   nextDrill, nextKind, sentencesReady, tierTargetMs, tierWpm, unlockSteps,
   type CurriculumChange, type CurriculumState, type Drill, type ItemChange,
 } from './drill';
-import { loadWeaknessModel, type WeaknessModel } from './weakness';
+import { firstAttempts, loadWeaknessModel, type WeaknessModel } from './weakness';
 import {
   KeyObserver, LAYOUTS, browserLayoutMap, charLabel, detectLayout, getLayout, guessFromLocale, keyLabel, relabelPlan,
 } from './layouts';
 import { FingerGuide } from './fingerGuide';
 import { DEFAULT_FATIGUE_PARAMS, FatigueTracker, type FatigueSignal } from './fatigue';
-import { learningPath, sessionPlan, type StageId } from './path';
+import { learningPath, sessionPlan, type PathSummary, type StageId } from './path';
+import { renderGateLine, type GateData } from './gateView';
 import { renderProgress, revealSection, type ProgressSection, type Range } from './progressView';
 import { periodTotals, sessionSummaries, startOfWeek, weakest } from './progress';
 import { isoDate, loadShareSpeed, pendingInvite, takeInviteFromUrl, type BuddyStats } from './sync/buddies';
@@ -299,6 +300,7 @@ $('new-text').addEventListener('click', () => {
 const drillKeysEl = $('drill-keys');
 const drillCueEl = $('drill-cue');
 const drillFocusEl = $('drill-focus');
+const drillGateEl = $('drill-gate');
 const resultEl = $('result');
 const practiceView = $('practice-view');
 
@@ -391,6 +393,27 @@ const coach = new CoachBar(
 );
 /** The last path summary the coach showed; the Progress page repeats it in its path card. */
 let coachPath: CoachData['path'] | null = null;
+/** What the next unlock waits on, as last shown above the text; the result card repeats it. */
+let gate: GateData | null = null;
+
+function gateData(path: PathSummary): GateData | null {
+  if (path.next === null || !model) return null;
+  const of = (reason: PathSummary['gaps'][number]['reason']) => path.gaps.filter((g) => g.reason === reason);
+  return {
+    next: path.next === CAPITALS ? stageName('capitals') : keyCap(path.next),
+    maxError: DEFAULT_DRILL_PARAMS.unlockMaxErrorRate,
+    errors: of('errors').map((g) => ({ label: keyCap(g.step), errorRate: g.errorRate })),
+    slow: of('slow').map((g) => ({ label: keyCap(g.step), ms: g.latencyMs, targetMs: g.targetMs })),
+    few: of('few').map((g) => keyCap(g.step)),
+  };
+}
+
+/** Keys typed wrong on the first try in a drill, most often first. */
+function drillMisses(events: readonly KeystrokeEvent[]): { label: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const a of firstAttempts(events)) if (a.error) counts.set(a.expected, (counts.get(a.expected) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1]).map(([ch, count]) => ({ label: keyCap(ch), count }));
+}
 
 function renderCoach(): void {
   if (!curriculum || !drill) return;
@@ -415,6 +438,8 @@ function renderCoach(): void {
     }
   }
   const current = path.stages.find((st) => st.state === 'current') ?? path.stages[path.stages.length - 1];
+  gate = gateData(path);
+  renderGateLine(drillGateEl, gate);
 
   // Once a drill is done, the round shows the one Enter starts next.
   const kind = session.done ? nextKind(curriculum, drill.kind, { sentences: path.sentencesOpen }) : drill.kind;
@@ -586,6 +611,9 @@ async function finishDrill(): Promise<void> {
     const typed: RoundStep = roundStep ?? { kind: finished.kind, n: 0 };
     const errors = session.errors;
     const recovery = curriculum.recovery;
+    const misses = drillMisses(drillEvents);
+    /** Whether the curriculum moved on with this drill, so the unlock line fits it. */
+    let counted = false;
     // Kept so a switch of interface language can redraw the card in the new language.
     const show = (
       changes: CurriculumChange[], improved: ItemChange[], slipped: ItemChange[], next: RoundStep | null, extra: Milestone[] = [],
@@ -598,6 +626,7 @@ async function finishDrill(): Promise<void> {
         ],
         improved: improved.map(itemLabel), slipped: slipped.map(itemLabel), next: next && stepName(next),
         nextKey: next?.kind === 'focus' && curriculum?.focusKey ? keyCap(curriculum.focusKey) : null,
+        misses, gate: counted ? gate : null, maxError: DEFAULT_DRILL_PARAMS.unlockMaxErrorRate,
       }, () => {
         if (!finishing && breakEndsAt === null) startDrill().catch((err) => console.error('Failed to start drill', err));
       });
@@ -625,6 +654,7 @@ async function finishDrill(): Promise<void> {
     const { improved, slipped } = before ? drillFeedback(before, after, finished) : { improved: [], slipped: [] };
     const extra = await milestones(before, after, state, changes, drillEvents[0]?.sessionId);
     renderDrillBar();
+    counted = true;
     show(changes, improved, slipped, roundStep, extra);
     account.push().catch((err) => console.error('Sync failed', err));
     if (account.inBuddyGroup) buddyDeps.stats().then((st) => account.publishBuddyStats(st)).catch((err) => console.error('Failed to update buddies', err));
