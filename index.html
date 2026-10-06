@@ -75,9 +75,9 @@
       </section>
       <section id="keyboards-group" class="drawer-group">
         <h3 data-i18n="settings.keyboards">Keyboards</h3>
-        <label class="switch-row" for="keyboards-toggle" title="For several physical keyboards, e.g. a laptop and one at work: statistics and drills per keyboard" data-i18n="settings.keyboardsToggle" data-i18n-title="settings.keyboardsTitle">Several keyboards <input type="checkbox" role="switch" id="keyboards-toggle" /></label>
+        <label class="switch-row" for="keyboards-toggle" title="For several physical keyboards, e.g. a laptop and one at work: drills for each keyboard, and a comparison in Progress" data-i18n="settings.keyboardsToggle" data-i18n-title="settings.keyboardsTitle">Several keyboards <input type="checkbox" role="switch" id="keyboards-toggle" /></label>
         <div id="keyboards-manage" class="kbp" hidden>
-          <p class="kbp-note" data-i18n="settings.keyboardsNote">Statistics and drills follow the keyboard you pick in the language menu at the top.</p>
+          <p class="kbp-note" data-i18n="settings.keyboardsNote">Drills work on the weak keys of the keyboard you pick in the language menu at the top; until it has some practice of its own, they also learn from your other keyboards. Progress counts all keyboards and compares them.</p>
           <ul id="keyboard-list" class="kbp-list"></ul>
           <button id="keyboard-add" class="link-btn" data-i18n="settings.keyboardAdd">+ Add keyboard</button>
         </div>
@@ -158,6 +158,7 @@
             <button role="radio" data-range="all" data-i18n="progress.rangeAll">All time</button>
           </div>
         </div>
+        <div id="progress-keyboards" class="segmented pg-kb" role="radiogroup" aria-label="Keyboard" data-i18n-aria-label="progress.keyboardFilter" hidden></div>
         <div id="progress-empty" class="pg-card pg-empty" hidden>
           <h2 data-i18n="progress.emptyTitle">Nothing here yet</h2>
           <p data-i18n="progress.empty">No practice logged for this language and keyboard layout yet. Finish a drill and your progress shows up here.</p>
@@ -165,6 +166,14 @@
         </div>
         <div id="progress-body" class="pg-body">
           <div id="progress-tiles" class="pg-tiles"></div>
+          <section id="progress-compare" class="pg-card" hidden>
+            <div class="pg-card-head"><h2 data-i18n="progress.compareTitle">Your keyboards compared</h2></div>
+            <table class="weak pg-compare">
+              <thead><tr><th data-i18n="progress.compareKeyboard">Keyboard</th><th data-i18n="progress.tileSpeed">Speed</th><th data-i18n="progress.tileAccuracy">First-try accuracy</th><th data-i18n="progress.tileSessions">Sessions</th><th data-i18n="progress.compareWeak">Weakest keys</th></tr></thead>
+              <tbody id="compare-rows"></tbody>
+            </table>
+            <p class="pg-sub" data-i18n="progress.compareNote">Speed, accuracy and sessions in the chosen period; weakest keys from everything typed on that keyboard.</p>
+          </section>
           <p id="progress-no-sessions" class="pg-card pg-quiet" data-i18n="progress.noSessions" hidden>No practice in this period. Pick a longer period to see older sessions.</p>
           <section id="progress-week" class="pg-card">
             <div class="pg-card-head"><h2 data-i18n="week.title">Week by week</h2></div>

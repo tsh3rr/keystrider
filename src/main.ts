@@ -87,12 +87,11 @@ let keyboards = loadKeyboards();
 let keyboardSettings = loadKeyboardSettings();
 /** The keyboard in use, or null while profiles are off. */
 const currentKeyboard = () => activeKeyboard(keyboardSettings, keyboards);
-/** The log as the Progress page and personal bests see it: only this keyboard's keystrokes while profiles are on. */
-const keyboardLog = {
-  forLanguage: async (language: string, layout?: string) => forKeyboard(await store.forLanguage(language, layout), currentKeyboard()),
-  all: () => store.all(),
-};
-/** The same for drills, which use every keyboard's history until this one has enough of its own. */
+/**
+ * The log as drills see it: while profiles are on, the keystrokes typed on
+ * this keyboard, so drills work on its own stumbling keys; every keyboard's
+ * until it has enough of its own. Progress stays across all keyboards.
+ */
 const drillLog = {
   forLanguage: async (language: string, layout?: string) =>
     forKeyboard(await store.forLanguage(language, layout), currentKeyboard(), OWN_MODEL_MIN_KEYSTROKES),
@@ -603,7 +602,7 @@ async function milestones(
     }
 
     if (sessionId) {
-      const best = newBest(sessionSummaries(await keyboardLog.forLanguage(context.language, context.layout)), sessionId);
+      const best = newBest(sessionSummaries(await store.forLanguage(context.language, context.layout)), sessionId);
       if (best) {
         out.push({ tone: 'win', text: () => t('best.new', { wpm: Math.round(best.wpm), previous: Math.round(best.previous) }) });
       }
@@ -1222,6 +1221,10 @@ $('clear-log').addEventListener('click', async () => {
 let goal = loadGoal();
 
 const RANGE_KEY = 'typing-trainer.progressRange';
+/** The keyboard the Progress page is narrowed to; all of them unless the learner picks one. */
+const PROGRESS_KEYBOARD_KEY = 'typing-trainer.progressKeyboard';
+let progressKeyboard: string | null = null;
+try { progressKeyboard = localStorage.getItem(PROGRESS_KEYBOARD_KEY) || null; } catch { /* storage blocked: all keyboards */ }
 let progressRange: Range = 30;
 try {
   const saved = localStorage.getItem(RANGE_KEY);
@@ -1233,10 +1236,17 @@ try {
 async function showProgress(section?: ProgressSection): Promise<void> {
   try {
     const lang = availableLanguages().find((c) => c.language === context.language)?.name ?? context.language;
-    const kb = currentKeyboard();
-    const keyboard = kb === null ? '' : ` · ${keyboardName(keyboards[kb] ?? mainKeyboard(0))}`;
-    await renderProgress(keyboardLog, context, {
-      range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}${keyboard}`, path: coachPath,
+    await renderProgress(store, context, {
+      range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}`, path: coachPath,
+      keyboards: currentKeyboard() === null ? null : {
+        list: visibleKeyboards(keyboards).map((k) => ({ id: k.id, name: keyboardName(k) })),
+        filter: progressKeyboard,
+        onFilter: (id) => {
+          progressKeyboard = id;
+          try { localStorage.setItem(PROGRESS_KEYBOARD_KEY, id ?? ''); } catch { /* not remembered */ }
+          void showProgress();
+        },
+      },
       goal, onGoal: (g) => {
         goal = g;
         saveGoal(g);

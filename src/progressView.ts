@@ -10,7 +10,8 @@ import {
   type DayState, type GoalStreak, type PracticePlan, type WeeklyGoal,
 } from './goals';
 import type { KeystrokeEvent, PracticeContext } from './types';
-import type { BigramStats, KeyStats, WeaknessModel } from './weakness';
+import { buildWeaknessModel, type BigramStats, type KeyStats, type WeaknessModel } from './weakness';
+import { forKeyboard } from './keyboards';
 import type { CoachData, ProgressTarget } from './coachView';
 
 /**
@@ -706,16 +707,26 @@ export interface ProgressOptions {
   onPlan: (plan: PracticePlan | null) => void;
   /** Steps mastered in this language and layout, marked on the keyboard. */
   mastered?: ReadonlySet<string>;
+  /**
+   * With keyboard profiles on: the keyboards, the one the page is narrowed
+   * to (null for all of them, the default) and what to do when the learner
+   * picks another. Null while profiles are off.
+   */
+  keyboards?: { list: { id: string; name: string }[]; filter: string | null; onFilter: (id: string | null) => void } | null;
   now?: number;
 }
 
 export async function renderProgress(
   store: { forLanguage(language: string, layout?: string): Promise<KeystrokeEvent[]>; all(): Promise<KeystrokeEvent[]> },
   context: PracticeContext,
-  { range, contextName, path = null, goal, onGoal, plan, onPlan, mastered = new Set(), now = Date.now() }: ProgressOptions,
+  { range, contextName, path = null, goal, onGoal, plan, onPlan, mastered = new Set(), keyboards = null, now = Date.now() }: ProgressOptions,
 ): Promise<void> {
-  const events = await store.forLanguage(context.language, context.layout);
-  $('progress-context').textContent = contextName;
+  // Progress is the learner's, whatever they typed on; one keyboard only when they pick it.
+  const everyKeyboard = await store.forLanguage(context.language, context.layout);
+  const filter = keyboards?.list.find((k) => k.id === keyboards.filter) ?? null;
+  const events = forKeyboard(everyKeyboard, filter?.id ?? null);
+  $('progress-context').textContent = filter ? `${contextName} · ${filter.name}` : contextName;
+  renderKeyboardFilter(keyboards, filter?.id ?? null);
   document.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.range === String(range))));
   const all = sessionSummaries(events);
   const from = range === 'all' ? -Infinity : startOfDay(now) - (range - 1) * DAY_MS;
@@ -728,6 +739,7 @@ export async function renderProgress(
 
   const prev = range === 'all' ? null : periodTotals(all, from - range * DAY_MS, from);
   renderTiles(periodTotals(sessions, from, Infinity), prev, range === 'all' ? 0 : range);
+  renderCompare(keyboards?.list ?? [], everyKeyboard, context, from, filter?.id ?? null, now);
   const everywhere = sessionSummaries(await store.all());
   renderWeeks(weeklyTotals(all, { weeks: WEEKS, now }), all, everywhere, goal, onGoal, plan, onPlan, now);
   renderPath(path);
@@ -740,6 +752,51 @@ export async function renderProgress(
   renderKeyboard(model, mastered);
   renderWeakTable($('weak-keys'), weakest(model.keys, minTries.key, 8), models, t('progress.emptyKeys'));
   renderWeakTable($('weak-bigrams'), weakest(model.bigrams, minTries.bigram, 8), models, t('progress.emptyPairs'));
+}
+
+/** "All keyboards" and one button per keyboard, above the page; hidden while profiles are off. */
+function renderKeyboardFilter(keyboards: ProgressOptions['keyboards'], filter: string | null): void {
+  const host = $('progress-keyboards');
+  host.hidden = !keyboards;
+  if (!keyboards) return;
+  const choices = [{ id: null as string | null, name: t('progress.keyboardAll') }, ...keyboards.list];
+  host.replaceChildren(...choices.map((k) => {
+    const b = el('button', undefined, k.name);
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(k.id === filter));
+    b.addEventListener('click', () => keyboards.onFilter(k.id));
+    return b;
+  }));
+}
+
+/** One row per keyboard practised on in this language and layout; shown from two keyboards on. */
+function renderCompare(
+  list: readonly { id: string; name: string }[], events: readonly KeystrokeEvent[], context: PracticeContext,
+  from: number, filter: string | null, now: number,
+): void {
+  const rows = list.flatMap((k) => {
+    const own = forKeyboard([...events], k.id);
+    return own.length === 0 ? [] : [{ k, own, totals: periodTotals(sessionSummaries(own), from, Infinity) }];
+  });
+  const card = $('progress-compare');
+  card.hidden = rows.length < 2;
+  if (card.hidden) return;
+  $('compare-rows').replaceChildren(...rows.map(({ k, own, totals }) => {
+    const tr = el('tr', k.id === filter ? 'current' : undefined);
+    const weak = weakest(buildWeaknessModel(own, context, { now }).keys, minTries.key, 3);
+    const weakTd = el('td', 'item');
+    if (weak.length === 0) weakTd.append(el('span', 'muted', '–'));
+    for (const w of weak) weakTd.append(el('kbd', undefined, w.item === ' ' ? t('key.space') : w.label), ' ');
+    tr.append(
+      el('td', undefined, k.name),
+      el('td', 'num', totals.wpm === null ? '–' : t('progress.wpm', { n: num(totals.wpm) })),
+      el('td', 'num', totals.accuracy === null ? '–' : pct(totals.accuracy)),
+      el('td', 'num', num(totals.sessions)),
+      weakTd,
+    );
+    return tr;
+  }));
 }
 
 /** Scrolls a card into view and outlines it for a moment, so a link from a coach bubble shows where it landed. */

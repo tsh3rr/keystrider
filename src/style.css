@@ -736,6 +736,11 @@ tr.wrong td { color: var(--error); }
 .pg-context { color: var(--muted); font-size: 14px; }
 .pg-range { width: min(300px, 100%); background: var(--surface-2); }
 .pg-body { display: grid; gap: 16px; }
+/* Keyboard filter: as many buttons as keyboards, wrapping on phones. */
+.pg-kb { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; margin: -4px 0 16px; background: var(--surface-2); }
+.pg-kb button { padding: 6px 12px; white-space: nowrap; }
+table.pg-compare tr.current td:first-child { font-weight: 650; }
+table.pg-compare td.item kbd { margin-right: 2px; }
 .pg-card {
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--card-lift);
   display: grid; gap: 10px; min-width: 0; scroll-margin-top: 16px;
