@@ -34,4 +34,6 @@ export interface KeystrokeEvent extends PracticeContext {
   /** Milliseconds since the previous keypress in this session, or null for the first one. */
   latencyMs: number | null;
   correct: boolean;
+  /** Keyboard profile it was typed on (see keyboards.ts); absent means the main keyboard. */
+  keyboard?: string;
 }

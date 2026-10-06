@@ -1,6 +1,7 @@
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 import type { KeystrokeStore } from '../store';
 import { allCurricula, saveCurriculum } from '../curriculum-store';
+import { loadKeyboards, mergeKeyboards, saveKeyboards, type KeyboardList } from '../keyboards';
 import { decodeSession, encodeSession, rowSignature, type SessionRow } from './codec';
 import { mergeCurricula, pendingUploads, planSync, type Curricula } from './plan';
 import type { BuddyInvite, BuddyRow, BuddyStats } from './buddies';
@@ -251,6 +252,21 @@ export class Account {
     });
   }
 
+  /** Deletes the synced rounds typed on a keyboard profile, when the learner removes it. */
+  async clearRemoteKeyboard(keyboard: string): Promise<void> {
+    if (!this.session) return;
+    const client = this.requireSignedIn();
+    const user = this.session.user.id;
+    await this.queue(async () => {
+      const { data, error } = await client.from('practice_sessions').delete()
+        .eq('user_id', user).eq('data->>kb', keyboard).select('id');
+      if (error) throw error;
+      const saved = loadSyncState(user);
+      for (const { id } of data as { id: string }[]) delete saved.sessions[id];
+      saveSyncState(saved);
+    });
+  }
+
   /** Compares everything with the server and copies what is missing either way. */
   syncNow(): Promise<void> {
     return this.queue(() => this.sync(true));
@@ -286,10 +302,11 @@ export class Account {
     const store = this.deps.store();
     const saved = loadSyncState(user);
     const synced = new Map(Object.entries(saved.sessions));
+    // First, so rounds of a keyboard removed on another device are gone before anything is uploaded.
+    let changed = await syncKeyboards(client, user, store);
     const local = await store.sessionSignatures();
     const active = this.deps.activeSession();
     if (active) local.delete(active);
-    let changed = false;
 
     let upload: string[];
     if (full) {
@@ -409,6 +426,36 @@ async function syncCurricula(client: SupabaseClient, user: string): Promise<bool
     if (upsertError) throw upsertError;
   }
   return takeRemote.length > 0;
+}
+
+/**
+ * Merges the keyboard profiles both ways, and deletes the rounds of
+ * keyboards removed on another device. Returns whether this device's data
+ * changed.
+ */
+async function syncKeyboards(client: SupabaseClient, user: string, store: KeystrokeStore): Promise<boolean> {
+  const { data, error } = await client.from('user_state').select('keyboards').eq('user_id', user).maybeSingle();
+  if (error) throw error;
+  const local = loadKeyboards();
+  const { merged, localChanged, pushRemote } = mergeKeyboards(local, (data?.keyboards ?? {}) as KeyboardList);
+  let removed = false;
+  if (localChanged) {
+    saveKeyboards(merged);
+    for (const k of Object.values(merged)) {
+      if (!k.deleted || local[k.id]?.deleted) continue;
+      // Also on the server: another device may have uploaded rounds of it after it was removed.
+      const { error: deleteError } = await client.from('practice_sessions').delete().eq('user_id', user).eq('data->>kb', k.id);
+      if (deleteError) throw deleteError;
+      const rounds = await store.sessionsOnKeyboard(k.id);
+      await store.deleteSessions(rounds);
+      removed ||= rounds.length > 0;
+    }
+  }
+  if (pushRemote) {
+    const { error: upsertError } = await client.from('user_state').upsert({ user_id: user, keyboards: merged });
+    if (upsertError) throw upsertError;
+  }
+  return localChanged || removed;
 }
 
 /** This page's address without query or hash, where sign-in links return to. */

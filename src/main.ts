@@ -37,6 +37,10 @@ import {
 } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
+import {
+  MAIN_KEYBOARD, MAX_KEYBOARDS, MAX_NAME_LENGTH, OWN_MODEL_MIN_KEYSTROKES, activeKeyboard, forKeyboard, keyboardWithLayout, loadKeyboardSettings,
+  loadKeyboards, mainKeyboard, newKeyboardId, saveKeyboardSettings, saveKeyboards, visibleKeyboards, type KeyboardProfile,
+} from './keyboards';
 import { Account } from './sync/account';
 import { AccountView, benefits } from './sync/accountView';
 import { ProfileView } from './sync/profileView';
@@ -76,6 +80,29 @@ const context: PracticeContext = { language: startLanguage, layout: layoutSettin
 // Replaced by the first drill once the keystroke log is open.
 let session = new TypingSession('', context);
 let store: KeystrokeStore;
+
+// Keyboard profiles (keyboards.ts): off unless turned on in Settings; then
+// statistics and drills follow the keyboard picked in the top-bar menu.
+let keyboards = loadKeyboards();
+let keyboardSettings = loadKeyboardSettings();
+/** The keyboard in use, or null while profiles are off. */
+const currentKeyboard = () => activeKeyboard(keyboardSettings, keyboards);
+/** The log as the Progress page and personal bests see it: only this keyboard's keystrokes while profiles are on. */
+const keyboardLog = {
+  forLanguage: async (language: string, layout?: string) => forKeyboard(await store.forLanguage(language, layout), currentKeyboard()),
+  all: () => store.all(),
+};
+/** The same for drills, which use every keyboard's history until this one has enough of its own. */
+const drillLog = {
+  forLanguage: async (language: string, layout?: string) =>
+    forKeyboard(await store.forLanguage(language, layout), currentKeyboard(), OWN_MODEL_MIN_KEYSTROKES),
+};
+/** Marks a keystroke with the keyboard it is typed on; the main keyboard's stay unmarked, like those from before profiles. */
+function onKeyboard(event: KeystrokeEvent): KeystrokeEvent {
+  const kb = currentKeyboard();
+  if (kb !== null && kb !== MAIN_KEYBOARD) event.keyboard = kb;
+  return event;
+}
 
 // The row of every key, unlocked or not; the learning-path panel covers the same ground, so it is optional.
 const keysToggle = $<HTMLInputElement>('keys-toggle');
@@ -242,8 +269,9 @@ inputEl.addEventListener('keydown', (e) => {
 });
 
 function handleChar(ch: string): void {
-  const event = session.press(ch, Date.now(), lastCode);
-  if (!event) return;
+  const pressed = session.press(ch, Date.now(), lastCode);
+  if (!pressed) return;
+  const event = onKeyboard(pressed);
   drillEvents.push(event);
   pendingWrites.push(store.add(event).catch((err) => console.error('Failed to log keystroke', err)));
   if (!event.correct) {
@@ -348,7 +376,7 @@ async function currentCurriculum(): Promise<CurriculumState> {
 }
 
 async function buildModel(state: CurriculumState): Promise<WeaknessModel> {
-  return loadWeaknessModel(store, context, modelOptions(state, corpus()));
+  return loadWeaknessModel(drillLog, context, modelOptions(state, corpus()));
 }
 
 function renderDrillBar(): void {
@@ -575,7 +603,7 @@ async function milestones(
     }
 
     if (sessionId) {
-      const best = newBest(sessionSummaries(await store.forLanguage(context.language, context.layout)), sessionId);
+      const best = newBest(sessionSummaries(await keyboardLog.forLanguage(context.language, context.layout)), sessionId);
       if (best) {
         out.push({ tone: 'win', text: () => t('best.new', { wpm: Math.round(best.wpm), previous: Math.round(best.previous) }) });
       }
@@ -856,6 +884,8 @@ const layoutStatus = $('layout-status');
 const suggestBox = $('layout-suggest');
 const observer = new KeyObserver();
 let suggested: string | null = null;
+/** The keyboard profile set to the suggested layout, which "Switch" then switches to. */
+let suggestedKeyboard: string | null = null;
 /** Suggestions the user answered "Keep mine" to, so they are not asked again this visit. */
 const declined = new Set<string>();
 
@@ -879,8 +909,13 @@ function showSuggestion(id: string | null): void {
   suggested = id;
   suggestBox.hidden = id === null;
   if (id !== null) {
-    $('layout-suggest-text').textContent =
-      t('layout.suggest', { detected: layoutName(id), current: layoutName(layoutSetting.layout) });
+    // With keyboard profiles, typing that fits another keyboard's layout probably means that keyboard.
+    const kb = currentKeyboard();
+    const other = kb === null ? null : keyboardWithLayout(keyboards, id, kb);
+    suggestedKeyboard = other?.id ?? null;
+    $('layout-suggest-text').textContent = other
+      ? t('keyboards.suggest', { detected: layoutName(id), name: keyboardName(other) })
+      : t('layout.suggest', { detected: layoutName(id), current: layoutName(layoutSetting.layout) });
   }
 }
 
@@ -895,6 +930,7 @@ async function setLayout(layout: string, source: LayoutSetting['source']): Promi
   renderLayout();
   showSuggestion(null);
   onboarding.layoutChanged();
+  rememberLayout(layout);
   if (changed) {
     // Keystrokes already logged in this text (and any earlier session whose own
     // keys contradict its tag) were recorded under the wrong layout: retag them.
@@ -940,7 +976,8 @@ async function detectFromBrowser(): Promise<void> {
 }
 
 $('layout-suggest-yes').addEventListener('click', () => {
-  if (suggested) setLayout(suggested, 'user').catch((err) => console.error('Failed to update layout', err));
+  if (suggestedKeyboard) setKeyboard(suggestedKeyboard);
+  else if (suggested) setLayout(suggested, 'user').catch((err) => console.error('Failed to update layout', err));
   inputEl.focus();
 });
 $('layout-suggest-no').addEventListener('click', () => {
@@ -948,6 +985,161 @@ $('layout-suggest-no').addEventListener('click', () => {
   // Keeping the current layout is a confirmation of it.
   setLayout(layoutSetting.layout, 'user').catch((err) => console.error('Failed to update layout', err));
   inputEl.focus();
+});
+
+// --- Keyboard profiles ---
+//
+// For learners with several physical keyboards: each keeps its own
+// statistics, and drills adapt to the one in use. Browsers cannot tell
+// keyboards apart, so the learner picks one in the top-bar menu; switching
+// also switches to the layout last used on it. Off unless turned on in
+// Settings. See keyboards.ts.
+
+const keyboardsToggle = $<HTMLInputElement>('keyboards-toggle');
+const keyboardList = $('keyboard-list');
+
+const keyboardName = (k: KeyboardProfile) => k.name || t(k.id === MAIN_KEYBOARD ? 'keyboards.mainName' : 'keyboards.unnamed');
+
+function renderKeyboards(): void {
+  const kb = currentKeyboard();
+  const list = visibleKeyboards(keyboards);
+  const active = list.find((k) => k.id === kb) ?? list[0];
+  keyboardsToggle.checked = kb !== null;
+  for (const el of [$('keyboard-name'), document.querySelector<HTMLElement>('.keyboard-sep')!, $('keyboard-section'), $('keyboards-manage')]) {
+    el.hidden = kb === null;
+  }
+  $('keyboard-name').textContent = kb === null ? '' : keyboardName(active);
+  $('keyboard-options').replaceChildren(...list.map((k) =>
+    menuItem(keyboardName(k), k.layout ? layoutShortName(k.layout) : '', k.id === kb, () => setKeyboard(k.id))));
+
+  // Rebuilt in place; the name field being edited keeps the focus.
+  const editing = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-keyboard]')?.dataset.keyboard;
+  keyboardList.replaceChildren(...list.map((k) => keyboardRow(k, k.id === kb)));
+  if (editing) keyboardList.querySelector<HTMLInputElement>(`[data-keyboard="${editing}"] input`)?.focus();
+  $('keyboard-add').hidden = list.length >= MAX_KEYBOARDS;
+}
+
+function keyboardRow(k: KeyboardProfile, active: boolean): HTMLLIElement {
+  const row = Object.assign(document.createElement('li'), { className: `kbp-row${active ? ' active' : ''}` });
+  row.dataset.keyboard = k.id;
+  const name = Object.assign(document.createElement('input'), {
+    type: 'text', className: 'account-input', value: keyboardName(k), maxLength: MAX_NAME_LENGTH,
+  });
+  name.setAttribute('aria-label', t('keyboards.nameLabel'));
+  name.addEventListener('change', () => {
+    let value = name.value.trim().slice(0, MAX_NAME_LENGTH);
+    // The main keyboard's default name stays unset, so it follows the interface language.
+    if (k.id === MAIN_KEYBOARD && (!value || value === t('keyboards.mainName'))) value = '';
+    if (!value && k.id !== MAIN_KEYBOARD) name.value = keyboardName(k);
+    else if (value !== k.name) updateKeyboard({ ...k, name: value });
+  });
+  const meta = Object.assign(document.createElement('span'), {
+    className: 'kbp-meta', textContent: k.layout ? layoutShortName(k.layout) : '',
+  });
+  const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'kbp-remove', textContent: '✕' });
+  remove.setAttribute('aria-label', t('keyboards.remove', { name: keyboardName(k) }));
+  remove.title = t('keyboards.remove', { name: keyboardName(k) });
+  // The main keyboard holds everything typed before profiles were on, so it stays.
+  remove.disabled = k.id === MAIN_KEYBOARD;
+  remove.addEventListener('click', () => {
+    removeKeyboard(k).catch((err) => console.error('Failed to remove keyboard', err));
+  });
+  row.append(name, meta, remove);
+  return row;
+}
+
+/** Saves a changed profile and sends it to the account. */
+function updateKeyboard(k: KeyboardProfile): void {
+  keyboards = { ...keyboards, [k.id]: { ...k, at: Date.now() } };
+  saveKeyboards(keyboards);
+  renderKeyboards();
+  account.push().catch((err) => console.error('Sync failed', err));
+}
+
+/** Starts the next drill afresh, so it adapts to the keyboard now in use. */
+function restartForKeyboard(): void {
+  showSuggestion(null);
+  fatigue.reset();
+  drill = null;
+  renderKeyboards();
+  startDrill().catch((err) => console.error('Failed to start drill', err));
+}
+
+function setKeyboard(id: string): void {
+  // A finished drill is still being scored on the old keyboard: keep it.
+  if (finishing || id === currentKeyboard()) return;
+  keyboardSettings = { ...keyboardSettings, active: id };
+  saveKeyboardSettings(keyboardSettings);
+  const layout = keyboards[id]?.layout;
+  if (layout && layout !== layoutSetting.layout && getLayout(layout)) {
+    setLayout(layout, 'user').catch((err) => console.error('Failed to update layout', err));
+  }
+  restartForKeyboard();
+}
+
+/** The layout in use is remembered on the keyboard in use. */
+function rememberLayout(layout: string): void {
+  const kb = currentKeyboard();
+  if (kb === null) return;
+  const k = keyboards[kb] ?? mainKeyboard(Date.now());
+  if (k.layout === layout) return;
+  keyboards = { ...keyboards, [k.id]: { ...k, layout, at: Date.now() } };
+  saveKeyboards(keyboards);
+  renderKeyboards();
+}
+
+async function removeKeyboard(k: KeyboardProfile): Promise<void> {
+  const synced = account.state.signedIn;
+  if (!confirm(t(synced ? 'keyboards.removeConfirmSynced' : 'keyboards.removeConfirm', { name: keyboardName(k) }))) return;
+  if (synced) {
+    // Server first: otherwise the next sync would bring the deleted rounds back.
+    try {
+      await account.clearRemoteKeyboard(k.id);
+    } catch (err) {
+      console.error('Failed to delete synced rounds of keyboard', err);
+      alert(t('keyboards.removeFailed'));
+      return;
+    }
+  }
+  const wasActive = currentKeyboard() === k.id;
+  // Kept as removed, so the removal reaches the learner's other devices.
+  updateKeyboard({ ...k, deleted: true });
+  await store.deleteSessions(await store.sessionsOnKeyboard(k.id));
+  if (wasActive) {
+    keyboardSettings = { ...keyboardSettings, active: MAIN_KEYBOARD };
+    saveKeyboardSettings(keyboardSettings);
+    if (!finishing) restartForKeyboard();
+  }
+}
+
+keyboardsToggle.addEventListener('change', () => {
+  keyboardSettings = { ...keyboardSettings, enabled: keyboardsToggle.checked };
+  saveKeyboardSettings(keyboardSettings);
+  // Turned on for the first time: everything typed so far was on the main keyboard.
+  if (keyboardsToggle.checked && !keyboards[MAIN_KEYBOARD]) {
+    keyboards = { ...keyboards, [MAIN_KEYBOARD]: mainKeyboard(Date.now(), layoutSetting.layout) };
+    saveKeyboards(keyboards);
+  }
+  // The next drill picks up the new statistics; the one on screen carries on.
+  renderKeyboards();
+});
+
+$('keyboard-add').addEventListener('click', () => {
+  const list = visibleKeyboards(keyboards);
+  if (list.length >= MAX_KEYBOARDS) return;
+  const now = Date.now();
+  const id = newKeyboardId(now);
+  if (!keyboards[MAIN_KEYBOARD]) keyboards = { ...keyboards, [MAIN_KEYBOARD]: mainKeyboard(now, layoutSetting.layout) };
+  updateKeyboard({ id, name: t('keyboards.newName', { n: list.length + 1 }), layout: layoutSetting.layout, created: now, at: now });
+  const input = keyboardList.querySelector<HTMLInputElement>(`[data-keyboard="${id}"] input`);
+  input?.focus();
+  input?.select();
+});
+
+$('keyboard-manage').addEventListener('click', () => {
+  openSettings();
+  $('keyboards-group').scrollIntoView({ block: 'nearest' });
+  $('keyboard-add').focus();
 });
 
 // --- Log inspector ---
@@ -1041,8 +1233,10 @@ try {
 async function showProgress(section?: ProgressSection): Promise<void> {
   try {
     const lang = availableLanguages().find((c) => c.language === context.language)?.name ?? context.language;
-    await renderProgress(store, context, {
-      range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}`, path: coachPath,
+    const kb = currentKeyboard();
+    const keyboard = kb === null ? '' : ` · ${keyboardName(keyboards[kb] ?? mainKeyboard(0))}`;
+    await renderProgress(keyboardLog, context, {
+      range: progressRange, contextName: `${lang} · ${layoutName(context.layout)}${keyboard}`, path: coachPath,
       goal, onGoal: (g) => {
         goal = g;
         saveGoal(g);
@@ -1222,7 +1416,7 @@ const onboarding = new Onboarding($('onboarding-view'), {
   hasLessons: () => loadCurriculum(context) !== null,
   setLanguage: (language) => setLanguage(language, false),
   setLayout,
-  log: (event) => store.add(event),
+  log: (event) => store.add(onKeyboard(event)),
   signedIn: () => account.state.signedIn,
   // Deferred past the click, which would otherwise reach the document and close the panel again.
   openAccount: (kind) => setTimeout(() => openAccount(kind), 0),
@@ -1283,6 +1477,7 @@ onUiLanguageChange(() => {
   applyTranslations();
   renderUiLanguagePicker();
   renderLayout();
+  renderKeyboards();
   if (suggested) showSuggestion(suggested);
   fingerGuide.retranslate();
   onboarding.languageChanged();
@@ -1310,8 +1505,10 @@ const account = new Account({
   store: () => store,
   activeSession: () => (session.done ? null : session.id),
   dataChanged: () => {
-    // Another device practised: pick up its curriculum and redraw what shows history.
+    // Another device practised: pick up its curriculum and keyboards, and redraw what shows history.
     curriculum = loadCurriculum(context) ?? curriculum;
+    keyboards = loadKeyboards();
+    renderKeyboards();
     // Signed in during first-run setup on a new device: the lessons came along, so the setup is done.
     if (document.body.classList.contains('onboarding') && loadCurriculum(context)) onboarding.dismiss();
     renderDrillBar();
@@ -1523,6 +1720,7 @@ Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).
   window.typingLog = { all: () => s.all(), count: () => s.count() };
   renderLayout();
   renderLanguage();
+  renderKeyboards();
   // A browser that practised before the setup existed goes straight to practice.
   if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
   else {

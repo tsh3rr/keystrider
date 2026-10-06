@@ -34,6 +34,8 @@ export interface SessionData {
   /** Per keystroke, only when the round mixes languages or layouts. */
   lg?: string[];
   ly?: string[];
+  /** Keyboard profile the round was typed on (see keyboards.ts); absent for the main keyboard. */
+  kb?: string;
 }
 
 /** What identifies a round's content for sync: its size and its layouts. A relabel changes it. */
@@ -69,6 +71,7 @@ export function encodeSession(events: readonly KeystrokeEvent[]): SessionRow {
   };
   if (sorted.some((e) => e.language !== first.language)) data.lg = sorted.map((e) => e.language);
   if (sorted.some((e) => e.layout !== first.layout)) data.ly = sorted.map((e) => e.layout);
+  if (first.keyboard !== undefined) data.kb = first.keyboard;
   return {
     id: first.sessionId,
     language: first.language,
@@ -97,5 +100,6 @@ export function decodeSession(row: Pick<SessionRow, 'id' | 'language' | 'layouts
     prevActual: d.pa[i] ?? null,
     latencyMs: d.l[i] ?? null,
     correct: d.k[i] === '1',
+    ...(typeof d.kb === 'string' ? { keyboard: d.kb } : {}),
   }));
 }

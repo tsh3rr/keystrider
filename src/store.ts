@@ -145,6 +145,11 @@ export class KeystrokeStore {
     return this.deleteAndAdd(new Set(events.map((e) => e.sessionId)), events);
   }
 
+  /** Ids of the rounds typed on a keyboard profile. */
+  async sessionsOnKeyboard(keyboard: string): Promise<string[]> {
+    return [...new Set((await this.events()).filter((e) => e.keyboard === keyboard).map((e) => e.sessionId))];
+  }
+
   deleteSessions(ids: readonly string[]): Promise<void> {
     return this.deleteAndAdd(new Set(ids), []);
   }
@@ -243,7 +248,7 @@ export class KeystrokeStore {
 
 const CSV_COLUMNS: (keyof KeystrokeEvent)[] = [
   'id', 'sessionId', 'language', 'layout', 'timestamp', 'position', 'expected', 'actual',
-  'code', 'prevExpected', 'prevActual', 'latencyMs', 'correct',
+  'code', 'prevExpected', 'prevActual', 'latencyMs', 'correct', 'keyboard',
 ];
 
 export function toCsv(events: KeystrokeEvent[]): string {

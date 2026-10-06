@@ -21,8 +21,13 @@
       </nav>
       <span class="spacer"></span>
       <div class="menu-wrap">
-        <button id="context-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="context-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg><span id="language-name"></span><span class="menu-sep" aria-hidden="true">·</span><span id="layout-name" class="menu-layout"></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
+        <button id="context-btn" class="menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="context-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg><span id="language-name"></span><span class="menu-sep" aria-hidden="true">·</span><span id="layout-name" class="menu-layout"></span><span class="menu-sep keyboard-sep" aria-hidden="true" hidden>·</span><span id="keyboard-name" class="menu-keyboard" hidden></span><svg class="caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5z"/></svg></button>
         <div id="context-menu" class="menu" role="menu" hidden>
+          <div id="keyboard-section" class="menu-section" role="group" aria-label="Keyboard" data-i18n-aria-label="menu.keyboard" hidden>
+            <span class="menu-title" data-i18n="menu.keyboard">Keyboard</span>
+            <div id="keyboard-options"></div>
+            <button id="keyboard-manage" class="menu-item menu-link" type="button" data-i18n="menu.keyboardManage">Add or rename keyboards</button>
+          </div>
           <div class="menu-section" role="group" aria-label="Practice language" data-i18n-aria-label="menu.practiceLanguage">
             <span class="menu-title" data-i18n="menu.practiceLanguage">Practice language</span>
             <div id="language-options"></div>
@@ -67,6 +72,15 @@
         <label class="switch-row" for="keys-toggle" title="Show every key and which ones are unlocked" data-i18n="settings.showKeys" data-i18n-title="settings.showKeysTitle">Show all keys and which are unlocked <input type="checkbox" role="switch" id="keys-toggle" /></label>
         <label class="switch-row" for="break-toggle" title="Suggest a short break when your typing gets worse or you have practised for a long time" data-i18n="settings.breaks" data-i18n-title="settings.breaksTitle">Break reminders <input type="checkbox" role="switch" id="break-toggle" checked /></label>
         <label class="switch-row" for="word-filter-toggle" title="Leave out offensive words, real or made up" data-i18n="settings.wordFilter" data-i18n-title="settings.wordFilterTitle">Hide offensive words <input type="checkbox" role="switch" id="word-filter-toggle" checked /></label>
+      </section>
+      <section id="keyboards-group" class="drawer-group">
+        <h3 data-i18n="settings.keyboards">Keyboards</h3>
+        <label class="switch-row" for="keyboards-toggle" title="For several physical keyboards, e.g. a laptop and one at work: statistics and drills per keyboard" data-i18n="settings.keyboardsToggle" data-i18n-title="settings.keyboardsTitle">Several keyboards <input type="checkbox" role="switch" id="keyboards-toggle" /></label>
+        <div id="keyboards-manage" class="kbp" hidden>
+          <p class="kbp-note" data-i18n="settings.keyboardsNote">Statistics and drills follow the keyboard you pick in the language menu at the top.</p>
+          <ul id="keyboard-list" class="kbp-list"></ul>
+          <button id="keyboard-add" class="link-btn" data-i18n="settings.keyboardAdd">+ Add keyboard</button>
+        </div>
       </section>
       <section class="drawer-group">
         <h3 data-i18n="account.title">Account</h3>
