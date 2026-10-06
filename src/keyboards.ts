@@ -2,8 +2,10 @@ import type { KeystrokeEvent } from './types';
 
 /**
  * Keyboard profiles: one per physical keyboard the learner practises on
- * (a laptop, a desk keyboard at home, one at work), so each gets its own
- * statistics. Off unless turned on in Settings.
+ * (a laptop, a desk keyboard at home, one at work), so the Progress page
+ * can compare them. Drills and progress stay the learner's, across all
+ * keyboards: skill belongs to the person, and different layouts are kept
+ * apart anyway. Off unless turned on in Settings.
  *
  * Browsers do not say which keyboard a key came from (WebHID could, but only
  * after a permission prompt per device), so the learner picks the keyboard;
@@ -22,12 +24,6 @@ export const MAIN_KEYBOARD = 'main';
 /** At most this many keyboards, removed ones not counted. */
 export const MAX_KEYBOARDS = 8;
 export const MAX_NAME_LENGTH = 40;
-/**
- * Drills on a keyboard with fewer keystrokes than this (in the language and
- * layout being practised) adapt to every keyboard's history, so a new
- * keyboard does not start from nothing. Progress always shows its own.
- */
-export const OWN_MODEL_MIN_KEYSTROKES = 300;
 
 export interface KeyboardProfile {
   id: string;
@@ -66,15 +62,9 @@ export function mainKeyboard(now: number, layout: string | null = null): Keyboar
   return { id: MAIN_KEYBOARD, name: '', layout, created: 0, at: now };
 }
 
-/**
- * The keystrokes typed on one keyboard; all of them when profiles are off
- * (`keyboard` null). With `fallbackBelow`, a keyboard with fewer keystrokes
- * than that gets everyone's.
- */
-export function forKeyboard<T extends Pick<KeystrokeEvent, 'keyboard'>>(events: T[], keyboard: string | null, fallbackBelow = 0): T[] {
-  if (keyboard === null) return events;
-  const own = events.filter((e) => keyboardOf(e) === keyboard);
-  return own.length < fallbackBelow ? events : own;
+/** The keystrokes typed on one keyboard; all of them for `keyboard` null. */
+export function forKeyboard<T extends Pick<KeystrokeEvent, 'keyboard'>>(events: T[], keyboard: string | null): T[] {
+  return keyboard === null ? events : events.filter((e) => keyboardOf(e) === keyboard);
 }
 
 /** The keyboard in use: null while profiles are off; the main one if the picked one was removed. */

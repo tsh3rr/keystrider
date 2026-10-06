@@ -28,11 +28,6 @@ describe('keyboard profiles', () => {
     expect(forKeyboard(events, 'k1')).toHaveLength(2);
   });
 
-  it('falls back to every keyboard while one has too little of its own', () => {
-    expect(forKeyboard(events, 'k2', 2)).toHaveLength(4);
-    expect(forKeyboard(events, 'k1', 2)).toHaveLength(2);
-  });
-
   it('lists the main keyboard first and leaves removed ones out', () => {
     const list = { b: kb('b', 20), a: kb('a', 10), gone: kb('gone', 5, { deleted: true }) };
     expect(visibleKeyboards(list).map((k) => k.id)).toEqual([MAIN_KEYBOARD, 'a', 'b']);

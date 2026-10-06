@@ -38,7 +38,7 @@ import {
 import type { KeystrokeEvent, PracticeContext } from './types';
 import { setWordFilterEnabled } from './wordfilter';
 import {
-  MAIN_KEYBOARD, MAX_KEYBOARDS, MAX_NAME_LENGTH, OWN_MODEL_MIN_KEYSTROKES, activeKeyboard, forKeyboard, keyboardWithLayout, loadKeyboardSettings,
+  MAIN_KEYBOARD, MAX_KEYBOARDS, MAX_NAME_LENGTH, activeKeyboard, keyboardWithLayout, loadKeyboardSettings,
   loadKeyboards, mainKeyboard, newKeyboardId, saveKeyboardSettings, saveKeyboards, visibleKeyboards, type KeyboardProfile,
 } from './keyboards';
 import { Account } from './sync/account';
@@ -82,20 +82,13 @@ let session = new TypingSession('', context);
 let store: KeystrokeStore;
 
 // Keyboard profiles (keyboards.ts): off unless turned on in Settings; then
-// statistics and drills follow the keyboard picked in the top-bar menu.
+// each keystroke records the keyboard picked in the top-bar menu, and the
+// Progress page compares keyboards. Drills and progress stay the learner's,
+// across all keyboards.
 let keyboards = loadKeyboards();
 let keyboardSettings = loadKeyboardSettings();
 /** The keyboard in use, or null while profiles are off. */
 const currentKeyboard = () => activeKeyboard(keyboardSettings, keyboards);
-/**
- * The log as drills see it: while profiles are on, the keystrokes typed on
- * this keyboard, so drills work on its own stumbling keys; every keyboard's
- * until it has enough of its own. Progress stays across all keyboards.
- */
-const drillLog = {
-  forLanguage: async (language: string, layout?: string) =>
-    forKeyboard(await store.forLanguage(language, layout), currentKeyboard(), OWN_MODEL_MIN_KEYSTROKES),
-};
 /** Marks a keystroke with the keyboard it is typed on; the main keyboard's stay unmarked, like those from before profiles. */
 function onKeyboard(event: KeystrokeEvent): KeystrokeEvent {
   const kb = currentKeyboard();
@@ -375,7 +368,7 @@ async function currentCurriculum(): Promise<CurriculumState> {
 }
 
 async function buildModel(state: CurriculumState): Promise<WeaknessModel> {
-  return loadWeaknessModel(drillLog, context, modelOptions(state, corpus()));
+  return loadWeaknessModel(store, context, modelOptions(state, corpus()));
 }
 
 function renderDrillBar(): void {
