@@ -122,6 +122,9 @@ export const de: Messages = {
   'account.deleteConfirm': 'Dein Konto und alle damit gespeicherten Übungsdaten löschen? Die Übungsdaten auf diesem Gerät bleiben erhalten.',
   'account.deleted': 'Dein Konto wurde gelöscht.',
   'account.privacy': 'Wie wir mit deinen Daten umgehen',
+  'account.termsCheck': 'Ich akzeptiere die {terms}.',
+  'account.termsRequired': 'Bitte akzeptiere die Nutzungsbedingungen, um ein Konto zu erstellen.',
+  'account.termsLink': 'Nutzungsbedingungen',
   'account.errorCode': 'Der Code ist falsch oder abgelaufen.',
   'account.errorRateLimit': 'Zu viele Versuche. Bitte warte ein paar Minuten und versuch es dann noch einmal.',
   'account.errorCaptcha': 'Die Prüfung, dass du kein Bot bist, hat nicht geklappt. Bitte lade die Seite neu und versuch es noch einmal.',
@@ -555,6 +558,7 @@ export const de: Messages = {
   // --- Footer ---
   'foot.imprint': 'Impressum',
   'foot.privacy': 'Datenschutz',
+  'foot.terms': 'Nutzungsbedingungen',
 
   // --- Keystroke log ---
   'log.back': '← Zurück zum Üben',

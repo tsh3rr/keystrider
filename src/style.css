@@ -354,6 +354,9 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 }
 .account-delete { color: var(--error); }
 .account-privacy { font-size: 0.82rem; color: var(--muted); }
+.account-terms { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; color: var(--muted); cursor: pointer; }
+.account-terms input { margin: 3px 0 0; accent-color: var(--accent); }
+.account-terms a { color: var(--accent); }
 .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border-radius: 8px; background: var(--surface-2); box-shadow: var(--sink); }
 .segmented button { border: 0; padding: 6px; color: var(--muted); border-radius: 6px; font-size: 0.88rem; }
 .segmented button[aria-checked="true"] { background: var(--panel); color: var(--fg); box-shadow: var(--raise-sm); }

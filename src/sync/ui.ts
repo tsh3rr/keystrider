@@ -1,4 +1,4 @@
-import { t, uiLanguage } from '../i18n';
+import { t, tNodes, uiLanguage } from '../i18n';
 import { EMAIL_LINKS, type AccountState } from './account';
 import { USERNAME_MAX, USERNAME_MIN, usernameProblem } from './username';
 
@@ -106,6 +106,21 @@ export function form(inputs: HTMLElement[], actions: Action[]): HTMLFormElement 
     actions[0].go();
   });
   return f;
+}
+
+/** "I accept the terms of use", with the link: a required tick box for signing up. */
+export function termsCheck(checked: boolean, onChange: (checked: boolean) => void): { label: HTMLLabelElement; box: HTMLInputElement } {
+  const box = Object.assign(document.createElement('input'), { type: 'checkbox', required: true, checked });
+  const valid = () => box.setCustomValidity(box.checked ? '' : t('account.termsRequired'));
+  valid();
+  box.addEventListener('change', () => { valid(); onChange(box.checked); });
+  // A new tab, so what was typed into the form is still there afterwards.
+  const link = Object.assign(document.createElement('a'), { href: '/nutzungsbedingungen', target: '_blank', rel: 'noopener', textContent: t('account.termsLink') });
+  const label = Object.assign(document.createElement('label'), { className: 'account-terms' });
+  const text = document.createElement('span');
+  text.append(...tNodes('account.termsCheck', { terms: link }));
+  label.append(box, text);
+  return { label, box };
 }
 
 export function privacyLink(): HTMLAnchorElement {

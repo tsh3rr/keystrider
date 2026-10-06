@@ -36,14 +36,15 @@ export default defineConfig(({ mode }) => {
       __SUPABASE_KEY__: JSON.stringify(supabase.key),
       __TURNSTILE_SITE_KEY__: JSON.stringify(env.VITE_TURNSTILE_SITE_KEY ?? TURNSTILE[target]),
     },
-    // Three pages: the app, and the Impressum and privacy policy, which must be
-    // reachable by their own address (/impressum, /datenschutz).
+    // Four pages: the app, and the Impressum, privacy policy and terms of use,
+    // which must be reachable by their own address (/impressum, /datenschutz, /nutzungsbedingungen).
     build: {
       rolldownOptions: {
         input: {
           main: resolve(import.meta.dirname, 'index.html'),
           impressum: resolve(import.meta.dirname, 'impressum.html'),
           datenschutz: resolve(import.meta.dirname, 'datenschutz.html'),
+          nutzungsbedingungen: resolve(import.meta.dirname, 'nutzungsbedingungen.html'),
         },
       },
     },

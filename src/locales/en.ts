@@ -127,6 +127,9 @@ export const en = {
   'account.deleteConfirm': 'Delete your account and all practice data stored with it? Your practice data on this device is kept.',
   'account.deleted': 'Your account was deleted.',
   'account.privacy': 'How your data is handled',
+  'account.termsCheck': 'I accept the {terms}.',
+  'account.termsRequired': 'Please accept the terms of use to create an account.',
+  'account.termsLink': 'terms of use',
   'account.errorCode': 'That code is wrong or has expired.',
   'account.errorRateLimit': 'Too many attempts. Please wait a few minutes and try again.',
   'account.errorCaptcha': 'The check that you are not a bot did not work. Please reload the page and try again.',
@@ -559,6 +562,7 @@ export const en = {
   // --- Footer ---
   'foot.imprint': 'Legal notice',
   'foot.privacy': 'Privacy',
+  'foot.terms': 'Terms',
 
   // --- Keystroke log ---
   'log.back': '← Back to practice',

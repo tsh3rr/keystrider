@@ -122,6 +122,9 @@ export const es: Messages = {
   'account.deleteConfirm': '¿Eliminar tu cuenta y todos los datos de práctica guardados en ella? Los datos de este dispositivo se conservan.',
   'account.deleted': 'Tu cuenta se ha eliminado.',
   'account.privacy': 'Cómo se tratan tus datos',
+  'account.termsCheck': 'Acepto las {terms}.',
+  'account.termsRequired': 'Acepta las condiciones de uso para crear una cuenta.',
+  'account.termsLink': 'condiciones de uso',
   'account.errorCode': 'El código es incorrecto o ha caducado.',
   'account.errorRateLimit': 'Demasiados intentos. Espera unos minutos y vuelve a intentarlo.',
   'account.errorCaptcha': 'La comprobación de que no eres un bot ha fallado. Recarga la página y vuelve a intentarlo.',
@@ -556,6 +559,7 @@ export const es: Messages = {
   // --- Footer ---
   'foot.imprint': 'Aviso legal',
   'foot.privacy': 'Privacidad',
+  'foot.terms': 'Condiciones de uso',
 
   // --- Keystroke log ---
   'log.back': '← Volver a practicar',
