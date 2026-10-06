@@ -2,7 +2,7 @@ import { t, type MessageKey } from '../i18n';
 import { EMAIL_LINKS, OAUTH_PROVIDERS, type Account, type AccountState, type OAuthProvider } from './account';
 import { captchaEnabled, captchaToken } from './captcha';
 import {
-  MIN_PASSWORD, accountNotActivated, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus, termsNote,
+  MIN_PASSWORD, accountNotActivated, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus, termsCheck,
   userIcon, usernameError, usernameField, usernameHint, type SignedIn,
 } from './ui';
 
@@ -35,6 +35,8 @@ export class AccountView {
   /** Kept while the panel redraws (a wrong password, a taken username), dropped once signed in. */
   private password = '';
   private repeat = '';
+  /** The terms tick box on the sign-up form. */
+  private terms = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -53,6 +55,7 @@ export class AccountView {
       this.step = { kind: 'signin' };
       this.password = '';
       this.repeat = '';
+      this.terms = false;
     }
     this.state = state;
     this.render();
@@ -131,7 +134,9 @@ export class AccountView {
       }
       case 'signup': {
         // E-mail and password sit where they sit when signing in, so switching tabs keeps them in place.
-        nodes.push(...this.providers());
+        const terms = termsCheck(this.terms, (checked) => (this.terms = checked));
+        // Signing up with Google creates the account too, so it needs the tick as well.
+        nodes.push(...this.providers(() => terms.box.reportValidity()));
         const email = this.emailField();
         const password = this.passwordField('new-password');
         const repeat = field('password', t('account.passwordRepeat'), { autocomplete: 'new-password', minlength: String(MIN_PASSWORD) });
@@ -139,7 +144,7 @@ export class AccountView {
         repeat.addEventListener('input', () => (this.repeat = repeat.value));
         const username = usernameField(this.username);
         username.addEventListener('input', () => (this.username = username.value));
-        nodes.push(form([email, password, repeat, username, usernameHint()], [{ label: t('account.signUp'), primary: true, go: () => {
+        nodes.push(form([email, password, repeat, username, usernameHint(), terms.label], [{ label: t('account.signUp'), primary: true, go: () => {
           const name = username.value.trim();
           const problem = password.value !== repeat.value ? t('account.passwordMismatch') : usernameError(name);
           if (problem) return this.fail(problem);
@@ -150,7 +155,7 @@ export class AccountView {
             this.notice = t('account.confirmSent', { email: email.value.trim() });
             this.step = { kind: 'signin' };
           });
-        } }]), ...this.captchaBox(), termsNote(), benefits());
+        } }]), ...this.captchaBox(), benefits());
         break;
       }
       case 'code': {
@@ -222,9 +227,11 @@ export class AccountView {
   }
 
 
-  private providers(): Node[] {
-    const nodes: Node[] = OAUTH_PROVIDERS.map((provider) => button(t(PROVIDER_LABEL[provider]), 'account-provider', () =>
-      this.run(() => this.account.signInWithProvider(provider))));
+  /** Sign-in buttons for Google and the like; `allowed` can hold them back (e.g. until the terms are ticked). */
+  private providers(allowed: () => boolean = () => true): Node[] {
+    const nodes: Node[] = OAUTH_PROVIDERS.map((provider) => button(t(PROVIDER_LABEL[provider]), 'account-provider', () => {
+      if (allowed()) void this.run(() => this.account.signInWithProvider(provider));
+    }));
     if (nodes.length) nodes.push(p(t('account.orEmail'), 'account-or'));
     return nodes;
   }
