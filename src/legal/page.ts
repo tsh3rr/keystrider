@@ -4,7 +4,7 @@ import { loadThemeSetting, loadUiLanguageSetting } from '../settings';
 import { LEGAL_UI, legalHtml, type LegalLanguage, type LegalPage } from './content';
 
 /**
- * The Impressum and privacy pages. They open in the app's interface language
+ * The Impressum, privacy and terms pages. They open in the app's interface language
  * and theme, and the language switch here only changes this page.
  */
 

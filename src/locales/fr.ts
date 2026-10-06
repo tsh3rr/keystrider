@@ -124,6 +124,8 @@ export const fr: Messages = {
   'account.deleteConfirm': 'Supprimer ton compte et toutes les données d’entraînement qui y sont enregistrées ? Les données sur cet appareil sont conservées.',
   'account.deleted': 'Ton compte a été supprimé.',
   'account.privacy': 'Comment tes données sont traitées',
+  'account.termsAccept': 'En t’inscrivant, tu acceptes les {terms}.',
+  'account.termsLink': 'conditions d’utilisation',
   'account.errorCode': 'Ce code est incorrect ou a expiré.',
   'account.errorRateLimit': 'Trop de tentatives. Patiente quelques minutes puis réessaie.',
   'account.errorCaptcha': 'La vérification anti-robot a échoué. Recharge la page et réessaie.',
@@ -558,6 +560,7 @@ export const fr: Messages = {
   // --- Footer ---
   'foot.imprint': 'Mentions légales',
   'foot.privacy': 'Confidentialité',
+  'foot.terms': 'Conditions d’utilisation',
 
   // --- Keystroke log ---
   'log.back': '← Retour à l’entraînement',

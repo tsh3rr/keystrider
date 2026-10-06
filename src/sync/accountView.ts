@@ -2,7 +2,7 @@ import { t, type MessageKey } from '../i18n';
 import { EMAIL_LINKS, OAUTH_PROVIDERS, type Account, type AccountState, type OAuthProvider } from './account';
 import { captchaEnabled, captchaToken } from './captcha';
 import {
-  MIN_PASSWORD, accountNotActivated, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus,
+  MIN_PASSWORD, accountNotActivated, avatar, benefits, button, displayName, field, form, p, privacyLink, runIn, syncStatus, termsNote,
   userIcon, usernameError, usernameField, usernameHint, type SignedIn,
 } from './ui';
 
@@ -150,7 +150,7 @@ export class AccountView {
             this.notice = t('account.confirmSent', { email: email.value.trim() });
             this.step = { kind: 'signin' };
           });
-        } }]), ...this.captchaBox(), benefits());
+        } }]), ...this.captchaBox(), termsNote(), benefits());
         break;
       }
       case 'code': {

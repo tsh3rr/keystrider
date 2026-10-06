@@ -1,4 +1,4 @@
-import { t, uiLanguage } from '../i18n';
+import { t, tNodes, uiLanguage } from '../i18n';
 import { EMAIL_LINKS, type AccountState } from './account';
 import { USERNAME_MAX, USERNAME_MIN, usernameProblem } from './username';
 
@@ -106,6 +106,14 @@ export function form(inputs: HTMLElement[], actions: Action[]): HTMLFormElement 
     actions[0].go();
   });
   return f;
+}
+
+/** "By signing up you accept the terms of use", with the link. */
+export function termsNote(): HTMLParagraphElement {
+  const link = Object.assign(document.createElement('a'), { href: '/nutzungsbedingungen', textContent: t('account.termsLink') });
+  const note = p('', 'account-note account-terms');
+  note.replaceChildren(...tNodes('account.termsAccept', { terms: link }));
+  return note;
 }
 
 export function privacyLink(): HTMLAnchorElement {
