@@ -33,6 +33,18 @@ describe('codec', () => {
   });
 });
 
+describe('codec keyboard tag', () => {
+  it('keeps the keyboard a round was typed on, and leaves the main keyboard untagged', () => {
+    const work = typed('ab', 'ab', 'w').map((e) => ({ ...e, keyboard: 'k1' }));
+    const row = encodeSession(work);
+    expect(row.data.kb).toBe('k1');
+    expect(decodeSession(JSON.parse(JSON.stringify(row)))).toEqual(work);
+    const plain = encodeSession(typed('ab', 'ab', 'p'));
+    expect(plain.data.kb).toBeUndefined();
+    expect(decodeSession(plain).every((e) => !('keyboard' in e))).toBe(true);
+  });
+});
+
 describe('planSync', () => {
   const m = (o: Record<string, string>) => new Map(Object.entries(o));
 

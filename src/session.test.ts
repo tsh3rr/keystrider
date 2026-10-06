@@ -129,6 +129,6 @@ describe('toCsv', () => {
     s.press('a', 0);
     const csv = toCsv([s.press(',', 10, 'Comma')!]);
     const [, row] = csv.split('\n');
-    expect(row).toBe(',z,en,qwerty-us,10,1," ",",",Comma,a,a,10,false');
+    expect(row).toBe(',z,en,qwerty-us,10,1," ",",",Comma,a,a,10,false,');
   });
 });

@@ -213,8 +213,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .menu-item .flag { margin-right: 0; align-self: center; }
 .menu-sep { color: var(--faint); }
 .menu-layout { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.menu-keyboard { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+.menu-item.menu-link { color: var(--accent); font-size: 0.85rem; }
 .menu-section { display: grid; gap: 2px; }
-.menu-section + .menu-section { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+.menu-section:not([hidden]) + .menu-section { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
 .menu-note { display: block; font-size: 0.8rem; color: var(--muted); padding: 6px 8px 2px; border-top: 1px solid var(--border); margin-top: 4px; }
 .settings-btn { border: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding: 6px 8px; min-height: 36px; }
 .settings-btn:hover, .settings-btn[aria-expanded="true"] { color: var(--fg); background: var(--surface-2); }
@@ -253,7 +255,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .account-pop:not(.as-dialog) .account-close { display: none; }
 body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 @media (max-width: 420px) {
-  .menu-sep, .menu-layout { display: none; }
+  .menu-sep, .menu-layout, .menu-keyboard { display: none; }
 }
 @media (max-width: 620px) {
   .topbar { padding: 10px 16px; }
@@ -308,6 +310,17 @@ body.onboarding .menu-wrap.account-wrap { visibility: visible; }
 .switch-row input:checked::before { transform: translateX(14px); }
 @media (prefers-reduced-motion: reduce) { .switch-row input, .switch-row input::before { transition: none; } }
 #reset-lessons { color: var(--error); }
+/* Keyboard profiles: one row per keyboard, its name editable in place. */
+.kbp { display: grid; gap: 10px; }
+.kbp-note { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.kbp-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.kbp-row { display: flex; gap: 6px; align-items: center; }
+.kbp-row .account-input { flex: 1; }
+.kbp-row.active .account-input { border-color: var(--accent); }
+.kbp-meta { flex: none; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.kbp-remove { flex: none; width: 30px; height: 30px; padding: 0; border: 0; color: var(--muted); font-size: 1rem; }
+.kbp-remove:hover { color: var(--error); background: var(--surface-2); }
+.kbp-remove:disabled { visibility: hidden; }
 .account-benefits { display: grid; gap: 6px; font-size: 0.9rem; }
 .account-benefits ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .account-benefits li { position: relative; padding-left: 20px; color: var(--muted); line-height: 1.4; }
@@ -726,6 +739,11 @@ tr.wrong td { color: var(--error); }
 .pg-context { color: var(--muted); font-size: 14px; }
 .pg-range { width: min(300px, 100%); background: var(--surface-2); }
 .pg-body { display: grid; gap: 16px; }
+/* Keyboard filter: as many buttons as keyboards, wrapping on phones. */
+.pg-kb { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; margin: -4px 0 16px; background: var(--surface-2); }
+.pg-kb button { padding: 6px 12px; white-space: nowrap; }
+table.pg-compare tr.current td:first-child { font-weight: 650; }
+table.pg-compare td.item kbd { margin-right: 2px; }
 .pg-card {
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; box-shadow: var(--card-lift);
   display: grid; gap: 10px; min-width: 0; scroll-margin-top: 16px;

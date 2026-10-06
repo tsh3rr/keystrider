@@ -69,3 +69,17 @@ describe('KeystrokeStore cache', () => {
     tab2.close();
   });
 });
+
+describe('KeystrokeStore keyboards', () => {
+  it('finds the rounds typed on a keyboard', async () => {
+    const store = await KeystrokeStore.open(new IDBFactory());
+    await store.add(key('s1', 1));
+    await store.add(key('s2', 2, { keyboard: 'k1' }));
+    await store.add(key('s2', 3, { keyboard: 'k1' }));
+    await store.add(key('s3', 4, { keyboard: 'k2' }));
+    expect(await store.sessionsOnKeyboard('k1')).toEqual(['s2']);
+    await store.deleteSessions(await store.sessionsOnKeyboard('k1'));
+    expect(ids(await store.all())).toEqual(['s1@1', 's3@4']);
+    store.close();
+  });
+});
