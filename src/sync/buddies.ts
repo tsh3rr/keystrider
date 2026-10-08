@@ -110,7 +110,7 @@ export function savePendingInvite(code: string | null): void {
 }
 
 export function inviteLink(code: string): string {
-  return `${location.origin}/?${INVITE_PARAM}=${code}`;
+  return `${location.origin}/app/?${INVITE_PARAM}=${code}`;
 }
 
 /** Whether to share average speed with buddies; off unless turned on. */

@@ -427,7 +427,7 @@ function downloadPlan(plan: PracticePlan, goal: WeeklyGoal): void {
   const ics = planIcs(plan, {
     minutes: goal.minutes, title: t('schedule.icsTitle'),
     description: plan.cue ? t('schedule.icsTextCue', { min: goal.minutes, cue: plan.cue }) : t('schedule.icsText', { min: goal.minutes }),
-    url: `${location.origin}/`, uid: planUid(),
+    url: `${location.origin}/app/`, uid: planUid(),
   });
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })), download: 'keystrider-practice.ics',

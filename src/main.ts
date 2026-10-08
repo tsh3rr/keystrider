@@ -57,7 +57,18 @@ const logSummary = $('log-summary');
 
 const LOG_TABLE_LIMIT = 500;
 
-const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
+const browserLocales = navigator.languages?.length ? navigator.languages : [navigator.language];
+// A landing page links here with ?lang=<its language>: on a first visit that
+// language goes ahead of the browser's for the menus and the practice text.
+// Anything the learner already picked still wins, and the keyboard layout is
+// still guessed from the browser (a Swiss reader of the German page keeps Swiss QWERTZ).
+const linkLanguage = new URLSearchParams(location.search).get('lang');
+const locales = linkLanguage ? [linkLanguage, ...browserLocales] : browserLocales;
+if (linkLanguage) {
+  const url = new URL(location.href);
+  url.searchParams.delete('lang');
+  history.replaceState(history.state, '', url);
+}
 
 // Interface language: the learner's pick, else the browser's language if we have it, else English.
 const savedUiLanguage = loadUiLanguageSetting();
@@ -67,7 +78,7 @@ await setUiLanguage(isUiLanguage(savedUiLanguage) ? savedUiLanguage : guessUiLan
 document.documentElement.lang = uiLanguage();
 applyTranslations();
 // Until a key is pressed or the browser reports the layout, guess from the browser language.
-let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLocale(locales), source: 'guessed' };
+let layoutSetting: LayoutSetting = loadLayoutSetting() ?? { layout: guessFromLocale(browserLocales), source: 'guessed' };
 
 // The picked language; on a first visit the browser language, but a browser
 // that already practised before the picker existed keeps English.
@@ -946,7 +957,7 @@ async function backfillLegacyLog(): Promise<void> {
 
 function checkObservedLayout(): void {
   if (observer.size === 0) return;
-  const d = detectLayout(observer.observations(), locales);
+  const d = detectLayout(observer.observations(), browserLocales);
   // Nothing typed so far contradicts the current layout.
   if (!d.layout || d.candidates.includes(layoutSetting.layout)) return showSuggestion(null);
   if (layoutSetting.source === 'user') {
@@ -962,7 +973,7 @@ async function detectFromBrowser(): Promise<void> {
   if (layoutSetting.source === 'user') return;
   const map = await browserLayoutMap();
   if (!map) return;
-  const d = detectLayout(map, locales);
+  const d = detectLayout(map, browserLocales);
   // The Keyboard API reports the real OS layout; a tie only means layouts that share a base layer.
   if (d.layout) await setLayout(d.layout, 'detected');
 }
@@ -1435,7 +1446,7 @@ const onboarding = new Onboarding($('onboarding-view'), {
     }
     startDrill(lessons ? 'core' : undefined).catch((err) => console.error('Failed to start drill', err));
   },
-}, locales);
+}, browserLocales);
 
 function openOnboarding(): void {
   showView('practice');
@@ -1465,7 +1476,7 @@ function renderUiLanguagePicker(): void {
     b.addEventListener('click', () => {
       uiChoice = l.id;
       saveUiLanguageSetting(l.id);
-      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(locales))
+      setUiLanguage(isUiLanguage(l.id) ? l.id : guessUiLanguage(browserLocales))
         .catch((err) => console.error('Failed to load interface language', err));
       // The language may not change (e.g. Automatic picks the one already shown); the choice did.
       renderUiLanguagePicker();

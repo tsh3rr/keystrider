@@ -13,6 +13,11 @@ npm run build    # typecheck + production build into dist/
 
 Static app (TypeScript + Vite). No backend: all data stays in the browser.
 
+## Pages
+
+- **Landing pages** at `/` (English), `/de/`, `/es/`, `/fr/`, `/it/` and `/pl/`: what Keystrider is, with a one-line typing demo in the hero that shows speed, accuracy and the keys that held you up. They are static HTML built from `src/landing/content.ts` at build time (`index.html` and `<lang>/index.html` are placeholders the plugin in `vite.config.ts` fills), so search engines and link previews read the full text. The build also writes `sitemap.xml` and `robots.txt`; preview builds tell search engines to stay away. `SITE_URL` sets the public address used in canonical links and the sitemap.
+- **The trainer** at `/app/`. Landing links pass `?lang=<lang>` so a first visit starts in that language. Someone who has set up the trainer before, and sign-in or invite links that point at `/`, go straight on to `/app/` (`public/to-app.js`); `/?home` shows the landing page anyway.
+
 ## Screens
 
 - **Practice**: the drill text in one centred column with the finger guide below it. A slim coach bar above the text has four chips: **Path** (unlock stage and next letter), **Round** (where this drill sits in the round, and its focus keys), **Now** (live speed and accuracy) and the **break check**. Each chip opens a bubble with only its own details (`src/coachView.ts`).
