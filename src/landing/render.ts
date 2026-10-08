@@ -1,5 +1,5 @@
-import { BRAND_MARK } from './brand';
-import { COPY, LANDING_LANGUAGES, landingPath, type LandingLanguage } from './content';
+import { BRAND_MARK } from './brand.ts';
+import { COPY, LANDING_LANGUAGES, landingPath, type LandingLanguage } from './content.ts';
 
 /**
  * Builds the landing pages, the sitemap and robots.txt at build time (see the
@@ -90,6 +90,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
         <summary aria-label="${esc(c.nav.languages)}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>${esc(c.name)}</summary>
         <nav class="menu lp-lang-menu" aria-label="${esc(c.nav.languages)}">${languageLinks}</nav>
       </details>
+      <a class="lp-signin" href="/app/?signin&amp;lang=${lang}">${esc(c.nav.signIn)}</a>
       <a class="lp-btn lp-btn-small" href="${app}">${esc(c.nav.open)}</a>
     </header>
 
@@ -152,7 +153,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
       <a href="/nutzungsbedingungen">${esc(c.foot.terms)}</a>
     </footer>
 
-    <script type="application/json" id="lp-data">${jsonBlock({ ...c.demo, app })}</script>
+    <script type="application/json" id="lp-data">${jsonBlock({ ...c.demo, app, lang })}</script>
     <script type="module" src="/src/landing/main.ts"></script>
   </body>
 </html>

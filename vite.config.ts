@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { LANDING_LANGUAGES, type LandingLanguage } from './src/landing/content';
-import { renderLanding, robotsTxt, sitemapXml } from './src/landing/render';
+import { LANDING_LANGUAGES, type LandingLanguage } from './src/landing/content.ts';
+import { renderLanding, robotsTxt, sitemapXml } from './src/landing/render.ts';
 
 /**
  * The public address, for canonical links, the sitemap and link previews.

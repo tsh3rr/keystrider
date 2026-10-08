@@ -24,7 +24,7 @@ export interface LandingCopy {
   title: string;
   /** Search result snippet, about 155 characters. */
   description: string;
-  nav: { languages: string; open: string };
+  nav: { languages: string; signIn: string; open: string };
   hero: { eyebrow: string; title: string; lead: string; cta: string; note: string };
   demo: {
     label: string;
@@ -33,8 +33,12 @@ export interface LandingCopy {
     accuracy: string;
     slowTitle: string;
     slowNone: string;
-    resultText: string;
-    cta: string;
+    /** After the line: lesson 1 comes next (a beginner, see handoff.ts). */
+    nextBeginner: string;
+    ctaBeginner: string;
+    /** ... or the rest of the placement test, {n} words, to skip ahead. */
+    nextFast: string;
+    ctaFast: string;
     again: string;
     /** Practice lines for the hero; one is picked at random. Plain text, no line breaks. */
     lines: string[];
@@ -53,7 +57,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     title: 'Keystrider: free touch typing trainer that adapts to you',
     description:
       'Learn to touch type for free. Keystrider measures every keystroke, finds the keys that slow you down and builds each drill around them. No sign-up needed.',
-    nav: { languages: 'Language', open: 'Open the trainer' },
+    nav: { languages: 'Language', signIn: 'Sign in', open: 'Open the trainer' },
     hero: {
       eyebrow: 'Free touch typing trainer · no sign-up',
       title: 'Learn to touch type with a trainer that understands your mistakes',
@@ -68,8 +72,10 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       accuracy: 'accuracy',
       slowTitle: 'These keys held you up:',
       slowNone: 'Clean and even. Let’s see how you do with the whole keyboard.',
-      resultText: 'Keystrider would start exactly there, and keep track of every key from now on.',
-      cta: 'Keep practising',
+      nextBeginner: 'Your first lesson: the six most common letters, then one new key at a time.',
+      ctaBeginner: 'Start lesson 1',
+      nextFast: 'You already type quite fast. About {n} more words in the trainer, then you skip the keys you already know.',
+      ctaFast: 'Finish the placement',
       again: 'Try another line',
       lines: [
         'the quick brown fox jumps over the lazy dog while the band plays on',
@@ -118,7 +124,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     title: 'Zehnfingersystem lernen: kostenloser Tipptrainer | Keystrider',
     description:
       'Lerne das Zehnfingersystem kostenlos online. Keystrider misst jeden Tastendruck, erkennt die Tasten, die dich bremsen, und übt gezielt diese. Ohne Anmeldung.',
-    nav: { languages: 'Sprache', open: 'Zum Training' },
+    nav: { languages: 'Sprache', signIn: 'Anmelden', open: 'Zum Training' },
     hero: {
       eyebrow: 'Kostenloser Tipptrainer · ohne Anmeldung',
       title: 'Lerne das Zehnfingersystem mit einem Trainer, der deine Fehler versteht',
@@ -133,8 +139,10 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       accuracy: 'Genauigkeit',
       slowTitle: 'Bei diesen Tasten hast du gezögert:',
       slowNone: 'Sauber und gleichmäßig. Mal sehen, wie es mit der ganzen Tastatur läuft.',
-      resultText: 'Genau dort würde Keystrider ansetzen und ab jetzt jede Taste im Blick behalten.',
-      cta: 'Weiterüben',
+      nextBeginner: 'Deine erste Lektion: die sechs häufigsten Buchstaben, dann eine neue Taste nach der anderen.',
+      ctaBeginner: 'Lektion 1 starten',
+      nextFast: 'Du tippst schon ziemlich flott. Noch etwa {n} Wörter im Trainer, dann überspringst du die Tasten, die du schon kannst.',
+      ctaFast: 'Einstufung abschließen',
       again: 'Andere Zeile',
       lines: [
         'zwölf boxkämpfer jagen viktor quer über den großen sylter deich',
@@ -183,7 +191,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     title: 'Curso de mecanografía gratis que se adapta a ti | Keystrider',
     description:
       'Aprende mecanografía gratis y online. Keystrider mide cada pulsación, encuentra las teclas que te frenan y practica justo esas. Sin registrarte.',
-    nav: { languages: 'Idioma', open: 'Ir al entrenador' },
+    nav: { languages: 'Idioma', signIn: 'Iniciar sesión', open: 'Ir al entrenador' },
     hero: {
       eyebrow: 'Mecanografía gratis · sin registro',
       title: 'Aprende mecanografía con un entrenador que entiende tus errores',
@@ -198,8 +206,10 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       accuracy: 'precisión',
       slowTitle: 'Estas teclas te hicieron dudar:',
       slowNone: 'Limpio y constante. Veamos qué tal con el teclado completo.',
-      resultText: 'Keystrider empezaría justo ahí y seguiría cada tecla a partir de ahora.',
-      cta: 'Seguir practicando',
+      nextBeginner: 'Tu primera lección: las seis letras más frecuentes y luego una tecla nueva cada vez.',
+      ctaBeginner: 'Empezar la lección 1',
+      nextFast: 'Ya escribes bastante rápido. Unas {n} palabras más en el entrenador y te saltas las teclas que ya dominas.',
+      ctaFast: 'Terminar la prueba de nivel',
       again: 'Otra línea',
       lines: [
         'el veloz murciélago hindú comía feliz cardillo y kiwi',
@@ -248,7 +258,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     title: 'Apprendre la dactylographie gratuitement | Keystrider',
     description:
       'Apprenez à taper au clavier à dix doigts, gratuitement. Keystrider mesure chaque frappe, trouve les touches qui vous freinent et les travaille. Sans inscription.',
-    nav: { languages: 'Langue', open: 'Ouvrir l’entraîneur' },
+    nav: { languages: 'Langue', signIn: 'Se connecter', open: 'Ouvrir l’entraîneur' },
     hero: {
       eyebrow: 'Dactylographie gratuite · sans inscription',
       title: 'Tapez à dix doigts avec un entraîneur qui comprend vos erreurs',
@@ -263,8 +273,10 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       accuracy: 'précision',
       slowTitle: 'Ces touches vous ont fait hésiter :',
       slowNone: 'Propre et régulier. Voyons ce que ça donne avec tout le clavier.',
-      resultText: 'Keystrider commencerait exactement là, et suivrait chaque touche à partir de maintenant.',
-      cta: 'Continuer',
+      nextBeginner: 'Votre première leçon : les six lettres les plus fréquentes, puis une nouvelle touche à la fois.',
+      ctaBeginner: 'Commencer la leçon 1',
+      nextFast: 'Vous tapez déjà assez vite. Encore environ {n} mots dans l’entraîneur, puis vous sautez les touches que vous maîtrisez.',
+      ctaFast: 'Terminer le test de niveau',
       again: 'Autre ligne',
       lines: [
         'portez ce vieux whisky au juge blond qui fume',
@@ -313,7 +325,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     title: 'Corso di dattilografia gratis che si adatta a te | Keystrider',
     description:
       'Impara a scrivere con dieci dita, gratis e online. Keystrider misura ogni battuta, trova i tasti che ti rallentano e allena proprio quelli. Senza registrazione.',
-    nav: { languages: 'Lingua', open: 'Apri l’allenatore' },
+    nav: { languages: 'Lingua', signIn: 'Accedi', open: 'Apri l’allenatore' },
     hero: {
       eyebrow: 'Dattilografia gratis · senza registrazione',
       title: 'Impara a scrivere con dieci dita con un allenatore che capisce i tuoi errori',
@@ -328,8 +340,10 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       accuracy: 'precisione',
       slowTitle: 'Su questi tasti hai esitato:',
       slowNone: 'Pulito e regolare. Vediamo come va con tutta la tastiera.',
-      resultText: 'Keystrider partirebbe proprio da lì, e da ora in poi terrebbe d’occhio ogni tasto.',
-      cta: 'Continua ad allenarti',
+      nextBeginner: 'La tua prima lezione: le sei lettere più frequenti, poi un tasto nuovo alla volta.',
+      ctaBeginner: 'Inizia la lezione 1',
+      nextFast: 'Scrivi già piuttosto veloce. Ancora circa {n} parole nell’allenatore, poi salti i tasti che conosci già.',
+      ctaFast: 'Completa il test di livello',
       again: 'Un’altra riga',
       lines: [
         'quel vituperabile xenofobo zelante assaggia il whisky ed esclama alleluja',
@@ -378,7 +392,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     title: 'Nauka pisania bezwzrokowego za darmo | Keystrider',
     description:
       'Naucz się pisać bezwzrokowo, za darmo i online. Keystrider mierzy każde uderzenie, znajduje klawisze, które cię spowalniają, i ćwiczy właśnie je. Bez rejestracji.',
-    nav: { languages: 'Język', open: 'Otwórz trenera' },
+    nav: { languages: 'Język', signIn: 'Zaloguj się', open: 'Otwórz trenera' },
     hero: {
       eyebrow: 'Darmowy trener pisania · bez rejestracji',
       title: 'Naucz się pisać bezwzrokowo z trenerem, który rozumie twoje błędy',
@@ -393,8 +407,10 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       accuracy: 'dokładność',
       slowTitle: 'Przy tych klawiszach się zawahałeś(-aś):',
       slowNone: 'Czysto i równo. Zobaczmy, jak pójdzie z całą klawiaturą.',
-      resultText: 'Keystrider zacząłby właśnie tam i od teraz śledziłby każdy klawisz.',
-      cta: 'Ćwicz dalej',
+      nextBeginner: 'Twoja pierwsza lekcja: sześć najczęstszych liter, potem jeden nowy klawisz naraz.',
+      ctaBeginner: 'Zacznij lekcję 1',
+      nextFast: 'Piszesz już całkiem szybko. Jeszcze około {n} słów w trenerze, a potem pominiesz klawisze, które już znasz.',
+      ctaFast: 'Dokończ test poziomujący',
       again: 'Inna linijka',
       lines: [
         'pchnąć w tę łódź jeża lub ośm skrzyń fig',

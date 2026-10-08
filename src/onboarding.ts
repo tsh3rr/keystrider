@@ -2,8 +2,9 @@ import { availableLanguages, getCorpus } from './corpus';
 import { withFlag } from './flags';
 import { stairMark } from './stairMark';
 import { initialCurriculum, tierWpm, unlockSteps, type CurriculumState } from './drill';
+import { PLACEMENT_WORDS, canSkipAhead, wordsTyped } from './handoff';
 import { KeyObserver, LAYOUTS, ROWS, charLabel, detectLayout, getLayout, keyLabel } from './layouts';
-import { placeFromTest, placementText, type Placement } from './placement';
+import { DEFAULT_PLACEMENT_PARAMS, placeFromTest, placementResult, placementText, quickText, type Placement } from './placement';
 import { TypingSession } from './session';
 import type { LayoutSetting } from './settings';
 import type { KeystrokeEvent, PracticeContext } from './types';
@@ -23,6 +24,13 @@ import { benefits } from './sync/ui';
  *
  * Someone who already has an account can sign in from step 1; once their
  * lessons have synced, the setup closes by itself (see main.ts).
+ *
+ * A first visit takes a shorter way (`openQuick`): straight into a short
+ * line of common words, which is the start of the placement test, often
+ * already typed on the landing page. Beginners start lesson 1 from it; whoever
+ * is fast enough to skip ahead types the rest of the placement test. The
+ * layout is recognised from the keys pressed on the way, and "How it works"
+ * comes after the first round instead (main.ts).
  *
  * The screen only talks to the rest of the app through `OnboardingHost`.
  * Its text comes from the translation files (`onboarding.*` keys) through `T` below.
@@ -89,7 +97,18 @@ const T = {
   },
   get methodTip() { return t('onboarding.methodTip'); },
   get start() { return t('onboarding.start'); },
+
+  get quickTitle() { return t('onboarding.quickTitle'); },
+  get quickIntro() { return t('onboarding.quickIntro'); },
+  get moreTitle() { return t('onboarding.moreTitle'); },
+  moreIntro: (n: number) => t('onboarding.moreIntro', { n }),
+  get quickSkip() { return t('onboarding.quickSkip'); },
 };
+
+/** Words in the opening line of a first visit's placement (the landing page's line is about as long). */
+const QUICK_WORDS = 12;
+/** Fewer words than this left of the placement test are not worth a second line. */
+const MIN_MORE_WORDS = 6;
 
 /** A layout's name in the interface language. */
 const layoutName = (id: string) => tMaybe(`layout.${id}`) ?? getLayout(id)?.name ?? id;
@@ -112,8 +131,9 @@ export interface OnboardingHost {
   /**
    * Called when the learner is done or skips. `lessons` is the curriculum to
    * start with: a placement, a fresh start, or null to keep what is there.
+   * `quick` is true at the end of a first visit's short setup (`openQuick`).
    */
-  finish(lessons: CurriculumState | null): void;
+  finish(lessons: CurriculumState | null, quick: boolean): void;
 }
 
 type Choice = 'new' | 'test' | 'keep';
@@ -142,6 +162,12 @@ export class Onboarding {
   private placement: Placement | null = null;
   private observer = new KeyObserver();
   private test: { session: TypingSession; events: KeystrokeEvent[]; writes: Promise<unknown>[] } | null = null;
+  /** The short first-visit setup (openQuick) rather than the full one. */
+  private quick = false;
+  /** Quick setup: placement keystrokes typed so far, the landing page's included. */
+  private prior: KeystrokeEvent[] = [];
+  /** Quick setup: whether a line was typed here, not only on the landing page. */
+  private typedHere = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -150,6 +176,8 @@ export class Onboarding {
   ) {}
 
   open(): void {
+    this.quick = false;
+    this.prior = [];
     this.step = 0;
     this.kbMode = 'confirm';
     this.listOpen = false;
@@ -159,6 +187,20 @@ export class Onboarding {
     this.choice = this.host.hasLessons() ? 'keep' : 'new';
     this.root.hidden = false;
     this.render();
+  }
+
+  /**
+   * The first-visit setup: the placement test and nothing else. `prior` are
+   * the keystrokes of a line already typed on the landing page, if any.
+   */
+  openQuick(prior: readonly KeystrokeEvent[]): void {
+    this.open();
+    this.quick = true;
+    this.step = 1;
+    this.prior = [...prior];
+    this.typedHere = false;
+    if (this.prior.length) this.afterLine();
+    else this.startTest();
   }
 
   /** Redraws in a new interface language, unless the placement test is being typed. */
@@ -186,7 +228,7 @@ export class Onboarding {
     this.root.hidden = true;
     this.root.replaceChildren();
     this.test = null;
-    this.host.finish(lessons);
+    this.host.finish(lessons, this.quick);
   }
 
   private skip(): void {
@@ -200,6 +242,7 @@ export class Onboarding {
 
   private render(): void {
     const card = el('div', 'ob-card');
+    if (this.quick) return this.renderQuick(card);
     const head = el('div', 'ob-head');
     const dots = el('ol', 'ob-steps');
     dots.setAttribute('aria-label', T.stepOf(this.step + 1, T.steps.length));
@@ -223,6 +266,62 @@ export class Onboarding {
     card.querySelector<HTMLElement>('[data-autofocus]')?.focus();
   }
 
+  /** The practice language picker; `changed` runs once the new language is in use. */
+  private languageField(card: HTMLElement, changed: () => void): void {
+    const langs = availableLanguages();
+    if (langs.length < 2) return;
+    const ctx = this.host.context();
+    const field = el('div', 'ob-field');
+    field.append(el('span', 'ob-label', T.language));
+    const seg = el('div', 'segmented ob-seg');
+    seg.setAttribute('role', 'radiogroup');
+    seg.setAttribute('aria-label', T.language);
+    for (const c of langs) {
+      const b = button('', '', () => {
+        this.host.setLanguage(c.language)
+          .then(changed)
+          .catch((err) => console.error('Failed to switch language', err));
+      });
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(c.language === ctx.language));
+      b.append(...withFlag(c.language, c.name));
+      seg.append(b);
+    }
+    field.append(seg);
+    card.append(field);
+  }
+
+  // --- First visit: the placement test only ---
+
+  private renderQuick(card: HTMLElement): void {
+    const head = el('div', 'ob-head ob-head-quick');
+    head.append(button(T.quickSkip, 'link-btn ob-skip', () => this.skip()));
+    card.append(head);
+    // The opening line, before a key is pressed: the language can still change, and an account can be brought in.
+    const opening = this.test !== null && this.prior.length === 0 && this.test.events.length === 0;
+    if (opening && !this.host.signedIn()) {
+      const words = el('div');
+      words.append(el('b', '', T.haveAccountQuestion), el('p', '', T.haveAccountText));
+      card.append(this.accountBox(words, T.haveAccountAction, () => this.host.openAccount('signin')));
+    }
+    if (this.test) this.renderTest(card, opening ? () => this.languageField(card, () => this.startTest()) : undefined);
+    else if (this.placement) this.renderPlacement(card);
+    this.root.replaceChildren(card);
+    card.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+  }
+
+  /** After a line of the quick setup: type the rest of the placement test, or place the learner. */
+  private afterLine(): void {
+    const { wpm, accuracy } = placementResult(this.prior);
+    const left = PLACEMENT_WORDS - wordsTyped(this.prior);
+    if (canSkipAhead(wpm, accuracy) && left >= MIN_MORE_WORDS) return this.startTest();
+    const ctx = this.host.context();
+    this.placement = placeFromTest(this.prior, getCorpus(ctx.language), ctx);
+    // Only the landing page's line, and it said lesson 1 comes next: no need to say it again.
+    if (!this.typedHere && !this.placement.skipped) return this.close(this.placement.state);
+    this.render();
+  }
+
   private footer(next: HTMLButtonElement, back?: () => void): HTMLElement {
     const foot = el('div', 'ob-foot');
     if (back) foot.append(button(T.back, 'ob-back', back));
@@ -238,27 +337,7 @@ export class Onboarding {
     const ctx = this.host.context();
     card.append(el('h2', '', T.keyboardTitle), el('p', 'ob-intro', T.keyboardIntro));
 
-    const langs = availableLanguages();
-    if (langs.length > 1) {
-      const field = el('div', 'ob-field');
-      field.append(el('span', 'ob-label', T.language));
-      const seg = el('div', 'segmented ob-seg');
-      seg.setAttribute('role', 'radiogroup');
-      seg.setAttribute('aria-label', T.language);
-      for (const c of langs) {
-        const b = button('', '', () => {
-          this.host.setLanguage(c.language)
-            .then(() => this.render())
-            .catch((err) => console.error('Failed to switch language', err));
-        });
-        b.setAttribute('role', 'radio');
-        b.setAttribute('aria-checked', String(c.language === ctx.language));
-        b.append(...withFlag(c.language, c.name));
-        seg.append(b);
-      }
-      field.append(seg);
-      card.append(field);
-    }
+    this.languageField(card, () => this.render());
 
     // The layout: shown as found, with a clear yes. Finding another one only
     // opens on request ("No / not sure").
@@ -417,14 +496,24 @@ export class Onboarding {
 
   private startTest(): void {
     const ctx = this.host.context();
-    const text = placementText(getCorpus(ctx.language), ctx.layout);
+    const corpus = getCorpus(ctx.language);
+    const text = !this.quick ? placementText(corpus, ctx.layout)
+      : this.prior.length === 0 ? quickText(corpus, ctx.layout, QUICK_WORDS)
+      // The rest of the test: the letters the first line left out come first (see placementText).
+      : placementText(corpus, ctx.layout, Math.random, { ...DEFAULT_PLACEMENT_PARAMS, words: PLACEMENT_WORDS - wordsTyped(this.prior) },
+        this.prior.filter((e) => e.correct).map((e) => e.expected).join(''));
+    this.placement = null;
     this.test = { session: new TypingSession(text, ctx), events: [], writes: [] };
     this.render();
   }
 
-  private renderTest(card: HTMLElement): void {
+  private renderTest(card: HTMLElement, beforeText?: () => void): void {
     const test = this.test!;
-    card.append(el('h2', '', T.testTitleRun), el('p', 'ob-intro', T.testIntro));
+    const words = test.session.text.split(' ').length;
+    if (!this.quick) card.append(el('h2', '', T.testTitleRun), el('p', 'ob-intro', T.testIntro));
+    else if (this.prior.length === 0) card.append(el('h2', '', T.quickTitle), el('p', 'ob-intro', T.quickIntro));
+    else card.append(el('h2', '', T.moreTitle), el('p', 'ob-intro', T.moreIntro(words)));
+    beforeText?.();
     const textEl = el('div', 'text ob-text');
     textEl.setAttribute('aria-hidden', 'true');
     const input = el('textarea', 'typing-input');
@@ -433,7 +522,6 @@ export class Onboarding {
     input.spellcheck = false;
     const hint = el('p', 'type-hint', T.testHint);
     const progress = el('p', 'ob-note ob-progress');
-    const words = test.session.text.split(' ').length;
 
     const draw = () => {
       const chars = [...test.session.text];
@@ -458,6 +546,7 @@ export class Onboarding {
       if (test.session.done) this.finishTest();
     };
     input.addEventListener('keydown', (e) => {
+      this.observer.observe(e);
       if (e.key === 'Enter') e.preventDefault();
       else if (e.key !== 'Dead') lastCode = e.code || null;
     });
@@ -476,6 +565,7 @@ export class Onboarding {
     const wrap = el('div', 'ob-typing');
     wrap.append(textEl, input);
     card.append(wrap, hint, progress);
+    if (this.quick) return;
     const foot = el('div', 'ob-foot');
     foot.append(button(T.back, 'ob-back', () => {
       this.test = null;
@@ -488,12 +578,26 @@ export class Onboarding {
     const test = this.test;
     if (!test) return;
     const ctx = this.host.context();
-    Promise.all(test.writes).finally(() => {
+    Promise.all(test.writes).then(() => this.quick ? this.useObservedLayout() : undefined).finally(() => {
       if (this.test !== test) return;
-      this.placement = placeFromTest(test.events, getCorpus(ctx.language), ctx);
       this.test = null;
+      if (this.quick) {
+        this.prior.push(...test.events);
+        this.typedHere = true;
+        return this.afterLine();
+      }
+      this.placement = placeFromTest(test.events, getCorpus(ctx.language), ctx);
       this.render();
     });
+  }
+
+  /** Quick setup: the keys pressed so far show the layout better than the browser language did. */
+  private async useObservedLayout(): Promise<void> {
+    if (this.host.layoutSource() === 'user') return;
+    const d = detectLayout(this.observer.observations(), this.locales);
+    if (d.layout && !d.candidates.includes(this.host.context().layout)) {
+      await this.host.setLayout(d.layout, d.confidence === 'high' ? 'detected' : 'guessed');
+    }
   }
 
   private renderPlacement(card: HTMLElement): void {
@@ -522,8 +626,13 @@ export class Onboarding {
       text = p.accuracy < 0.9 ? T.placedSloppy : T.placedSlow;
     }
     card.append(el('p', 'ob-result', text.trim()));
-    const foot = this.footer(button(T.next, '', () => this.go(2)));
-    foot.prepend(button(T.retry, 'link-btn ob-retry', () => this.startTest()));
+    const foot = this.quick
+      ? this.footer(button(T.start, '', () => this.close(p.state)))
+      : this.footer(button(T.next, '', () => this.go(2)));
+    foot.prepend(button(T.retry, 'link-btn ob-retry', () => {
+      this.prior = [];
+      this.startTest();
+    }));
     card.append(foot);
   }
 

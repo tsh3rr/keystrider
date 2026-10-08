@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { de } from './corpora/de';
 import { en } from './corpora/en';
 import { DEFAULT_DRILL_PARAMS, TIERS, seededRandom, unlockSteps } from './drill';
-import { DEFAULT_PLACEMENT_PARAMS, placeFromTest, placementText } from './placement';
+import { wordsTyped } from './handoff';
+import { DEFAULT_PLACEMENT_PARAMS, placeFromTest, placementResult, placementText, quickText } from './placement';
 import { TypingSession } from './session';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
@@ -96,5 +97,32 @@ describe('placeFromTest', () => {
     const p = placeFromTest(typeText(placementText(de, DE.layout, seededRandom(4)), DE, 150), de, DE);
     expect(p.state.language).toBe('de');
     expect(p.state.unlocked).toEqual(letters(de, DE.layout));
+  });
+});
+
+describe('quickText', () => {
+  it('has the asked number of common words, no repeats', () => {
+    const words = quickText(de, DE.layout, 12, seededRandom(3)).split(' ');
+    expect(words).toHaveLength(12);
+    expect(new Set(words).size).toBe(12);
+    const allowed = new Set(letters(de, DE.layout));
+    for (const w of words) expect([...w].every((c) => allowed.has(c))).toBe(true);
+  });
+});
+
+describe('a placement split over two lines (landing page, then trainer)', () => {
+  it('places from both lines together, as from one', () => {
+    const line = quickText(en, EN.layout, 12, seededRandom(4));
+    const first = typeText(line, EN, 80);
+    // Typed a minute later, under its own session; it brings the letters the first line left out.
+    const rest = typeText(placementText(en, EN.layout, seededRandom(5), { ...DEFAULT_PLACEMENT_PARAMS, words: 24 }, line), EN, 80)
+      .map((e) => ({ ...e, sessionId: 'rest', timestamp: e.timestamp + 60_000 }));
+    expect(wordsTyped(first)).toBe(12);
+    expect(wordsTyped([...first, ...rest])).toBe(36);
+    const both = placeFromTest([...first, ...rest], en, EN);
+    expect(both.skipped).toBe(true);
+    // The minute in between is not typing time.
+    expect(both.wpm).toBeCloseTo(placementResult(first).wpm, -1);
+    expect(both.state.unlocked.length).toBeGreaterThan(placeFromTest(first, en, EN).state.unlocked.length);
   });
 });

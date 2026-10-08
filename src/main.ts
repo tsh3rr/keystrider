@@ -28,6 +28,7 @@ import {
 import { CoachBar, type CoachData } from './coachView';
 import { renderResult, type Tone } from './resultCard';
 import { Onboarding } from './onboarding';
+import { takeLandingTest } from './handoff';
 import {
   backfillDone, loadBreakRemindersSetting, loadOnboardedSetting, saveOnboardedSetting, loadFingerGuideSetting, loadGuideFadeSetting, loadLanguageSetting, loadLayoutSetting,
   loadShowKeysSetting, loadThemeSetting, loadWordFilterSetting, markBackfillDone, saveBreakRemindersSetting, saveFingerGuideSetting,
@@ -64,9 +65,11 @@ const browserLocales = navigator.languages?.length ? navigator.languages : [navi
 // still guessed from the browser (a Swiss reader of the German page keeps Swiss QWERTZ).
 const linkLanguage = new URLSearchParams(location.search).get('lang');
 const locales = linkLanguage ? [linkLanguage, ...browserLocales] : browserLocales;
-if (linkLanguage) {
+const signInLink = new URLSearchParams(location.search).has('signin');
+if (linkLanguage || signInLink) {
   const url = new URL(location.href);
   url.searchParams.delete('lang');
+  url.searchParams.delete('signin');
   history.replaceState(history.state, '', url);
 }
 
@@ -689,7 +692,8 @@ async function finishDrill(): Promise<void> {
     show(changes, improved, slipped, roundStep, extra);
     account.push().catch((err) => console.error('Sync failed', err));
     if (account.inBuddyGroup) buddyDeps.stats().then((st) => account.publishBuddyStats(st)).catch((err) => console.error('Failed to update buddies', err));
-    maybeNudge(state.coreDrills);
+    if (methodPending()) showMethod();
+    else maybeNudge(state.coreDrills);
   } finally {
     finishing = false;
   }
@@ -1420,9 +1424,11 @@ applyTheme();
 
 // --- First-run setup ---
 //
-// Keyboard check, where to start (with an optional placement test) and how
-// the method works; see onboarding.ts. Shown once on a first visit, and
-// again from Settings. The top bar stays out of the way meanwhile.
+// A first visit gets the short setup: the placement test, starting from the
+// line typed on the landing page if there was one, then straight into lesson
+// 1; "How it works" follows the first round. Settings opens the full setup
+// (keyboard check, where to start, how it works). See onboarding.ts. The top
+// bar stays out of the way meanwhile.
 
 const onboarding = new Onboarding($('onboarding-view'), {
   context: () => context,
@@ -1434,8 +1440,9 @@ const onboarding = new Onboarding($('onboarding-view'), {
   signedIn: () => account.state.signedIn,
   // Deferred past the click, which would otherwise reach the document and close the panel again.
   openAccount: (kind) => setTimeout(() => openAccount(kind), 0),
-  finish: (lessons) => {
+  finish: (lessons, quick) => {
     saveOnboardedSetting();
+    if (quick) setMethodPending(true);
     // Saved even when it was only guessed, so the next visit keeps it (see startLanguage).
     saveLanguageSetting(context.language);
     document.body.classList.remove('onboarding');
@@ -1457,6 +1464,80 @@ function openOnboarding(): void {
 }
 
 $('rerun-setup').addEventListener('click', openOnboarding);
+
+/** The first visit's setup, carrying on from the landing page's line if one was typed there. */
+async function openFirstRun(): Promise<void> {
+  const test = takeLandingTest();
+  if (test && availableLanguages().some((c) => c.language === test.language)) {
+    await setLanguage(test.language, false);
+    if (test.layoutSource === 'detected' && layoutSetting.source !== 'user') await setLayout(test.layout, 'detected');
+    // Logged like any placement keystrokes, under the layout now in use.
+    await Promise.all(test.events.map((e) => store.add(onKeyboard({ ...e, language: context.language, layout: context.layout }))));
+  }
+  showView('practice');
+  closeSettings(false);
+  practiceView.hidden = true;
+  document.body.classList.add('onboarding');
+  onboarding.openQuick(test?.language === context.language ? test.events : []);
+}
+
+// --- How it works, after the first round ---
+//
+// The four points of the method, shown once after a first visit's first
+// round: by then the learner has felt each of them.
+
+const METHOD_KEY = 'typing-trainer.method-pending';
+const methodPop = $('method-pop');
+
+function setMethodPending(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(METHOD_KEY, '1');
+    else localStorage.removeItem(METHOD_KEY);
+  } catch { /* storage blocked: it is shown now or not at all */ }
+}
+
+function methodPending(): boolean {
+  try { return localStorage.getItem(METHOD_KEY) === '1'; } catch { return false; }
+}
+
+function renderMethod(): void {
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: string) =>
+    Object.assign(document.createElement(tag), { className: cls }, text === undefined ? {} : { textContent: text });
+  const card = el('div', 'ob-card method-card');
+  const title = el('h2', '', t('onboarding.methodTitle'));
+  title.id = 'method-title';
+  const list = el('ol', 'ob-method');
+  ([1, 2, 3, 4] as const).forEach((n) => {
+    const li = el('li');
+    const body = el('div');
+    body.append(el('b', '', t(`onboarding.method${n}Title`)), el('p', '', t(`onboarding.method${n}`, { acc: pct(0.92) })));
+    li.append(el('span', 'ob-num', String(n)), body);
+    list.append(li);
+  });
+  const ok = el('button', 'primary', t('method.ok'));
+  ok.type = 'button';
+  ok.addEventListener('click', closeMethod);
+  const foot = el('div', 'ob-foot');
+  foot.append(ok);
+  card.append(title, el('p', 'ob-intro', t('method.after')), list, el('p', 'ob-note', t('onboarding.methodTip')), foot);
+  methodPop.replaceChildren(card);
+}
+
+function showMethod(): void {
+  setMethodPending(false);
+  renderMethod();
+  methodPop.hidden = false;
+  methodPop.querySelector<HTMLButtonElement>('button.primary')?.focus();
+}
+
+function closeMethod(): void {
+  methodPop.hidden = true;
+  inputEl.focus();
+}
+
+methodPop.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeMethod();
+});
 
 // Interface language: every string on screen is redrawn in place, so a drill in progress carries on.
 const uiLanguageEl = $('ui-language');
@@ -1495,6 +1576,7 @@ onUiLanguageChange(() => {
   if (suggested) showSuggestion(suggested);
   fingerGuide.retranslate();
   onboarding.languageChanged();
+  if (!methodPop.hidden) renderMethod();
   renderDrillBar();
   renderStats();
   redrawResult?.();
@@ -1613,7 +1695,7 @@ $('open-account').addEventListener('click', (e) => {
 // After a few rounds, a learner without an account is offered one once, under the round's result.
 const accountNudge = $('account-nudge');
 const NUDGE_KEY = 'typing-trainer.account-nudge';
-const NUDGE_AFTER = 5;
+const NUDGE_AFTER = 3;
 
 function nudgeDismissed(): boolean {
   try { return localStorage.getItem(NUDGE_KEY) === 'dismissed'; } catch { return true; }
@@ -1736,12 +1818,14 @@ Promise.all([KeystrokeStore.open(), withLoadBar(loadCorpus(context.language))]).
   renderLanguage();
   renderKeyboards();
   // A browser that practised before the setup existed goes straight to practice.
-  if (!loadOnboardedSetting() && !hasAnyCurriculum()) openOnboarding();
+  if (!loadOnboardedSetting() && !hasAnyCurriculum()) openFirstRun().catch((err) => console.error('Failed to open setup', err));
   else {
     startDrill().catch((err) => console.error('Failed to start drill', err));
     maybeFreshStart().catch((err) => console.error('Failed to check for a fresh start', err));
   }
   if (pendingInvite()) void invitePrompt.show();
+  // The landing page's "Sign in" link.
+  if (signInLink) openAccount('signin');
   account.init().catch((err) => console.error('Account setup failed', err));
   detectFromBrowser()
     .then(backfillLegacyLog)

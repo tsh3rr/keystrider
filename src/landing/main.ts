@@ -1,14 +1,22 @@
 import '@fontsource-variable/jetbrains-mono';
+import { PLACEMENT_WORDS, canSkipAhead, saveLandingTest, wordsTyped } from '../handoff';
+import { KeyObserver, detectLayout, guessFromLocale } from '../layouts';
+import { TypingSession } from '../session';
 import { loadThemeSetting } from '../settings';
-import type { LandingCopy } from './content';
+import type { KeystrokeEvent } from '../types';
+import type { LandingCopy, LandingLanguage } from './content';
 
 /**
- * The typing demo in the landing page's hero: one short line, typed like in
- * the trainer (a wrong key holds you on the letter), then speed, accuracy and
- * the keys that held you up, with a link on to the trainer. Nothing is saved.
+ * The typing line in the landing page's hero. It is the start of the
+ * trainer's placement test: typed with the trainer's own TypingSession (a
+ * wrong key holds you on the letter), with the layout recognised from the
+ * keys pressed. At the end it shows speed, accuracy and the keys that held
+ * the learner up, and says what comes next in the trainer: lesson 1, or the
+ * rest of the placement test for whoever can skip ahead. The keystrokes are
+ * handed over (handoff.ts) so the trainer carries on from here.
  */
 
-type Demo = LandingCopy['demo'] & { app: string };
+type Demo = LandingCopy['demo'] & { app: string; lang: LandingLanguage };
 
 const theme = loadThemeSetting();
 if (theme !== 'system') document.documentElement.dataset.theme = theme;
@@ -21,24 +29,22 @@ const startPill = document.getElementById('lp-start')!;
 const stats = document.getElementById('lp-stats')!;
 const result = document.getElementById('lp-result')!;
 
-let line = '';
+const browserLocales = navigator.languages?.length ? navigator.languages : [navigator.language];
+const guessedLayout = guessFromLocale(browserLocales);
+
+let session: TypingSession;
+let events: KeystrokeEvent[] = [];
+let observer = new KeyObserver();
 let chars: HTMLSpanElement[] = [];
-let pos = 0;
-let keys = 0;
-let errors = 0;
-let started = 0;
-let last = 0;
-/** Per expected character: time to type it (ms, correct presses only) and wrong presses. */
-let times = new Map<string, number[]>();
-let misses = new Map<string, number>();
+let lastCode: string | null = null;
 let lineIndex = Math.floor(Math.random() * demo.lines.length);
 
 function reset(): void {
-  line = demo.lines[lineIndex % demo.lines.length];
-  pos = keys = errors = started = last = 0;
-  times = new Map();
-  misses = new Map();
-  chars = [...line].map((ch) => {
+  const line = demo.lines[lineIndex % demo.lines.length];
+  session = new TypingSession(line, { language: demo.lang, layout: guessedLayout });
+  events = [];
+  observer = new KeyObserver();
+  chars = [...session.text].map((ch) => {
     const s = document.createElement('span');
     s.textContent = ch;
     if (ch === ' ') s.className = 'sp';
@@ -57,37 +63,39 @@ function showPill(): void {
   textEl.classList.toggle('focused', document.activeElement === input);
 }
 
-function wpm(now: number): number {
-  const minutes = (now - started) / 60000;
-  return minutes > 0 ? Math.round(pos / 5 / minutes) : 0;
+/** Speed and accuracy as the trainer counts them (drillResult in drill.ts). */
+function score(): { wpm: number; accuracy: number } {
+  const correct = events.filter((e) => e.correct);
+  const span = correct.length ? correct.at(-1)!.timestamp - events[0].timestamp : 0;
+  const firstTries = new Map<number, boolean>();
+  for (const e of events) if (!firstTries.has(e.position)) firstTries.set(e.position, e.correct);
+  const right = [...firstTries.values()].filter(Boolean).length;
+  return {
+    wpm: span > 0 ? Math.max(correct.length - 1, 0) / 5 / (span / 60_000) : 0,
+    accuracy: firstTries.size ? right / firstTries.size : 1,
+  };
 }
 
-const accuracy = (): number => (keys ? Math.round(((keys - errors) / keys) * 100) : 100);
-
 function type(ch: string): void {
-  if (pos >= chars.length) return;
-  const now = performance.now();
-  if (!started) started = last = now;
-  const expected = line[pos];
-  keys++;
-  const span = chars[pos];
-  if (ch === expected) {
-    // The first key has no time of its own: it only starts the clock.
-    if (pos > 0 && expected !== ' ') times.set(expected, [...(times.get(expected) ?? []), now - last]);
-    last = now;
+  const before = session.position;
+  const ev = session.press(ch, Date.now(), lastCode);
+  if (!ev) return;
+  events.push(ev);
+  const span = chars[before];
+  if (ev.correct) {
     span.classList.remove('current', 'error');
     span.classList.add('typed');
-    pos++;
-    chars[pos]?.classList.add('current');
+    chars[session.position]?.classList.add('current');
   } else {
-    errors++;
-    misses.set(expected, (misses.get(expected) ?? 0) + 1);
     span.classList.remove('error');
     void span.offsetWidth; // restart the shake
     span.classList.add('error');
   }
-  if (pos >= 5) stats.textContent = `${wpm(now)} ${demo.wpm} · ${accuracy()} %`;
-  if (pos >= chars.length) finish(now);
+  if (session.position >= 5) {
+    const { wpm, accuracy } = score();
+    stats.textContent = `${Math.round(wpm)} ${demo.wpm} · ${Math.round(accuracy * 100)} %`;
+  }
+  if (session.done) finish();
 }
 
 /**
@@ -95,44 +103,69 @@ function type(ch: string): void {
  * A key is slow when it took clearly longer than the learner's usual key.
  */
 function slowKeys(): string[] {
+  const times = new Map<string, number[]>();
+  const misses = new Map<string, number>();
+  let wrongBefore = false;
+  for (const e of events) {
+    if (!e.correct) {
+      if (e.expected !== ' ') misses.set(e.expected, (misses.get(e.expected) ?? 0) + 1);
+      wrongBefore = true;
+    } else {
+      // Only clean presses tell how long a key takes; the first key only starts the clock.
+      if (!wrongBefore && e.latencyMs !== null && e.expected !== ' ') times.set(e.expected, [...(times.get(e.expected) ?? []), e.latencyMs]);
+      wrongBefore = false;
+    }
+  }
   const all = [...times.values()].flat().sort((a, b) => a - b);
   const median = all.length ? all[Math.floor(all.length / 2)] : 0;
-  const score = new Map<string, number>();
+  const cost = new Map<string, number>();
   for (const [ch, ts] of times) {
     const avg = ts.reduce((a, b) => a + b, 0) / ts.length;
-    if (avg > median * 1.4) score.set(ch, avg / median);
+    if (median > 0 && avg > median * 1.4) cost.set(ch, avg / median);
   }
-  for (const [ch, n] of misses) if (ch !== ' ') score.set(ch, (score.get(ch) ?? 1) + n);
-  return [...score].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([ch]) => ch);
+  for (const [ch, n] of misses) cost.set(ch, (cost.get(ch) ?? 1) + n);
+  return [...cost].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([ch]) => ch);
 }
 
-function finish(now: number): void {
+/** Hands the line to the trainer, under the layout the keys showed if they did. */
+function handOver(): void {
+  const d = detectLayout(observer.observations(), browserLocales);
+  const detected = d.layout !== null && d.confidence === 'high';
+  const layout = detected ? d.layout! : guessedLayout;
+  saveLandingTest({
+    language: demo.lang,
+    layout,
+    layoutSource: detected ? 'detected' : 'guessed',
+    events: events.map((e) => ({ ...e, layout })),
+    savedAt: Date.now(),
+  });
+}
+
+function finish(): void {
+  handOver();
+  const { wpm, accuracy } = score();
+  const fast = canSkipAhead(wpm, accuracy);
   const slow = slowKeys();
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) =>
+    Object.assign(document.createElement(tag), { className: cls }, text === undefined ? {} : { textContent: text });
   const big = (value: string, label: string) => {
-    const d = document.createElement('div');
-    d.className = 'lp-big';
-    d.append(Object.assign(document.createElement('strong'), { textContent: value }),
-      Object.assign(document.createElement('span'), { textContent: label }));
+    const d = el('div', 'lp-big');
+    d.append(el('strong', '', value), el('span', '', label));
     return d;
   };
-  const numbers = document.createElement('div');
-  numbers.className = 'lp-numbers';
-  numbers.append(big(String(wpm(now)), demo.wpm), big(`${accuracy()} %`, demo.accuracy));
+  const numbers = el('div', 'lp-numbers');
+  numbers.append(big(String(Math.round(wpm)), demo.wpm), big(`${Math.round(accuracy * 100)} %`, demo.accuracy));
 
-  const weak = document.createElement('p');
-  weak.className = 'lp-weak';
-  if (slow.length) {
-    weak.append(demo.slowTitle, ' ', ...slow.map((ch) => Object.assign(document.createElement('kbd'), { textContent: ch })));
-  } else {
-    weak.textContent = demo.slowNone;
-  }
-  const next = Object.assign(document.createElement('p'), { textContent: slow.length ? demo.resultText : '' });
-  next.hidden = !slow.length;
+  const weak = el('p', 'lp-weak');
+  if (slow.length) weak.append(demo.slowTitle, ' ', ...slow.map((ch) => el('kbd', '', ch)));
+  else weak.textContent = demo.slowNone;
 
-  const actions = document.createElement('div');
-  actions.className = 'lp-actions';
-  const go = Object.assign(document.createElement('a'), { className: 'lp-btn', href: demo.app, textContent: `${demo.cta} →` });
-  const again = Object.assign(document.createElement('button'), { type: 'button', className: 'link-btn', textContent: demo.again });
+  const left = PLACEMENT_WORDS - wordsTyped(events);
+  const next = el('p', 'lp-next', fast ? demo.nextFast.replace('{n}', String(left)) : demo.nextBeginner);
+
+  const actions = el('div', 'lp-actions');
+  const go = Object.assign(el('a', 'lp-btn', `${fast ? demo.ctaFast : demo.ctaBeginner} →`), { href: demo.app });
+  const again = Object.assign(el('button', 'link-btn', demo.again), { type: 'button' });
   again.addEventListener('click', () => {
     lineIndex++;
     reset();
@@ -149,15 +182,26 @@ function finish(now: number): void {
   go.focus();
 }
 
-input.addEventListener('input', () => {
+input.addEventListener('keydown', (e) => {
+  observer.observe(e);
+  if (e.key === 'Enter') e.preventDefault();
+  else if (e.key !== 'Dead') lastCode = e.code || null;
+});
+const flush = () => {
   // Every character typed lands here; the field is emptied straight away (as in the trainer).
   const typed = input.value.normalize('NFC');
   input.value = '';
-  for (const ch of typed) type(ch === '\n' ? ' ' : ch);
+  for (const ch of typed) type(ch);
+  lastCode = null;
+};
+input.addEventListener('input', (e) => {
+  if (!(e as InputEvent).isComposing) flush();
 });
+input.addEventListener('compositionend', flush);
+input.addEventListener('paste', (e) => e.preventDefault());
 input.addEventListener('focus', showPill);
 input.addEventListener('blur', showPill);
-// Typing anywhere on the page starts the demo, as long as nothing else has focus.
+// Typing anywhere on the page starts the line, as long as nothing else has focus.
 document.addEventListener('keydown', (e) => {
   if (document.activeElement !== document.body || !result.hidden) return;
   if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
