@@ -1,5 +1,5 @@
 /**
- * The Keystrider stair mark (see the logo in index.html) as small inline SVGs
+ * The Keystrider stair mark (see the logo in app/index.html) as small inline SVGs
  * for the onboarding choices. Same geometry and ember → magenta → cobalt sweep
  * as the logo; `filled` keys are solid and the rest are only outlined, so
  * "I'm new" shows one step, "I can already type" two, "Keep my lessons" all three.

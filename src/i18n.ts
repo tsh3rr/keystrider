@@ -10,7 +10,7 @@ import { en, type Message } from './locales/en';
  * of plural forms (`one`, `other`, and `few`/`many` where a language has them)
  * picked with the `n` parameter.
  *
- * Static text in index.html carries `data-i18n` (text), `data-i18n-title`,
+ * Static text in app/index.html carries `data-i18n` (text), `data-i18n-title`,
  * `data-i18n-aria-label` or `data-i18n-placeholder` attributes naming a key;
  * `applyTranslations` fills them in.
  *

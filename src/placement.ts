@@ -3,6 +3,7 @@ import {
   DEFAULT_DRILL_PARAMS, TIERS, drillResult, eligibleWords, initialCurriculum, tierTargetMs, unlockSteps,
   type CurriculumState, type DrillParams,
 } from './drill';
+import { PLACEMENT_MIN_ACCURACY, PLACEMENT_MIN_WPM, PLACEMENT_WORDS } from './handoff';
 import { firstAttempts } from './weakness';
 import type { KeystrokeEvent, PracticeContext } from './types';
 
@@ -37,11 +38,11 @@ export interface PlacementParams {
 }
 
 export const DEFAULT_PLACEMENT_PARAMS: Readonly<PlacementParams> = Object.freeze({
-  words: 36,
+  words: PLACEMENT_WORDS,
   minPerLetter: 2,
   commonWords: 3000,
-  minWpm: 20,
-  minAccuracy: 0.9,
+  minWpm: PLACEMENT_MIN_WPM,
+  minAccuracy: PLACEMENT_MIN_ACCURACY,
   maxLetterErrors: 1,
   maxLetterErrorRate: 0.34,
   latencySlack: 2,
@@ -55,17 +56,21 @@ function letterSteps(corpus: Corpus, layout: string): string[] {
 /**
  * The placement text: common lowercase words, chosen so every letter shows
  * up at least `minPerLetter` times (rare letters come from the most common
- * word that has them), then shuffled.
+ * word that has them), then shuffled. `before` is what was typed in an
+ * earlier line of the same placement, whose letters already count.
  */
 export function placementText(
   corpus: Corpus,
   layout: string,
   rand: () => number = Math.random,
   p: PlacementParams = DEFAULT_PLACEMENT_PARAMS,
+  before = '',
 ): string {
   const letters = letterSteps(corpus, layout);
   const pool = eligibleWords(corpus, new Set(letters)).slice(0, p.commonWords);
+  // Letters already typed in an earlier line of the same placement count towards the minimum.
   const counts = new Map<string, number>();
+  for (const c of before) counts.set(c, (counts.get(c) ?? 0) + 1);
   const picked: string[] = [];
   const take = (w: string) => {
     picked.push(w);
@@ -93,6 +98,22 @@ export function placementText(
   return picked.join(' ');
 }
 
+/**
+ * The opening line of a placement on a first visit: only very common words,
+ * so a beginner meets nothing strange. Whoever turns out fast enough to skip
+ * ahead types `placementText` with the remaining words next, which brings in
+ * the rarer letters.
+ */
+export function quickText(corpus: Corpus, layout: string, words: number, rand: () => number = Math.random): string {
+  const common = eligibleWords(corpus, new Set(letterSteps(corpus, layout))).slice(0, 200).filter((w) => w.length > 1);
+  const picked: string[] = [];
+  for (let tries = 0; picked.length < words && tries < 1000 && common.length > 0; tries++) {
+    const w = common[Math.floor(rand() * common.length)];
+    if (!picked.includes(w)) picked.push(w);
+  }
+  return picked.join(' ');
+}
+
 export interface Placement {
   state: CurriculumState;
   wpm: number;
@@ -103,7 +124,28 @@ export interface Placement {
   stoppedAt: string | null;
 }
 
-/** Places the learner from the keystrokes of one typed placement text. */
+/**
+ * Speed and accuracy over the placement's lines. A placement can be typed in
+ * two lines with a pause between (the landing page's, then the rest in the
+ * trainer), so speed counts the time spent typing each line, not the pause.
+ */
+export function placementResult(events: readonly KeystrokeEvent[]): { wpm: number; accuracy: number } {
+  const lines = new Map<string, KeystrokeEvent[]>();
+  for (const e of events) lines.set(e.sessionId, [...(lines.get(e.sessionId) ?? []), e]);
+  let minutes = 0;
+  let words = 0;
+  for (const line of lines.values()) {
+    const { wpm } = drillResult(line);
+    const typed = Math.max(line.filter((e) => e.correct).length - 1, 0) / 5;
+    if (wpm > 0) {
+      words += typed;
+      minutes += typed / wpm;
+    }
+  }
+  return { wpm: minutes > 0 ? words / minutes : 0, accuracy: drillResult(events).accuracy };
+}
+
+/** Places the learner from the keystrokes of a typed placement text (one line or several). */
 export function placeFromTest(
   events: readonly KeystrokeEvent[],
   corpus: Corpus,
@@ -112,7 +154,7 @@ export function placeFromTest(
   dp: DrillParams = DEFAULT_DRILL_PARAMS,
 ): Placement {
   const state = initialCurriculum(corpus, context, undefined, dp);
-  const { wpm, accuracy } = drillResult(events);
+  const { wpm, accuracy } = placementResult(events);
   if (events.length === 0 || wpm < p.minWpm || accuracy < p.minAccuracy) {
     return { state, wpm, accuracy, skipped: false, stoppedAt: null };
   }

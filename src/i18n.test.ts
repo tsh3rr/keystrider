@@ -5,7 +5,7 @@ import { es } from './locales/es';
 import { fr } from './locales/fr';
 import { it as itLocale } from './locales/it';
 import { pl } from './locales/pl';
-import html from '../index.html?raw';
+import html from '../app/index.html?raw';
 import { guessUiLanguage, num, pct, setUiLanguage, t, tMaybe, tNodes } from './i18n';
 
 afterEach(() => setUiLanguage('en'));
@@ -79,7 +79,7 @@ describe('i18n', () => {
     expect(t('result.slips', { n: 22 })).toBe('pomyłki');
   });
 
-  it('every key named in index.html exists', () => {
+  it('every key named in app/index.html exists', () => {
     const keys = [...html.matchAll(/data-i18n(?:-[a-z-]+)?="([^"]+)"/g)].map((m) => m[1]);
     expect(keys.length).toBeGreaterThan(50);
     for (const key of keys) expect(Object.hasOwn(en, key), key).toBe(true);

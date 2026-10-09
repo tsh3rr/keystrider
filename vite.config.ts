@@ -1,5 +1,35 @@
 import { resolve } from 'node:path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { LANDING_LANGUAGES, type LandingLanguage } from './src/landing/content.ts';
+import { renderLanding, robotsTxt, sitemapXml } from './src/landing/render.ts';
+
+/**
+ * The public address, for canonical links, the sitemap and link previews.
+ * SITE_URL overrides it, e.g. once the app has its own domain.
+ */
+const SITE_URL = (process.env.SITE_URL ?? 'https://keystrider.jeremiasz-kapek.workers.dev').replace(/\/$/, '');
+
+/**
+ * Landing pages: each /<lang>/index.html is a one-line placeholder that this
+ * plugin replaces with the page built from src/landing/content.ts, in
+ * development and in the build. It also writes sitemap.xml and robots.txt.
+ */
+function landing(production: boolean): Plugin {
+  return {
+    name: 'keystrider-landing',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        const lang = /keystrider-landing:(\w+)/.exec(html)?.[1] as LandingLanguage | undefined;
+        return lang && LANDING_LANGUAGES.includes(lang) ? renderLanding(lang, SITE_URL) : html;
+      },
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml(SITE_URL) });
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt(SITE_URL, production) });
+    },
+  };
+}
 
 /**
  * Supabase projects for accounts and sync. Both values are public by design
@@ -31,17 +61,23 @@ export default defineConfig(({ mode }) => {
     : SUPABASE[target];
 
   return {
+    plugins: [landing(target === 'production')],
     define: {
       __SUPABASE_URL__: JSON.stringify(supabase.url),
       __SUPABASE_KEY__: JSON.stringify(supabase.key),
       __TURNSTILE_SITE_KEY__: JSON.stringify(env.VITE_TURNSTILE_SITE_KEY ?? TURNSTILE[target]),
     },
-    // Four pages: the app, and the Impressum, privacy policy and terms of use,
-    // which must be reachable by their own address (/impressum, /datenschutz, /nutzungsbedingungen).
+    // The landing pages (/ in English, /de/, /es/, …), the trainer at /app/, and the
+    // Impressum, privacy policy and terms of use, which must be reachable by their
+    // own address (/impressum, /datenschutz, /nutzungsbedingungen). Any other
+    // address gets 404.html (wrangler.jsonc).
     build: {
       rolldownOptions: {
         input: {
-          main: resolve(import.meta.dirname, 'index.html'),
+          ...Object.fromEntries(LANDING_LANGUAGES.map((l) =>
+            [`landing-${l}`, resolve(import.meta.dirname, l === 'en' ? 'index.html' : `${l}/index.html`)])),
+          main: resolve(import.meta.dirname, 'app/index.html'),
+          notFound: resolve(import.meta.dirname, '404.html'),
           impressum: resolve(import.meta.dirname, 'impressum.html'),
           datenschutz: resolve(import.meta.dirname, 'datenschutz.html'),
           nutzungsbedingungen: resolve(import.meta.dirname, 'nutzungsbedingungen.html'),
