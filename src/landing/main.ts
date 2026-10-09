@@ -202,7 +202,7 @@ function finish(): void {
   goLabel.textContent = returning ? demo.continue : fast ? demo.ctaFast : demo.ctaBeginner;
   cta.classList.add('is-ready');
   go.focus({ preventScroll: true });
-  go.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  cta.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 input.addEventListener('keydown', (e) => {

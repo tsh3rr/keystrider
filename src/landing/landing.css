@@ -68,16 +68,27 @@ a.lp-signin:hover { text-decoration: underline; }
 .lp-actions { display: flex; justify-content: center; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 14px; }
 
 .lp-cta { margin-top: 28px; display: grid; justify-items: center; gap: 10px; }
-/* After the typing line: an arrow from the result down to the one start button, which lifts a little. */
-.lp-arrow { display: none; width: 2px; height: 26px; margin-top: -14px; background: var(--accent); position: relative; animation: lp-nudge 1.2s ease-in-out infinite; }
+/* After the typing line: a bold arrow from the result down to the one start button, which pulses. */
+.lp-arrow {
+  display: none; position: relative; width: 7px; height: 50px; margin: -8px 0 22px; border-radius: 4px;
+  background: linear-gradient(var(--brand-magenta), var(--accent)); animation: lp-nudge 1s ease-in-out infinite;
+}
 .lp-arrow::after {
-  content: ""; position: absolute; left: 50%; bottom: -2px; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
-  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+  content: ""; position: absolute; left: 50%; bottom: -8px; width: 22px; height: 22px; transform: translateX(-50%) rotate(45deg);
+  border-right: 7px solid var(--accent); border-bottom: 7px solid var(--accent); border-radius: 0 0 4px 0;
 }
 .lp-cta.is-ready .lp-arrow { display: block; }
-.lp-cta.is-ready .lp-btn { box-shadow: inset 0 -3px 0 var(--cobalt-edge), 0 0 0 4px var(--accent-soft), var(--shadow); }
-@keyframes lp-nudge { 50% { transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .lp-arrow { animation: none; } }
+.lp-cta.is-ready .lp-btn { animation: lp-pulse 1.6s ease-out infinite; font-size: 1.15rem; padding: 14px 28px; }
+@keyframes lp-nudge { 50% { transform: translateY(8px); } }
+@keyframes lp-pulse {
+  0% { box-shadow: inset 0 -3px 0 var(--cobalt-edge), 0 0 0 0 color-mix(in oklch, var(--accent) 55%, transparent); }
+  70% { box-shadow: inset 0 -3px 0 var(--cobalt-edge), 0 0 0 16px color-mix(in oklch, var(--accent) 0%, transparent); }
+  100% { box-shadow: inset 0 -3px 0 var(--cobalt-edge), 0 0 0 0 color-mix(in oklch, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-arrow { animation: none; }
+  .lp-cta.is-ready .lp-btn { animation: none; box-shadow: inset 0 -3px 0 var(--cobalt-edge), 0 0 0 5px var(--accent-soft); }
+}
 .lp-note { margin: 0; font-size: 0.9rem; color: var(--muted); }
 
 /* --- Sections --- */
