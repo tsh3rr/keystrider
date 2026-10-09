@@ -98,7 +98,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
     <main class="lp-main">
       <section class="lp-hero">
         <p class="lp-eyebrow">${esc(c.hero.eyebrow)}</p>
-        <h1>${esc(c.hero.title)}</h1>
+        <h1 id="lp-title" class="lp-title">${esc(c.hero.title)}</h1>
         <p class="lp-lead">${esc(c.hero.lead)}</p>
 
         <div id="lp-demo" class="lp-demo">
@@ -155,7 +155,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
       <a href="/nutzungsbedingungen">${esc(c.foot.terms)}</a>
     </footer>
 
-    <script type="application/json" id="lp-data">${jsonBlock({ ...c.demo, app, lang, continue: c.hero.continue })}</script>
+    <script type="application/json" id="lp-data">${jsonBlock({ ...c.demo, app, lang, continue: c.hero.continue, titles: [c.hero.title, ...c.hero.rotate] })}</script>
     <script type="module" src="/src/landing/main.ts"></script>
   </body>
 </html>

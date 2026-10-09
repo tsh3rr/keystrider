@@ -42,6 +42,21 @@ a.lp-signin:hover { text-decoration: underline; }
   background: var(--accent-soft); color: var(--accent); font-size: 0.85rem; font-weight: 600;
 }
 .lp-hero h1 { margin: 0 0 16px; font-size: clamp(1.9rem, 4.6vw, 3rem); line-height: 1.12; letter-spacing: -0.02em; text-wrap: balance; }
+/*
+ * The headline typing itself (main.ts): every headline sits in the same grid
+ * cell, the others invisible, so the hero is as tall as the longest and
+ * nothing below moves while the text changes.
+ */
+.lp-title.is-typing { display: grid; }
+.lp-title.is-typing > * { grid-area: 1 / 1; align-self: center; }
+.lp-title-sizer { visibility: hidden; }
+.lp-title-live { text-wrap: wrap; }
+.lp-caret {
+  display: inline-block; width: max(3px, 0.08em); height: 0.95em; margin-left: 0.06em; vertical-align: -0.1em; border-radius: 2px;
+  background: var(--brand-magenta); animation: lp-blink 1.05s steps(1) infinite;
+}
+.lp-title-live.is-busy .lp-caret { animation: none; }
+@keyframes lp-blink { 50% { opacity: 0; } }
 .lp-lead { margin: 0 auto 28px; max-width: 38rem; font-size: 1.12rem; color: var(--muted); text-wrap: pretty; }
 
 .lp-demo {

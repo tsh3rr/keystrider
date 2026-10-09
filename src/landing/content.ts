@@ -25,8 +25,11 @@ export interface LandingCopy {
   /** Search result snippet, about 155 characters. */
   description: string;
   nav: { languages: string; signIn: string; open: string };
-  /** `continue` replaces `cta` for someone who has practised in this browser before. */
-  hero: { eyebrow: string; title: string; lead: string; cta: string; continue: string; note: string };
+  /**
+   * `continue` replaces `cta` for someone who has practised in this browser before.
+   * `rotate`: more headlines the hero types out in turn after `title` (main.ts).
+   */
+  hero: { eyebrow: string; title: string; rotate: string[]; lead: string; cta: string; continue: string; note: string };
   demo: {
     label: string;
     start: string;
@@ -62,6 +65,11 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     hero: {
       eyebrow: 'Free touch typing trainer · no sign-up',
       title: 'Learn to touch type with a trainer that understands your mistakes',
+      rotate: [
+        'Learn to type fast in no time',
+        'Research-backed: minimal effort, above-average speed',
+        '10 minutes a day is all it takes',
+      ],
       lead: 'Keystrider measures every keystroke, spots the keys and letter pairs that slow you down, and builds your next drill around them.',
       cta: 'Start practising for free',
       continue: 'Keep practising',
@@ -98,7 +106,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     features: {
       title: 'Everything you need, nothing you don’t',
       items: [
-        { title: 'Six languages, your keyboard', text: 'Practise English, German, French, Spanish, Italian or Polish on QWERTY, QWERTZ, AZERTY, Dvorak, Colemak and more.' },
+        { title: 'Your language, your keyboard', text: 'Practise English, German, French, Spanish, Italian or Polish on QWERTY, QWERTZ, AZERTY, Dvorak, Colemak and more.' },
         { title: 'Finger guide', text: 'A keyboard under the text shows which finger to use, and fades for the keys you already know.' },
         { title: 'Placement test', text: 'Already type a bit? A one-minute test skips the keys you have mastered.' },
         { title: 'Progress you can see', text: 'Speed and accuracy over time, an error heatmap and your slowest keys and letter pairs.' },
@@ -130,6 +138,11 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     hero: {
       eyebrow: 'Kostenloser Tipptrainer · ohne Anmeldung',
       title: 'Lerne das Zehnfingersystem mit einem Trainer, der deine Fehler versteht',
+      rotate: [
+        'Lerne in kürzester Zeit, schnell zu tippen',
+        'Wissenschaftlich fundiert: minimaler Aufwand, überdurchschnittliches Tempo',
+        'Mit 10 Minuten am Tag zum Erfolg',
+      ],
       lead: 'Keystrider misst jeden Tastendruck, erkennt die Tasten und Buchstabenpaare, die dich bremsen, und baut daraus deine nächste Übung.',
       cta: 'Jetzt kostenlos üben',
       continue: 'Weiter üben',
@@ -166,7 +179,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     features: {
       title: 'Alles, was du brauchst, und nicht mehr',
       items: [
-        { title: 'Sechs Sprachen, deine Tastatur', text: 'Übe Deutsch, Englisch, Französisch, Spanisch, Italienisch oder Polnisch auf QWERTZ, QWERTY, AZERTY, Dvorak, Colemak und mehr.' },
+        { title: 'Deine Sprache, deine Tastatur', text: 'Übe Deutsch, Englisch, Französisch, Spanisch, Italienisch oder Polnisch auf QWERTZ, QWERTY, AZERTY, Dvorak, Colemak und mehr.' },
         { title: 'Fingerhilfe', text: 'Eine Tastatur unter dem Text zeigt, welcher Finger dran ist, und blendet Tasten aus, die du schon kannst.' },
         { title: 'Einstufungstest', text: 'Du tippst schon ein bisschen? Ein Test von einer Minute überspringt die Tasten, die du beherrschst.' },
         { title: 'Fortschritt, den du siehst', text: 'Tempo und Genauigkeit im Verlauf, eine Fehler-Heatmap und deine langsamsten Tasten und Buchstabenpaare.' },
@@ -198,6 +211,11 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     hero: {
       eyebrow: 'Mecanografía gratis · sin registro',
       title: 'Aprende mecanografía con un entrenador que entiende tus errores',
+      rotate: [
+        'Aprende a escribir rápido en muy poco tiempo',
+        'Basado en la ciencia: mínimo esfuerzo, velocidad por encima de la media',
+        'Con 10 minutos al día lo consigues',
+      ],
       lead: 'Keystrider mide cada pulsación, detecta las teclas y pares de letras que te frenan y crea con ellos tu próximo ejercicio.',
       cta: 'Empezar gratis',
       continue: 'Seguir practicando',
@@ -234,7 +252,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     features: {
       title: 'Todo lo que necesitas, nada más',
       items: [
-        { title: 'Seis idiomas, tu teclado', text: 'Practica español, inglés, alemán, francés, italiano o polaco en QWERTY, QWERTZ, AZERTY, Dvorak, Colemak y más.' },
+        { title: 'Tu idioma, tu teclado', text: 'Practica español, inglés, alemán, francés, italiano o polaco en QWERTY, QWERTZ, AZERTY, Dvorak, Colemak y más.' },
         { title: 'Guía de dedos', text: 'Un teclado bajo el texto muestra qué dedo usar y se atenúa en las teclas que ya dominas.' },
         { title: 'Prueba de nivel', text: '¿Ya escribes algo? Una prueba de un minuto se salta las teclas que ya dominas.' },
         { title: 'Progreso visible', text: 'Velocidad y precisión a lo largo del tiempo, un mapa de errores y tus teclas y pares de letras más lentos.' },
@@ -266,6 +284,11 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     hero: {
       eyebrow: 'Dactylographie gratuite · sans inscription',
       title: 'Tapez à dix doigts avec un entraîneur qui comprend vos erreurs',
+      rotate: [
+        'Apprenez à taper vite en un rien de temps',
+        'Fondé sur la science : effort minimal, vitesse au-dessus de la moyenne',
+        '10 minutes par jour suffisent',
+      ],
       lead: 'Keystrider mesure chaque frappe, repère les touches et paires de lettres qui vous ralentissent et construit votre prochain exercice autour d’elles.',
       cta: 'Commencer gratuitement',
       continue: 'Continuer l’entraînement',
@@ -302,7 +325,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     features: {
       title: 'L’essentiel, rien de plus',
       items: [
-        { title: 'Six langues, votre clavier', text: 'Entraînez-vous en français, anglais, allemand, espagnol, italien ou polonais sur AZERTY, QWERTY, QWERTZ, Dvorak, Colemak et d’autres.' },
+        { title: 'Votre langue, votre clavier', text: 'Entraînez-vous en français, anglais, allemand, espagnol, italien ou polonais sur AZERTY, QWERTY, QWERTZ, Dvorak, Colemak et d’autres.' },
         { title: 'Guide des doigts', text: 'Un clavier sous le texte montre quel doigt utiliser et s’estompe pour les touches que vous connaissez.' },
         { title: 'Test de niveau', text: 'Vous tapez déjà un peu ? Un test d’une minute saute les touches que vous maîtrisez.' },
         { title: 'Des progrès visibles', text: 'Vitesse et précision dans le temps, une carte des erreurs et vos touches et paires de lettres les plus lentes.' },
@@ -334,6 +357,11 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     hero: {
       eyebrow: 'Dattilografia gratis · senza registrazione',
       title: 'Impara a scrivere con dieci dita con un allenatore che capisce i tuoi errori',
+      rotate: [
+        'Impara a scrivere veloce in pochissimo tempo',
+        'Basato sulla scienza: sforzo minimo, velocità sopra la media',
+        'Bastano 10 minuti al giorno',
+      ],
       lead: 'Keystrider misura ogni battuta, individua i tasti e le coppie di lettere che ti rallentano e ci costruisce sopra il tuo prossimo esercizio.',
       cta: 'Inizia gratis',
       continue: 'Continua ad allenarti',
@@ -370,7 +398,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     features: {
       title: 'Tutto quello che serve, niente di più',
       items: [
-        { title: 'Sei lingue, la tua tastiera', text: 'Allenati in italiano, inglese, tedesco, francese, spagnolo o polacco su QWERTY, QWERTZ, AZERTY, Dvorak, Colemak e altre.' },
+        { title: 'La tua lingua, la tua tastiera', text: 'Allenati in italiano, inglese, tedesco, francese, spagnolo o polacco su QWERTY, QWERTZ, AZERTY, Dvorak, Colemak e altre.' },
         { title: 'Guida per le dita', text: 'Una tastiera sotto il testo mostra quale dito usare e si attenua per i tasti che conosci già.' },
         { title: 'Test di livello', text: 'Scrivi già un po’? Un test di un minuto salta i tasti che padroneggi.' },
         { title: 'Progressi visibili', text: 'Velocità e precisione nel tempo, una mappa degli errori e i tuoi tasti e coppie di lettere più lenti.' },
@@ -402,6 +430,11 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     hero: {
       eyebrow: 'Darmowy trener pisania · bez rejestracji',
       title: 'Naucz się pisać bezwzrokowo z trenerem, który rozumie twoje błędy',
+      rotate: [
+        'Naucz się szybko pisać w krótkim czasie',
+        'Oparte na nauce: minimalny wysiłek, ponadprzeciętne tempo',
+        'Wystarczy 10 minut dziennie',
+      ],
       lead: 'Keystrider mierzy każde uderzenie w klawisz, wyłapuje klawisze i pary liter, które cię spowalniają, i na nich buduje kolejne ćwiczenie.',
       cta: 'Zacznij za darmo',
       continue: 'Ćwicz dalej',
@@ -438,7 +471,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
     features: {
       title: 'Wszystko, czego trzeba, nic ponad to',
       items: [
-        { title: 'Sześć języków, twoja klawiatura', text: 'Ćwicz po polsku, angielsku, niemiecku, francusku, hiszpańsku lub włosku na QWERTY, QWERTZ, AZERTY, Dvorak, Colemak i innych.' },
+        { title: 'Twój język, twoja klawiatura', text: 'Ćwicz po polsku, angielsku, niemiecku, francusku, hiszpańsku lub włosku na QWERTY, QWERTZ, AZERTY, Dvorak, Colemak i innych.' },
         { title: 'Podpowiedź palców', text: 'Klawiatura pod tekstem pokazuje, którym palcem pisać, i przygasa przy klawiszach, które już znasz.' },
         { title: 'Test poziomujący', text: 'Już trochę piszesz? Minutowy test pomija klawisze, które opanowałeś(-aś).' },
         { title: 'Widoczne postępy', text: 'Tempo i dokładność w czasie, mapa błędów oraz twoje najwolniejsze klawisze i pary liter.' },

@@ -20,7 +20,7 @@ import type { LandingCopy, LandingLanguage } from './content';
  * on the start buttons instead.
  */
 
-type Demo = LandingCopy['demo'] & { app: string; lang: LandingLanguage; continue: string };
+type Demo = LandingCopy['demo'] & { app: string; lang: LandingLanguage; continue: string; titles: string[] };
 
 const theme = loadThemeSetting();
 if (theme !== 'system') document.documentElement.dataset.theme = theme;
@@ -234,4 +234,52 @@ box.addEventListener('click', (e) => {
   if (result.hidden && !(e.target as Element).closest('a, button:not(#lp-start)')) input.focus();
 });
 
+/**
+ * The headline types itself: it waits on the first one, then deletes it as
+ * if with backspace and types the next, in turn, behind a blinking caret.
+ * Screen readers keep the first headline; with reduced motion nothing moves.
+ */
+function typeHeadlines(): void {
+  const h1 = document.getElementById('lp-title')!;
+  const titles = demo.titles;
+  if (titles.length < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const live = Object.assign(document.createElement('span'), { className: 'lp-title-live' });
+  live.setAttribute('aria-hidden', 'true');
+  const text = document.createTextNode(titles[0]);
+  const caret = Object.assign(document.createElement('span'), { className: 'lp-caret' });
+  live.append(text, caret);
+  const sizers = titles.map((t) => {
+    const s = Object.assign(document.createElement('span'), { className: 'lp-title-sizer', textContent: t });
+    s.setAttribute('aria-hidden', 'true');
+    return s;
+  });
+  const spoken = Object.assign(document.createElement('span'), { className: 'sr-only', textContent: titles[0] });
+  h1.replaceChildren(spoken, ...sizers, live);
+  h1.classList.add('is-typing');
+
+  const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+  const busy = (on: boolean) => live.classList.toggle('is-busy', on);
+  (async () => {
+    for (let i = 0; ; i = (i + 1) % titles.length) {
+      busy(false);
+      await wait(i === 0 && text.data === titles[0] ? 4000 : 2600);
+      busy(true);
+      while (text.data) {
+        text.data = [...text.data].slice(0, -1).join('');
+        await wait(22);
+      }
+      busy(false);
+      await wait(450);
+      busy(true);
+      const next = [...titles[(i + 1) % titles.length]];
+      for (let n = 1; n <= next.length; n++) {
+        text.data = next.slice(0, n).join('');
+        // A little uneven, like a person typing; a beat longer after a space or a colon.
+        await wait(45 + Math.random() * 55 + (/[\s:,]/.test(next[n - 1]) ? 60 : 0));
+      }
+    }
+  })();
+}
+
 reset();
+typeHeadlines();
