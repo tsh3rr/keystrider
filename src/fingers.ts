@@ -1,4 +1,4 @@
-import { howToType } from './layouts';
+import { howToType } from './layouts.ts';
 
 /**
  * Which finger presses which key, in standard touch typing.

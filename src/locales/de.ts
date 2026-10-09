@@ -1,4 +1,4 @@
-import type { Messages } from '../i18n';
+import type { Messages } from '../i18n.ts';
 
 /**
  * German interface text. Same keys as src/locales/en.ts; a key missing here is a type error.
