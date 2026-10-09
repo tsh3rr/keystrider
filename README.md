@@ -147,3 +147,7 @@ GitHub Actions:
 ## Impressum and privacy policy
 
 `/impressum` and `/datenschutz` (`impressum.html`, `datenschutz.html`, texts in `src/legal/content.ts`) are written for a private, non-commercial site run from Austria, in German (binding) and English. The owner's name, town and e-mail are in `src/legal/owner.ts`. The privacy policy says the site sets no cookies, has no analytics, and stores practice data only in the browser unless the learner signs in (then in Supabase, Frankfurt); if that changes (Cloudflare Web Analytics, ads, a mail provider), update the texts first. A cookie banner is not needed while all browser storage is strictly necessary for the trainer (§ 165 Abs. 3 TKG 2021).
+
+## Thanks
+
+Keystrider is inspired by [Monkeytype](https://github.com/monkeytypegame/monkeytype), the open-source typing test by Miodec and its contributors. Its clean, distraction-free practice set the bar for how typing in a browser should feel. Keystrider contains no Monkeytype code or word lists, so Monkeytype's GPL-3.0 license does not apply here.

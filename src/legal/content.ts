@@ -68,13 +68,17 @@ const licenses = {
     <ul>
       <li>Die Übungswörter stammen aus <a href="https://github.com/rspeer/wordfreq">wordfreq</a> (Robyn Speer), Lizenz <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de">CC BY-SA 4.0</a>. Die deutsche Rechtschreibung wurde mit den Worthäufigkeiten aus <a href="https://github.com/barrust/pyspellchecker">pyspellchecker</a> geprüft, die auf <a href="https://github.com/hermitdave/FrequencyWords">FrequencyWords</a> (Hermit Dave, CC BY-SA 4.0) beruhen. Die daraus erstellten Wortlisten stehen ebenfalls unter CC BY-SA 4.0.</li>
       <li>Der Filter für anstößige Wörter nutzt die <a href="https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words">List of Dirty, Naughty, Obscene, and Otherwise Bad Words</a>, Lizenz <a href="https://creativecommons.org/licenses/by/4.0/deed.de">CC BY 4.0</a>.</li>
-    </ul>`,
+    </ul>
+    <h2>Danke</h2>
+    <p>Keystrider ist von <a href="https://monkeytype.com">Monkeytype</a> inspiriert, dem quelloffenen Tipptrainer von Miodec und seiner Community. Das schlichte, ablenkungsfreie Üben dort hat gezeigt, wie gut sich Tippen im Browser anfühlen kann. Keystrider verwendet keinen Code und keine Wortlisten von Monkeytype.</p>`,
   en: `
     <h2>Sources and licenses</h2>
     <ul>
       <li>Practice words come from <a href="https://github.com/rspeer/wordfreq">wordfreq</a> (Robyn Speer), licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>. German spelling was checked against the word frequencies in <a href="https://github.com/barrust/pyspellchecker">pyspellchecker</a>, which are based on <a href="https://github.com/hermitdave/FrequencyWords">FrequencyWords</a> (Hermit Dave, CC BY-SA 4.0). The resulting word lists are under CC BY-SA 4.0 as well.</li>
       <li>The offensive-word filter uses the <a href="https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words">List of Dirty, Naughty, Obscene, and Otherwise Bad Words</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</li>
-    </ul>`,
+    </ul>
+    <h2>Thanks</h2>
+    <p>Keystrider is inspired by <a href="https://monkeytype.com">Monkeytype</a>, the open-source typing test by Miodec and its community. Its clean, distraction-free practice showed how good typing in a browser can feel. Keystrider uses no code or word lists from Monkeytype.</p>`,
 };
 
 const imprint: Record<LegalLanguage, string> = {
