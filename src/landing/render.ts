@@ -1,3 +1,4 @@
+import { FEATURE_ART } from './art.ts';
 import { BRAND_MARK } from './brand.ts';
 import { COPY, LANDING_LANGUAGES, landingPath, type LandingLanguage } from './content.ts';
 
@@ -131,7 +132,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
       <section class="lp-section" aria-labelledby="lp-features">
         <h2 id="lp-features">${esc(c.features.title)}</h2>
         <ul class="lp-grid lp-feats">
-          ${c.features.items.map((i) => `<li class="lp-feat"><h3>${esc(i.title)}</h3><p>${esc(i.text)}</p></li>`).join('\n          ')}
+          ${c.features.items.map((i, n) => `<li class="lp-feat">${FEATURE_ART[n] ?? ''}<h3>${esc(i.title)}</h3><p>${esc(i.text)}</p></li>`).join('\n          ')}
         </ul>
       </section>
 

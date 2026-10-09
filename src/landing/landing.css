@@ -101,6 +101,33 @@ a.lp-signin:hover { text-decoration: underline; }
 .lp-card, .lp-feat { padding: 18px 20px; border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--border); box-shadow: var(--card-lift); }
 .lp-card h3, .lp-feat h3 { margin: 0 0 6px; font-size: 1.02rem; }
 .lp-card p, .lp-feat p { margin: 0; color: var(--muted); font-size: 0.93rem; }
+/* Feature pictures (art.ts): a tinted band across the top of each tile. */
+.lp-feat { overflow: hidden; }
+.lp-art {
+  display: block; width: calc(100% + 40px); height: 112px; margin: -18px -20px 14px; padding: 10px 0 4px;
+  background: linear-gradient(color-mix(in oklch, var(--accent-soft) 70%, var(--panel)), var(--panel));
+  border-bottom: 1px solid var(--border);
+}
+.lp-art text { font-family: var(--mono); font-weight: 700; text-anchor: middle; }
+.art-cap { fill: #fff; font-size: 15px; }
+.art-heat { fill: var(--fg); font-size: 12px; }
+.art-heat-on { fill: #fff; }
+.art-paper { fill: var(--panel); stroke: var(--border); stroke-width: 2; }
+.art-flag { fill: none; stroke: color-mix(in oklch, var(--fg) 18%, transparent); stroke-width: 1; }
+.art-key { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+.art-ring { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 5 4; }
+.art-finger { fill: color-mix(in oklch, var(--brand-ember) 22%, var(--panel)); stroke: var(--brand-ember); stroke-width: 2.5; }
+.art-arrow, .art-tick, .art-jump, .art-pole, .art-link, .art-chart, .art-grid { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.art-arrow { stroke: var(--accent); stroke-width: 3; }
+.art-jump { stroke: var(--accent); stroke-width: 3; stroke-dasharray: 2 7; }
+.art-pole { stroke: var(--muted); stroke-width: 3; }
+.art-tick { stroke: #fff; stroke-width: 2.6; }
+.art-link { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 3 5; }
+.art-chart { stroke: var(--brand-cobalt); stroke-width: 3.5; }
+.art-grid { stroke: var(--border); stroke-width: 1.5; }
+.art-day { fill: none; stroke: var(--border); stroke-width: 2; }
+.art-cloud { fill: color-mix(in oklch, var(--accent-soft) 80%, var(--panel)); stroke: var(--accent); stroke-width: 2.5; }
+
 .lp-num {
   display: inline-grid; place-items: center; width: 30px; height: 30px; margin-bottom: 10px; border-radius: var(--r-sm);
   font-family: var(--mono); font-weight: 700; color: #fff; background: var(--cobalt-key); box-shadow: inset 0 -2px 0 var(--cobalt-edge);
