@@ -111,26 +111,12 @@ a.lp-signin:hover { text-decoration: underline; }
   border: 1px solid var(--border); box-shadow: inset 0 -2px 0 oklch(0.25 0.05 264 / .14);
 }
 
-/* Finger guide under the line: the next key in cobalt, the rest tinted by finger. */
-.lp-guide { margin-top: 10px; padding-top: 14px; border-top: 1px dashed var(--border); display: grid; justify-items: center; gap: 10px; }
-.lp-guide-cap { margin: 0; display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: 13px; color: var(--muted); }
 .lp-v-cobalt {
   display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 5px;
   background: var(--cobalt-key); color: #fff; font-family: var(--mono); font-weight: 700; font-size: 13px;
   box-shadow: inset 0 -2px 0 var(--cobalt-edge);
 }
-.lp-kb { --k: 28px; display: grid; gap: 4px; justify-items: start; }
-.lp-kb-row { display: flex; gap: 4px; }
-.lp-kb-row-1 { margin-left: 10px; }
-.lp-kb-row-2 { margin-left: 24px; }
-.lp-kb-row:last-child { justify-self: center; }
-.lp-kb-key {
-  display: inline-grid; place-items: center; width: var(--k); height: var(--k); border-radius: 5px;
-  font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--fg); box-shadow: var(--key-edge);
-  transition: background 0.12s, transform 0.12s;
-}
-.lp-kb-space { width: 168px; height: 24px; }
-.lp-kb-key.is-next, .lp-v-fkey.is-next {
+.lp-v-fkey.is-next {
   background: var(--cobalt-key); color: #fff;
   box-shadow: inset 0 -2px 0 var(--cobalt-edge), 0 0 0 3px var(--next-ring); transform: translateY(-1px);
 }
@@ -417,19 +403,10 @@ a.lp-signin:hover { text-decoration: underline; }
   .lp-demo-head { grid-template-columns: auto minmax(0, 1fr); }
   .lp-demo-head > span:first-child { display: none; }
   .lp-demo-head label { justify-self: start; }
-  .lp-kb { --k: 22px; gap: 3px; }
-  .lp-kb-row { gap: 3px; }
-  .lp-kb-row-1 { margin-left: 7px; }
-  .lp-kb-row-2 { margin-left: 16px; }
-  .lp-kb-key { font-size: 11px; }
-  .lp-kb-space { width: 120px; height: 20px; }
   .lp-numbers { gap: 24px; }
   .lp-section { padding: 44px 0; }
   .lp-final { grid-template-columns: 1fr; }
   .lp-final-mark { display: none; }
-}
-@media (max-width: 380px) {
-  .lp-kb { --k: 19px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -280,10 +280,6 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
             <div id="lp-text" class="text lp-text" aria-hidden="true">${esc(c.demo.lines[0])}</div>
             <button id="lp-start" class="start-pill" type="button" hidden><kbd aria-hidden="true">⌨</kbd>${esc(c.demo.start)}</button>
           </div>
-          <div id="lp-guide" class="lp-guide" aria-hidden="true" hidden>
-            <p class="lp-guide-cap"><kbd id="lp-guide-key" class="lp-v-cobalt"></kbd><span id="lp-guide-finger"></span></p>
-            <div id="lp-kb" class="lp-kb"></div>
-          </div>
           <textarea id="lp-input" class="typing-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
           <div role="status" aria-live="polite"><div id="lp-result" class="lp-result" hidden></div></div>
         </div>
@@ -373,7 +369,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
 
     <script type="application/json" id="lp-data">${jsonBlock({
       ...c.demo, app, lang, continue: c.hero.continue, titles: [c.hero.title, ...c.hero.rotate],
-      fingers: fingerNames(lang), spaceKey: APP_TEXT[lang]['key.space'], vignettes,
+      vignettes,
     })}</script>
     <script type="module" src="/src/landing/main.ts"></script>
   </body>

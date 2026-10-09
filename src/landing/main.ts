@@ -1,7 +1,6 @@
 import '@fontsource-variable/jetbrains-mono';
 import { PLACEMENT_WORDS, canSkipAhead, saveLandingTest, wordsTyped } from '../handoff';
-import { KeyObserver, ROWS, detectLayout, getLayout, guessFromLocale } from '../layouts';
-import { fingerFor, fingerId, guideFor } from '../fingers';
+import { KeyObserver, detectLayout, guessFromLocale } from '../layouts';
 import { TypingSession } from '../session';
 import { loadThemeSetting } from '../settings';
 import type { KeystrokeEvent } from '../types';
@@ -12,8 +11,7 @@ import { HEAT_LEVELS, PLACED, PLACE_CELLS, QWERTY_TOP, STEPS, WEEK_DONE, WEEK_GO
  * The typing line in the landing page's hero. It is the start of the
  * trainer's placement test: typed with the trainer's own TypingSession (a
  * wrong key holds you on the letter), with the layout recognised from the
- * keys pressed. A small keyboard under the line shows the next key and the
- * finger for it. At the end it shows speed, accuracy and the keys that held
+ * keys pressed. At the end it shows speed, accuracy and the keys that held
  * the learner up, and says what comes next in the trainer: lesson 1, or the
  * rest of the placement test for whoever can skip ahead. The page's one start
  * button below then says so, with an arrow pointing at it. The keystrokes
@@ -31,8 +29,6 @@ type Demo = LandingCopy['demo'] & {
   lang: LandingLanguage;
   continue: string;
   titles: string[];
-  fingers: Record<string, string>;
-  spaceKey: string;
   vignettes: VignetteData;
 };
 
@@ -70,63 +66,6 @@ const guessedLayout = guessFromLocale(browserLocales);
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) =>
   Object.assign(document.createElement(tag), { className: cls }, text === undefined ? {} : { textContent: text });
 
-/**
- * The finger guide under the line: three letter rows and Space of the
- * layout in use, tinted by finger, the next key raised in cobalt. It starts
- * on the layout guessed from the browser language and switches once the
- * keys pressed show another.
- */
-const guide = {
-  root: document.getElementById('lp-guide')!,
-  kb: document.getElementById('lp-kb')!,
-  key: document.getElementById('lp-guide-key')!,
-  finger: document.getElementById('lp-guide-finger')!,
-  layout: '',
-  keys: new Map<string, HTMLElement>(),
-  lit: null as HTMLElement | null,
-
-  build(layoutId: string): void {
-    if (layoutId === this.layout) return;
-    const layout = getLayout(layoutId);
-    if (!layout) return;
-    this.layout = layoutId;
-    this.keys.clear();
-    this.lit = null;
-    // The letter rows without the digits; the ISO key left of Z is left out to keep the rows short.
-    const rows = [ROWS[1].slice(0, 11), ROWS[2].slice(0, 11), ROWS[3].slice(1)].map((codes, r) => {
-      const row = el('div', `lp-kb-row lp-kb-row-${r}`);
-      for (const code of codes) {
-        const ch = layout.keys.get(code);
-        if (ch === undefined) continue;
-        const key = el('span', `lp-kb-key tint-${fingerFor(code)?.name ?? 'index'}`, ch);
-        this.keys.set(code, key);
-        row.append(key);
-      }
-      return row;
-    });
-    const space = el('span', 'lp-kb-key lp-kb-space tint-thumb');
-    this.keys.set('Space', space);
-    const spaceRow = el('div', 'lp-kb-row');
-    spaceRow.append(space);
-    this.kb.replaceChildren(...rows, spaceRow);
-  },
-
-  show(ch: string | undefined): void {
-    this.lit?.classList.remove('is-next');
-    this.lit = null;
-    if (ch === undefined) return;
-    const how = guideFor(this.layout, ch);
-    this.key.textContent = ch === ' ' ? '␣' : ch.toLocaleUpperCase(demo.lang);
-    const f = how?.finger;
-    this.finger.textContent = f ? (f.name === 'thumb' ? demo.fingers.thumb : demo.fingers[fingerId(f)]) ?? '' : '';
-    const key = how ? this.keys.get(how.code) : undefined;
-    if (key) {
-      key.classList.add('is-next');
-      this.lit = key;
-    }
-  },
-};
-
 let session: TypingSession;
 let events: KeystrokeEvent[] = [];
 let observer = new KeyObserver();
@@ -151,9 +90,6 @@ function reset(): void {
   label.textContent = demo.label;
   result.hidden = true;
   typeArea.hidden = false;
-  guide.root.hidden = false;
-  guide.build(guessedLayout);
-  guide.show(session.text[0]);
   cta.classList.remove('is-ready');
   goLabel.textContent = returning ? demo.continue : startLabel;
   showPill();
@@ -204,12 +140,7 @@ function type(ch: string): void {
     const { wpm, accuracy } = score();
     stats.textContent = `${Math.round(wpm)} ${demo.wpm} · ${Math.round(accuracy * 100)} %`;
   }
-  if (session.done) {
-    finish();
-    return;
-  }
-  guide.build(detected() ?? guide.layout);
-  guide.show(session.text[session.position]);
+  if (session.done) finish();
 }
 
 /**
@@ -284,7 +215,6 @@ function finish(): void {
   result.replaceChildren(numbers, weak, next, again);
   label.textContent = demo.result;
   typeArea.hidden = true;
-  guide.root.hidden = true;
   stats.textContent = '';
   result.hidden = false;
   input.blur();
