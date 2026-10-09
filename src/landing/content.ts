@@ -25,7 +25,8 @@ export interface LandingCopy {
   /** Search result snippet, about 155 characters. */
   description: string;
   nav: { languages: string; signIn: string; open: string };
-  hero: { eyebrow: string; title: string; lead: string; cta: string; note: string };
+  /** `continue` replaces `cta` for someone who has practised in this browser before. */
+  hero: { eyebrow: string; title: string; lead: string; cta: string; continue: string; note: string };
   demo: {
     label: string;
     start: string;
@@ -63,6 +64,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       title: 'Learn to touch type with a trainer that understands your mistakes',
       lead: 'Keystrider measures every keystroke, spots the keys and letter pairs that slow you down, and builds your next drill around them.',
       cta: 'Start practising for free',
+      continue: 'Keep practising',
       note: 'Runs in your browser. No ads, no account needed.',
     },
     demo: {
@@ -114,7 +116,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
         { q: 'Does it work on a phone or tablet?', a: 'Keystrider is made for a real keyboard. A tablet with a keyboard works well; on a phone you can look around, but touch typing needs a physical keyboard.' },
       ],
     },
-    final: { title: 'Your first drill takes two minutes', text: 'Pick your language, check your keyboard and start typing.', cta: 'Start practising' },
+    final: { title: 'Your first drill takes two minutes', text: 'Type one line and Keystrider knows where you start.', cta: 'Start practising' },
     foot: { imprint: 'Legal notice', privacy: 'Privacy', terms: 'Terms' },
   },
 
@@ -130,6 +132,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       title: 'Lerne das Zehnfingersystem mit einem Trainer, der deine Fehler versteht',
       lead: 'Keystrider misst jeden Tastendruck, erkennt die Tasten und Buchstabenpaare, die dich bremsen, und baut daraus deine nächste Übung.',
       cta: 'Jetzt kostenlos üben',
+      continue: 'Weiter üben',
       note: 'Läuft im Browser. Keine Werbung, kein Konto nötig.',
     },
     demo: {
@@ -181,7 +184,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
         { q: 'Geht das auch auf Handy oder Tablet?', a: 'Keystrider ist für eine echte Tastatur gemacht. Ein Tablet mit Tastatur funktioniert gut; auf dem Handy kannst du dich umsehen, aber blind tippen lernt man an einer richtigen Tastatur.' },
       ],
     },
-    final: { title: 'Deine erste Übung dauert zwei Minuten', text: 'Sprache wählen, Tastatur prüfen, lostippen.', cta: 'Jetzt üben' },
+    final: { title: 'Deine erste Übung dauert zwei Minuten', text: 'Eine Zeile tippen, und Keystrider weiß, wo du anfängst.', cta: 'Jetzt üben' },
     foot: { imprint: 'Impressum', privacy: 'Datenschutz', terms: 'Nutzungsbedingungen' },
   },
 
@@ -197,6 +200,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       title: 'Aprende mecanografía con un entrenador que entiende tus errores',
       lead: 'Keystrider mide cada pulsación, detecta las teclas y pares de letras que te frenan y crea con ellos tu próximo ejercicio.',
       cta: 'Empezar gratis',
+      continue: 'Seguir practicando',
       note: 'Funciona en el navegador. Sin anuncios y sin cuenta.',
     },
     demo: {
@@ -248,7 +252,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
         { q: '¿Funciona en el móvil o la tableta?', a: 'Keystrider está pensado para un teclado físico. Una tableta con teclado funciona bien; en el móvil puedes echar un vistazo, pero la mecanografía se aprende con un teclado de verdad.' },
       ],
     },
-    final: { title: 'Tu primer ejercicio lleva dos minutos', text: 'Elige idioma, comprueba tu teclado y empieza a escribir.', cta: 'Empezar' },
+    final: { title: 'Tu primer ejercicio lleva dos minutos', text: 'Escribe una línea y Keystrider sabrá por dónde empiezas.', cta: 'Empezar' },
     foot: { imprint: 'Aviso legal', privacy: 'Privacidad', terms: 'Condiciones de uso' },
   },
 
@@ -264,6 +268,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       title: 'Tapez à dix doigts avec un entraîneur qui comprend vos erreurs',
       lead: 'Keystrider mesure chaque frappe, repère les touches et paires de lettres qui vous ralentissent et construit votre prochain exercice autour d’elles.',
       cta: 'Commencer gratuitement',
+      continue: 'Continuer l’entraînement',
       note: 'Dans le navigateur. Sans publicité, sans compte.',
     },
     demo: {
@@ -315,7 +320,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
         { q: 'Ça marche sur téléphone ou tablette ?', a: 'Keystrider est fait pour un vrai clavier. Une tablette avec clavier fonctionne bien ; sur téléphone vous pouvez jeter un œil, mais la frappe à dix doigts s’apprend sur un clavier physique.' },
       ],
     },
-    final: { title: 'Votre premier exercice prend deux minutes', text: 'Choisissez la langue, vérifiez votre clavier et tapez.', cta: 'Commencer' },
+    final: { title: 'Votre premier exercice prend deux minutes', text: 'Tapez une ligne et Keystrider sait par où vous commencez.', cta: 'Commencer' },
     foot: { imprint: 'Mentions légales', privacy: 'Confidentialité', terms: 'Conditions d’utilisation' },
   },
 
@@ -331,6 +336,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       title: 'Impara a scrivere con dieci dita con un allenatore che capisce i tuoi errori',
       lead: 'Keystrider misura ogni battuta, individua i tasti e le coppie di lettere che ti rallentano e ci costruisce sopra il tuo prossimo esercizio.',
       cta: 'Inizia gratis',
+      continue: 'Continua ad allenarti',
       note: 'Funziona nel browser. Niente pubblicità, nessun account.',
     },
     demo: {
@@ -382,7 +388,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
         { q: 'Funziona su telefono o tablet?', a: 'Keystrider è pensato per una tastiera vera. Un tablet con tastiera va bene; sul telefono puoi dare un’occhiata, ma a scrivere con dieci dita si impara su una tastiera fisica.' },
       ],
     },
-    final: { title: 'Il primo esercizio richiede due minuti', text: 'Scegli la lingua, controlla la tastiera e inizia a scrivere.', cta: 'Inizia' },
+    final: { title: 'Il primo esercizio richiede due minuti', text: 'Scrivi una riga e Keystrider sa da dove partire.', cta: 'Inizia' },
     foot: { imprint: 'Note legali', privacy: 'Privacy', terms: 'Condizioni d’uso' },
   },
 
@@ -398,6 +404,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
       title: 'Naucz się pisać bezwzrokowo z trenerem, który rozumie twoje błędy',
       lead: 'Keystrider mierzy każde uderzenie w klawisz, wyłapuje klawisze i pary liter, które cię spowalniają, i na nich buduje kolejne ćwiczenie.',
       cta: 'Zacznij za darmo',
+      continue: 'Ćwicz dalej',
       note: 'Działa w przeglądarce. Bez reklam i bez konta.',
     },
     demo: {
@@ -449,7 +456,7 @@ export const COPY: Record<LandingLanguage, LandingCopy> = {
         { q: 'Czy działa na telefonie lub tablecie?', a: 'Keystrider jest zrobiony dla prawdziwej klawiatury. Tablet z klawiaturą sprawdza się dobrze; na telefonie możesz się rozejrzeć, ale pisania bezwzrokowego uczy się na fizycznej klawiaturze.' },
       ],
     },
-    final: { title: 'Pierwsze ćwiczenie zajmie dwie minuty', text: 'Wybierz język, sprawdź klawiaturę i zacznij pisać.', cta: 'Zacznij' },
+    final: { title: 'Pierwsze ćwiczenie zajmie dwie minuty', text: 'Przepisz jedną linijkę, a Keystrider będzie wiedział, od czego zacząć.', cta: 'Zacznij' },
     foot: { imprint: 'Nota prawna', privacy: 'Prywatność', terms: 'Regulamin' },
   },
 };

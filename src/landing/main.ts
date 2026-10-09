@@ -12,11 +12,15 @@ import type { LandingCopy, LandingLanguage } from './content';
  * wrong key holds you on the letter), with the layout recognised from the
  * keys pressed. At the end it shows speed, accuracy and the keys that held
  * the learner up, and says what comes next in the trainer: lesson 1, or the
- * rest of the placement test for whoever can skip ahead. The keystrokes are
- * handed over (handoff.ts) so the trainer carries on from here.
+ * rest of the placement test for whoever can skip ahead. The page's one start
+ * button below then says so, with an arrow pointing at it. The keystrokes
+ * are handed over (handoff.ts) so the trainer carries on from here.
+ *
+ * Someone who has practised in this browser before sees "Keep practising"
+ * on the start buttons instead.
  */
 
-type Demo = LandingCopy['demo'] & { app: string; lang: LandingLanguage };
+type Demo = LandingCopy['demo'] & { app: string; lang: LandingLanguage; continue: string };
 
 const theme = loadThemeSetting();
 if (theme !== 'system') document.documentElement.dataset.theme = theme;
@@ -28,6 +32,20 @@ const input = document.getElementById('lp-input') as HTMLTextAreaElement;
 const startPill = document.getElementById('lp-start')!;
 const stats = document.getElementById('lp-stats')!;
 const result = document.getElementById('lp-result')!;
+const cta = document.getElementById('lp-cta')!;
+const go = document.getElementById('lp-go')!;
+const goLabel = go.querySelector<HTMLElement>('[data-cta]')!;
+const startLabel = goLabel.textContent!;
+
+/** Has practised here before: the same test as public/to-app.js, which sends them on unless they asked for this page. */
+const returning = (() => {
+  try {
+    return localStorage.getItem('typing-trainer.onboarded') === '1' || localStorage.getItem('typing-trainer.language') !== null;
+  } catch {
+    return false;
+  }
+})();
+if (returning) document.querySelectorAll('[data-cta]').forEach((el) => { el.textContent = demo.continue; });
 
 const browserLocales = navigator.languages?.length ? navigator.languages : [navigator.language];
 const guessedLayout = guessFromLocale(browserLocales);
@@ -55,6 +73,8 @@ function reset(): void {
   stats.textContent = '';
   result.hidden = true;
   textEl.hidden = false;
+  cta.classList.remove('is-ready');
+  goLabel.textContent = returning ? demo.continue : startLabel;
   showPill();
 }
 
@@ -164,14 +184,13 @@ function finish(): void {
   const next = el('p', 'lp-next', fast ? demo.nextFast.replace('{n}', String(left)) : demo.nextBeginner);
 
   const actions = el('div', 'lp-actions');
-  const go = Object.assign(el('a', 'lp-btn', `${fast ? demo.ctaFast : demo.ctaBeginner} →`), { href: demo.app });
   const again = Object.assign(el('button', 'link-btn', demo.again), { type: 'button' });
   again.addEventListener('click', () => {
     lineIndex++;
     reset();
     input.focus();
   });
-  actions.append(go, again);
+  actions.append(again);
 
   result.replaceChildren(numbers, weak, next, actions);
   textEl.hidden = true;
@@ -179,7 +198,11 @@ function finish(): void {
   result.hidden = false;
   input.blur();
   showPill();
-  go.focus();
+  // One way on: the start button under the line now names the next step, and an arrow points at it.
+  goLabel.textContent = returning ? demo.continue : fast ? demo.ctaFast : demo.ctaBeginner;
+  cta.classList.add('is-ready');
+  go.focus({ preventScroll: true });
+  go.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 input.addEventListener('keydown', (e) => {

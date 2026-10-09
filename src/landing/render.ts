@@ -113,8 +113,9 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
           <div id="lp-result" class="lp-result" role="status" hidden></div>
         </div>
 
-        <div class="lp-cta">
-          <a class="lp-btn" href="${app}">${esc(c.hero.cta)} <span aria-hidden="true">→</span></a>
+        <div id="lp-cta" class="lp-cta">
+          <span class="lp-arrow" aria-hidden="true"></span>
+          <a id="lp-go" class="lp-btn" href="${app}"><span data-cta>${esc(c.hero.cta)}</span> <span aria-hidden="true">→</span></a>
           <p class="lp-note">${esc(c.hero.note)}</p>
         </div>
       </section>
@@ -142,7 +143,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
       <section class="lp-final">
         <h2>${esc(c.final.title)}</h2>
         <p>${esc(c.final.text)}</p>
-        <a class="lp-btn" href="${app}">${esc(c.final.cta)} <span aria-hidden="true">→</span></a>
+        <a class="lp-btn" href="${app}"><span data-cta>${esc(c.final.cta)}</span> <span aria-hidden="true">→</span></a>
       </section>
     </main>
 
@@ -153,7 +154,7 @@ export function renderLanding(lang: LandingLanguage, site: string): string {
       <a href="/nutzungsbedingungen">${esc(c.foot.terms)}</a>
     </footer>
 
-    <script type="application/json" id="lp-data">${jsonBlock({ ...c.demo, app, lang })}</script>
+    <script type="application/json" id="lp-data">${jsonBlock({ ...c.demo, app, lang, continue: c.hero.continue })}</script>
     <script type="module" src="/src/landing/main.ts"></script>
   </body>
 </html>
